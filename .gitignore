@@ -1,23 +1,62 @@
-# Secrets
+# ---------------------------------------------------------------
+# Secrets  (CONTRIBUTING 11.1) - never commit these
+# ---------------------------------------------------------------
 .env
+.env.*
+!.env.example
 *.pem
 *.key
 secrets/
 
-# Dependencies / virtual environments (adjust to the stack)
+# ---------------------------------------------------------------
+# Dependencies / virtual environments
+# ---------------------------------------------------------------
 node_modules/
 .venv/
 venv/
+env/
 __pycache__/
+*.py[cod]
+*.egg-info/
 
-# Build, logs, local databases
+# ---------------------------------------------------------------
+# Tool caches, test and coverage output
+# ---------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# ---------------------------------------------------------------
+# Build output, logs, local databases
+# ---------------------------------------------------------------
 dist/
 build/
 *.log
 *.db
 *.sqlite
+*.sqlite3
 
+# ---------------------------------------------------------------
+# Generated data (document how to regenerate it in the README)
+# Small seed files may be committed outside this folder.
+# ---------------------------------------------------------------
+data/generated/
+
+# ---------------------------------------------------------------
+# Demo video - do NOT commit; link it in README (CONTRIBUTING 11.3)
+# ---------------------------------------------------------------
+*.mp4
+*.mov
+*.mkv
+*.avi
+
+# ---------------------------------------------------------------
 # IDE / OS
+# ---------------------------------------------------------------
 .vscode/
 .idea/
 .DS_Store

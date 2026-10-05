@@ -1,0 +1,9 @@
+# Consistent line endings across Windows / macOS / Linux machines.
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.drawio.png binary

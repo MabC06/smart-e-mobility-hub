@@ -1,0 +1,10 @@
+# Replace @M1_GITHUB_USERNAME with the real GitHub username of M1 (Lead).
+# Used with "Require review from Code Owners" in branch protection so that
+# PRs touching the core contract automatically need M1's approval
+# (CONTRIBUTING section 6).
+
+/src/core/                   @MabC06
+/tests/core/                 @MabC06
+/docs/design/architecture/   @MabC06
+/docs/DECISIONS.md           @MabC06
+/CONTRIBUTING.md             @MabC06

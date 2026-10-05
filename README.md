@@ -63,7 +63,7 @@ Per the assignment specification, the system supports at least the following 12 
 | M8     | Testing, QA & Report Integration Lead; IoT data simulator  | Lý Thành Tín      | 2453252    |
 
 
-Task breakdown, deliverables per member and the team timeline: [docs/task-assignment-timeline.md](docs/task-assignment-timeline.md).
+Task breakdown, deliverables per member and the team timeline: `[docs/task-assignment-timeline.md](docs/task-assignment-timeline.md)`.
 
 ## Repository Structure
 
