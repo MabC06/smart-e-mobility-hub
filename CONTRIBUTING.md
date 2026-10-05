@@ -20,9 +20,18 @@ Set your identity **per repo**, not `--global` on shared machines.
 
 ```bash
 git config --local user.name  "<Student ID> <Full name>"
-git config --local user.email "<school email>"
+git config --local user.email "<your GitHub noreply email>"   # e.g. 12345678+username@users.noreply.github.com
 git config --local --list | grep user      # verify
 ```
+
+**How to get your GitHub noreply email:**
+
+1. Click your profile picture → **Settings** → **Emails**.
+2. Turn on **Keep my email addresses private**.
+3. Copy the address GitHub shows under it: `<number>+<username>@users.noreply.github.com` (older accounts may show `<username>@users.noreply.github.com`).
+4. Recommended: also turn on **Block command line pushes that expose my email**, so a commit made with your real email is rejected.
+
+Commits made with this address are still linked to your GitHub profile, but your real email does not appear in the repo history. Commits made before you changed the setting keep the old email; do not rewrite shared history to fix that.
 
 ## 3. Branches
 
@@ -98,7 +107,7 @@ The report is graded on consistency between requirements, design, code and tests
 - PRs target `develop` (except the Lead's `develop` → `main` PR).
 - Use `.github/pull_request_template.md` (GitHub fills it in automatically).
 - At least **1 approval** from someone else is required before merging; authors never approve their own PR.
-- A PR is only "Done" with its tests. PRs touching important business logic (`core`, `reservation`, `charging`, `allocation`, `simulation`) need M8's sign-off on test coverage.
+- A PR is only "Done" with its tests. PRs touching important business logic (`core`, `reservation`, `charging`, `allocation`, `simulation`) need M8's sign-off that the tests exist and pass.
 - Authors address feedback with new commits on the same branch and resolve all conversations before merging.
 
 **Primary reviewer per module** (adjust by team agreement):
