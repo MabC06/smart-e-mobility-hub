@@ -164,15 +164,18 @@ git rebase      # on pushed branches that others rely on
 
 On conflicts: resolve carefully, re-run tests, and never blindly "accept all".
 
-## 8. Branch protection (for the Lead)
+## 8. Branch protection — not available, process-based alternative (see D-001)
 
-In Settings → Branches (or Rulesets), apply to both `main` and `develop` (option names may vary by UI):
+GitHub branch protection rules (Settings → Branches / Rulesets) require a paid plan for a private repository; our GitHub Free + private repo setup cannot enforce them technically. The team substitutes a manual process instead, which everyone must follow even though GitHub will not block violations:
 
-- Require a pull request before merging, with 1 required approval.
-- Dismiss stale approvals when new commits are pushed.
-- Require conversation resolution before merging.
-- Block force pushes; restrict deletions.
-- Require status checks to pass: enable once CI exists.
+- No one pushes directly to `main` or `develop` (section 1, rule 7); all changes go through a PR.
+- Only the **Lead** merges `develop` → `main`.
+- Every PR needs **1 approval** from someone else before the Lead (or the branch owner, for PRs into `develop`) merges it; authors never approve their own PR.
+- CODEOWNERS (`.github/CODEOWNERS`) still auto-requests the right reviewer for `src/core/`, `tests/core/`, `docs/design/architecture/`, `docs/DECISIONS.md` and `CONTRIBUTING.md`, but does not block the merge button.
+- Before approving, the reviewer checks that CI is green and all conversations are resolved — GitHub cannot require this for us.
+- Never force-push or delete `main`/`develop`; this is a convention, not a GitHub-enforced block.
+
+If the team later gets access to GitHub Pro/Team (for example via the GitHub Student/education benefit), revisit this section and re-enable real branch protection.
 
 ## 9. Code rules
 

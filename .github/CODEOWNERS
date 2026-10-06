@@ -1,7 +1,9 @@
 # Replace @M1_GITHUB_USERNAME with the real GitHub username of M1 (Lead).
-# Used with "Require review from Code Owners" in branch protection so that
-# PRs touching the core contract automatically need M1's approval
-# (CONTRIBUTING section 6).
+# GitHub Free + private repo cannot enforce "Require review from Code Owners"
+# (no branch protection, see D-001 in docs/DECISIONS.md). This file still
+# auto-requests M1 as a reviewer on PRs touching these paths; the team treats
+# that review as required by convention (CONTRIBUTING sections 6 and 8),
+# not by a GitHub-enforced block.
 
 /src/core/                   @MabC06
 /tests/core/                 @MabC06

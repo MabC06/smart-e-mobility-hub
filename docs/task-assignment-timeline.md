@@ -79,7 +79,7 @@ Each cell lists what the module owner must have **finished by the end of that ph
 
 | Module | Deliverables due |
 | ------ | ---------------- |
-| **M1** | Introduction draft (context, objectives, scope, assumptions, system boundary); NFR list v1 with measurable targets; repo set-up (branch protection, `.gitignore`, `.env.example`, `docs/DECISIONS.md`); tech-stack proposal |
+| **M1** | Introduction draft (context, objectives, scope, assumptions, system boundary); NFR list v1 with measurable targets; repo set-up (merge-process convention in place of branch protection — see D-001, `.gitignore`, `.env.example`, `docs/DECISIONS.md`); tech-stack proposal |
 | **M2** | Consolidated use-case diagrams v1 (split into several diagrams, not one large one) + stakeholder/actor list; FR-02–05 and FR-07 (parking side) requirements; use-case table for FR-02–05 and FR-07 (parking side); draft BRs (cancellation, hold time, double booking) |
 | **M3** | FR-06/07 (charging side) and FR-11 (scheduling side) requirements; use-case table for charging requests (fleet & private vehicles); draft BRs (schedule conflicts, charging-point capacity) |
 | **M4** | FR-10/11 (allocation side) requirements; draft BRs for allocation priority under scarce resources |

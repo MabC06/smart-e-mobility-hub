@@ -29,7 +29,7 @@
 | Tests | pytest, pytest-cov | Parametrized tests fit equivalence partitioning and boundary-value tables; a marker per `TC-xxx`. | unittest. |
 | Lint / format / types | ruff, mypy | Enforces CONTRIBUTING section 9 (rules 10, 11). | flake8 + black. |
 | Dependencies | `pyproject.toml` with a lock file (e.g. `uv` or `pip-compile`); `package-lock.json` for the frontend | Pinned versions (CONTRIBUTING 9.12). Exact versions are fixed when the project is scaffolded. | `requirements.txt` with `==` pins. |
-| CI | GitHub Actions: ruff, mypy, pytest, import-boundary check | Allows "Require status checks" in branch protection. Add after the first scaffold. | None. |
+| CI | GitHub Actions: ruff, mypy, pytest, import-boundary check | Runs on every PR; since GitHub Free + private repo cannot require status checks (D-001), the reviewer/Lead checks the CI result manually before approving/merging. Add after the first scaffold. | None. |
 | Diagrams | Mermaid for sequence/state/activity (renders on GitHub); draw.io or PlantUML for architecture, class diagram and ERD | Source files stay in the repo next to exported images. | — |
 | Test-case management | Markdown/CSV tables in `docs/testing/` plus pytest markers carrying the `TC-xxx` ID | Keeps tests, IDs and traceability sheet in one repo. | External tool (extra cost). |
 
