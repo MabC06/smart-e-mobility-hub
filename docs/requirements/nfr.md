@@ -1,14 +1,14 @@
 # Non-Functional Requirements (NFR) — v1
 
 > **Status:** Draft v1 · **Owner:** M1 · **Date:** 2026-10-05 · Phase 0 deliverable (due 2026-10-09)
-> All targets are **proposals** to be agreed by the team and re-validated by measurement in Sprint 2 (see `D-008` in `docs/DECISIONS.md`).
+> All targets are **proposals** to be agreed by the team and re-validated by measurement in Sprint 2 (2026-11-07 to 2026-11-13), tied to the reference dataset DS-STD (A-11).
 > Each requirement states a measurable target and how it is verified, so that M8 can derive test cases (`TC-xxx`) from it.
 
 ## 1. Conventions
 
 - **ID:** `NFR-xx`. IDs are reused in commits, PRs and tests (CONTRIBUTING section 5).
 - **p95:** 95th-percentile response time measured at the API boundary.
-- **DS-STD (reference dataset, A-12):** 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs, 1,000 student accounts. Performance targets assume 100 concurrent sessions. Full specification: `docs/requirements/reference-dataset.md`.
+- **DS-STD (reference dataset, A-11):** 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs, 1,000 student accounts. Performance targets assume 100 concurrent sessions. Full specification: `docs/requirements/reference-dataset.md`.
 - **DS-STRESS:** 2x DS-STD.
 - **Priority:** M = must (core to the rubric or to correctness), S = should, C = could.
 
@@ -27,7 +27,7 @@
 | ID | Requirement | Target | Verification | Related | Prio |
 |---|---|---|---|---|---|
 | NFR-06 | No double allocation of a vehicle, parking space or charging slot. | With 20 to 50 simultaneous requests for the same resource, exactly one succeeds and the others get a conflict error. 0 violations over 100 repeated runs. | Concurrency test. | FR-03, FR-05, FR-06; BR (double booking) | M |
-| NFR-07 | Capacity and uniqueness invariants always hold. | Occupied parking ≤ capacity; charging points per Hub ≤ parking spaces, and a vehicle being charged occupies exactly one parking space, its bay (D-010); at most one active charging session per charging point (A-04); each vehicle in exactly one state. 0 violations, checked after every integration test and every simulation run. | Invariant-check helper called by tests. | FR-01 to FR-11 | M |
+| NFR-07 | Capacity and uniqueness invariants always hold. | Occupied parking ≤ capacity; charging points per Hub ≤ parking spaces, and a vehicle being charged occupies exactly one parking space, its bay (D-007); at most one active charging session per charging point (A-04); each vehicle in exactly one state. 0 violations, checked after every integration test and every simulation run. | Invariant-check helper called by tests. | FR-01 to FR-11 | M |
 | NFR-08 | Only transitions allowed by the state machines are executed. | 100% of disallowed transitions are rejected with an explicit error code and leave the state unchanged. Every valid transition and every invalid (state, event) pair of the Vehicle state machine has at least one test. | State-transition testing. | All state machines | M |
 | NFR-09 | Multi-entity operations are atomic. | Pick-up (vehicle state + reservation state + parking space release) either fully applies or fully rolls back. 0 partial states after fault injection at each step. | Fault-injection test. | FR-03, FR-04, FR-05 | M |
 | NFR-10 | The system tolerates faulty input and equipment failures. | A malformed sensor event is rejected and logged with no state change and no crash. A charging-point failure event interrupts its sessions and creates an incident within 5 s, while other Hubs keep working. | Invalid-event tests; failure-injection via `iot_sim`. | FR-09 | M |
@@ -81,7 +81,7 @@
 
 ## 10. Open points for team agreement
 
-1. Are DS-STD (A-12) and the p95 targets realistic for the chosen stack? To be measured in Sprint 2.
+1. Are DS-STD (A-11) and the p95 targets realistic for the chosen stack? To be measured in Sprint 2.
 2. Near-capacity threshold and low-battery threshold values (M5 and M3 propose; named config in `.env.example`).
 3. Coverage thresholds in NFR-24: confirm with M8.
 4. Whether NFR-19 usability testing is feasible within the schedule, otherwise downgrade to a walkthrough review.

@@ -1,7 +1,7 @@
 # Reference Dataset (DS-STD) — v1
 
 > **Status:** Draft v1 · **Owner:** M1 · **Date:** 2026-10-06
-> Defined by assumption **A-12** in `docs/DECISIONS.md` (replaces A-10). Any change to a number here needs a new entry in `docs/DECISIONS.md`.
+> Defined by assumption **A-11** in `docs/DECISIONS.md`. Any change to a number here needs a new entry in `docs/DECISIONS.md`.
 
 ## 1. Purpose and users
 
@@ -29,7 +29,7 @@ All values must be **configurable** and **reproducible from a seed** (`IOT_SIM_S
 | Seeded operator accounts | 5 |
 | Registered private EVs | 100 (about 30 active at peak, estimate) |
 
-Parking spaces and charging points are shared by rental and private vehicles. Every charging point is attached to one parking space (a charging bay): 61 of the 400 spaces are charging bays (D-010).
+Parking spaces and charging points are shared by rental and private vehicles. Every charging point is attached to one parking space (a charging bay): 61 of the 400 spaces are charging bays (D-007).
 
 ## 3. Hubs
 
@@ -69,7 +69,7 @@ Parking spaces and charging points are shared by rental and private vehicles. Ev
 
 ## 5. Demand profile
 
-Peak activity means pickups plus returns at a Hub (D-011).
+Peak activity means pickups plus returns at a Hub (D-008).
 
 | Period | Peak activity at | Default main flow (from to) |
 |---|---|---|
@@ -85,12 +85,12 @@ The main flow carries 60% to 70% of trips in its period (starting value, configu
 |---|---|---|
 | Concurrent sessions for performance targets | 100 | NFR-02, NFR-03 |
 | Simultaneous requests on one vehicle or Hub in conflict tests | 20 to 50 | NFR-06 |
-| DS-STRESS | 2x DS-STD: 20 Hubs repeating the DS-STD profiles with small seeded variation; 800 parking spaces, 122 charging points, 500 rental vehicles, 2,000 student accounts, 200 private EVs, 200 concurrent sessions (D-013) | NFR-15 |
+| DS-STRESS | 2x DS-STD: 20 Hubs repeating the DS-STD profiles with small seeded variation; 800 parking spaces, 122 charging points, 500 rental vehicles, 2,000 student accounts, 200 private EVs, 200 concurrent sessions (D-010) | NFR-15 |
 
 ## 7. Sanity checks (for M8 to assert in tests)
 
 1. The Hub table sums to 400 parking spaces, 61 charging points and 250 rental vehicles.
-2. For every Hub, initial rental vehicles ≤ parking spaces, and charging points ≤ parking spaces (D-010).
+2. For every Hub, initial rental vehicles ≤ parking spaces, and charging points ≤ parking spaces (D-007).
 3. Battery and vehicle-type shares match section 4 within rounding (at most 1 vehicle difference per class).
 4. Generating the dataset twice with the same seed gives an identical result (NFR-13).
 
@@ -100,13 +100,13 @@ All are proposals in `docs/DECISIONS.md` until confirmed.
 
 | # | Question | Proposed answer | Decision | To confirm |
 |---|---|---|---|---|
-| 1 | Is a charging point attached to a parking space? | Yes: a charging bay is a parking space with a charging point; 61 of 400 spaces. Bay-related rules are left to the Requirements Analysis. | D-010 | M1 with the team |
-| 2 | Direction of vehicle flows per period | Defined in section 5; main flow 60% to 70% of trips. | D-011 | M6, M8 |
-| 3 | Meaning of "active private EV" and its distribution | Holds a reservation in the peak window or is at a Hub; about 30 distributed in proportion to parking spaces; 50% request charging. | D-012 | M3 |
-| 4 | How DS-STRESS is built | 20 Hubs repeating the DS-STD profiles, 2x totals. | D-013 | M8 |
+| 1 | Is a charging point attached to a parking space? | Yes: a charging bay is a parking space with a charging point; 61 of 400 spaces. Bay-related rules are left to the Requirements Analysis. | D-007 | M1 with the team |
+| 2 | Direction of vehicle flows per period | Defined in section 5; main flow 60% to 70% of trips. | D-008 | M6, M8 |
+| 3 | Meaning of "active private EV" and its distribution | Holds a reservation in the peak window or is at a Hub; about 30 distributed in proportion to parking spaces; 50% request charging. | D-009 | M3 |
+| 4 | How DS-STRESS is built | 20 Hubs repeating the DS-STD profiles, 2x totals. | D-010 | M8 |
 
 ## 9. Handoff
 
 - **M8** derives the seed configuration in `src/iot_sim/` from sections 2 to 6 and implements the sanity checks in section 7.
 - **M6** uses sections 3 to 5 as the initial state of the What-if scenarios.
-- **M1** maintains this document and the link to A-12.
+- **M1** maintains this document and the link to A-11.

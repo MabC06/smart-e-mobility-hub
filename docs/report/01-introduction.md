@@ -79,7 +79,7 @@ The full list, with owners and impact, is in `docs/DECISIONS.md`. The assumption
 - A charging point serves one vehicle at a time with a fixed power rate (A-04).
 - Authentication is simplified to seeded accounts with student and operator roles (A-06).
 - The system runs as one deployment; the distributed nature of the environment is represented by logically separated modules and Hubs (A-08).
-- The reference dataset for quality targets is 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs and 100 concurrent sessions (A-12). Its full specification is in `docs/requirements/reference-dataset.md`.
+- The reference dataset for quality targets is 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs and 100 concurrent sessions (A-11). Its full specification is in `docs/requirements/reference-dataset.md`.
 
 ## 1.6 Constraints
 
