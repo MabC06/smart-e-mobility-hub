@@ -1,6 +1,7 @@
 # Coding Rules & Contributing Guide
 
 > Applies to the whole team. Rule changes need team agreement and a note in `docs/DECISIONS.md`.
+> This file is the single source of truth for *how we work* (git, commits, PRs, code, testing, security). It does not describe what the project is or where deliverables live — see [README.md](README.md) for that.
 
 ---
 
@@ -24,12 +25,7 @@ git config --local user.email "<your GitHub noreply email>"   # e.g. 12345678+us
 git config --local --list | grep user      # verify
 ```
 
-**How to get your GitHub noreply email:**
-
-1. Click your profile picture → **Settings** → **Emails**.
-2. Turn on **Keep my email addresses private**.
-3. Copy the address GitHub shows under it: `<number>+<username>@users.noreply.github.com` (older accounts may show `<username>@users.noreply.github.com`).
-4. Recommended: also turn on **Block command line pushes that expose my email**, so a commit made with your real email is rejected.
+**How to get your GitHub noreply email:** Settings → Emails → turn on **Keep my email addresses private** → copy the `<number>+<username>@users.noreply.github.com` address shown. Recommended: also turn on **Block command line pushes that expose my email**.
 
 Commits made with this address are still linked to your GitHub profile, but your real email does not appear in the repo history. Commits made before you changed the setting keep the old email; do not rewrite shared history to fix that.
 
@@ -41,8 +37,6 @@ Commits made with this address are still linked to your GitHub profile, but your
 | `develop` | Integration branch; all work merges here via PR. |
 | `<type>/<module>-<short-desc>` | Short-lived working branches cut from `develop`. |
 
-**Branch name:** `<type>/<module>-<short-desc>`
-
 | type | Use for |
 |---|---|
 | `feat` | new feature |
@@ -52,7 +46,7 @@ Commits made with this address are still linked to your GitHub profile, but your
 | `refactor` | refactoring without behavior change |
 | `chore` | setup, config, dependencies |
 
-**module** (also used as the commit scope): `core`, `reservation`, `charging`, `allocation`, `monitoring`, `simulation`, `iot-sim`, `ui`, `docs`, `test`, `repo`.
+**module** (also used as the commit scope): `core`, `reservation`, `charging`, `allocation`, `monitoring`, `simulation`, `iot-sim`, `ui`, `docs`, `test`, `repo`. Use `repo` for anything that isn't owned by one module — `DECISIONS.md`, `task-assignment-timeline.md`, `README.md`, `CONTRIBUTING.md` itself, and report sections consolidated across modules (Introduction, Evaluation, AI Declaration). Don't invent a new scope (e.g. a filename) for these.
 
 Examples: `feat/reservation-booking-flow`, `fix/charging-queue-overflow`, `docs/core-state-machine`, `feat/iot-sim-battery-drain`
 
@@ -164,18 +158,15 @@ git rebase      # on pushed branches that others rely on
 
 On conflicts: resolve carefully, re-run tests, and never blindly "accept all".
 
-## 8. Branch protection — not available, process-based alternative (see D-001)
+## 8. Branch protection (not automatic — follow by hand)
 
-GitHub branch protection rules (Settings → Branches / Rulesets) require a paid plan for a private repository; our GitHub Free + private repo setup cannot enforce them technically. The team substitutes a manual process instead, which everyone must follow even though GitHub will not block violations:
+GitHub won't block a violation of these for us (see `docs/DECISIONS.md` D-001), so everyone follows them by convention instead:
 
 - No one pushes directly to `main` or `develop` (section 1, rule 7); all changes go through a PR.
 - Only the **Lead** merges `develop` → `main`.
-- Every PR needs **1 approval** from someone else before the Lead (or the branch owner, for PRs into `develop`) merges it; authors never approve their own PR.
-- CODEOWNERS (`.github/CODEOWNERS`) still auto-requests the right reviewer for `src/core/`, `tests/core/`, `docs/design/architecture/`, `docs/DECISIONS.md` and `CONTRIBUTING.md`, but does not block the merge button.
+- Every PR needs **1 approval** before merging; authors never approve their own PR.
+- CODEOWNERS (`.github/CODEOWNERS`) auto-requests the right reviewer for core-sensitive paths, but does not block the merge button.
 - Before approving, the reviewer checks that CI is green and all conversations are resolved — GitHub cannot require this for us.
-- Never force-push or delete `main`/`develop`; this is a convention, not a GitHub-enforced block.
-
-If the team later gets access to GitHub Pro/Team (for example via the GitHub Student/education benefit), revisit this section and re-enable real branch protection.
 
 ## 9. Code rules
 
@@ -218,57 +209,9 @@ If the team later gets access to GitHub Pro/Team (for example via the GitHub Stu
 
 ### 11.3 `.gitignore`
 
-Create `.gitignore` in the first commit and adapt it to the chosen stack. Minimal template:
+The repo's `.gitignore` is the live, authoritative list — adapt it as the stack evolves; don't let it drift from what's actually being generated. Do not commit build output, large binaries or logs. **Do not commit the demo video**; link it in the README. Small seed/simulated data may be committed; for large data, document how to regenerate it in the README.
 
-```gitignore
-# Secrets
-.env
-*.pem
-*.key
-secrets/
-
-# Dependencies / virtual environments (adjust to the stack)
-node_modules/
-.venv/
-venv/
-__pycache__/
-
-# Build, logs, local databases
-dist/
-build/
-*.log
-*.db
-*.sqlite
-
-# IDE / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-```
-
-- Do not commit build output, large binaries or logs. **Do not commit the demo video**; link it in the README.
-- Small seed/simulated data may be committed; for large data, document how to regenerate it in the README.
-
-### 11.4 Repo & accounts
-
-- Keep the repo **private**; invite only team members and instructors.
-- Enable 2FA on your GitHub account.
-- Enable secret scanning / push protection if available (Settings → Code security).
-- Install dependencies only from trusted sources and record them in the dependency file.
-
-## 12. Required docs
-
-| File | Content |
-|---|---|
-| `README.md` | Overview, scope, setup, run, test, team. |
-| `CONTRIBUTING.md` | This file. |
-| `docs/DECISIONS.md` | Assumptions and decisions with date and owner. |
-| `docs/ai-usage/<student-id>.md` | Per-member AI declaration: tool, purpose, and what was generated/revised/verified. |
-| `.env.example` | Environment variable names only. |
-| `.gitignore` | See 11.3. |
-
-## 13. Pre-PR checklist
+## 12. Pre-PR checklist
 
 - [ ] Synced with `develop` (`git pull --ff-only origin develop`, then merged into the branch).
 - [ ] Tests run and pass; the change is covered by tests.

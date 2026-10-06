@@ -8,25 +8,35 @@ The system manages Mobility Hubs consisting of parking spaces, charging points, 
 
 ## Table of Contents
 
+- [Key Files](#key-files)
 - [Scope](#scope)
 - [Team](#team)
 - [Repository Structure](#repository-structure)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
 - [Contributing](#contributing)
-- [Documentation & Deliverables](#documentation--deliverables)
 - [Testing](#testing)
 - [Generative AI Usage Declaration](#generative-ai-usage-declaration)
 - [Demo](#demo)
 
 ---
 
+## Key Files
 
+Start here before reading the rest of the repo:
+
+| File | Content |
+|---|---|
+| `README.md` | Project overview, scope, setup, team — this file. |
+| `CONTRIBUTING.md` | Workflow & coding rules: branching, commits, PR review, code style, testing, security. |
+| `docs/DECISIONS.md` | Assumptions and decisions, with date and owner. |
+| `docs/ai-usage/<student-id>.md` | Per-member AI declaration: tool, purpose, what was generated/revised/verified. |
+| `.env.example` | Environment variable names only. |
+| `.gitignore` | What's excluded from the repo (secrets, build output, caches). |
 
 ## Scope
 
 Per the assignment specification, the system supports at least the following 12 core capabilities. Each has an ID (`FR-xx`) used in commits, pull requests, test cases and the report for traceability.
-
 
 | ID    | Functional capability                                                           | Main module(s) |
 | ----- | ------------------------------------------------------------------------------- | -------------- |
@@ -43,13 +53,11 @@ Per the assignment specification, the system supports at least the following 12 
 | FR-11 | Coordinate charging priorities and schedules                                    | M3, M4         |
 | FR-12 | Run What-if Simulation scenarios and generate coordination recommendations      | M6             |
 
-
-> The `FR-xx` numbering follows the order of the capabilities in the course guideline. It must stay identical to the IDs used in `docs/requirements/`. Non-functional requirements (`NFR-xx`), business rules (`BR-xx`), use cases (`UC-xx`) and test cases (`TC-xxx`) are defined in the same documents; see the "Requirement IDs" section of [CONTRIBUTING.md](CONTRIBUTING.md).
+> `NFR-xx` (non-functional requirements), `BR-xx` (business rules), `UC-xx` (use cases) and `TC-xxx` (test cases) are defined in `docs/requirements/`. ID conventions: [CONTRIBUTING.md, section 5](CONTRIBUTING.md#5-requirement-ids--traceability).
 
 **Out of scope** (per the assignment): physical hardware development and sophisticated 3D map interfaces. Vehicle, parking and charging state may come from simulated data.
 
 ## Team
-
 
 | Member | Module                                                     | Name              | Student ID |
 | ------ | ---------------------------------------------------------- | ----------------- | ---------- |
@@ -62,62 +70,57 @@ Per the assignment specification, the system supports at least the following 12 
 | M7     | UI/UX Design & Structural-Data Design                      | Nguyễn Trung Kiên | 2452615    |
 | M8     | Testing, QA & Report Integration Lead; IoT data simulator  | Lý Thành Tín      | 2453252    |
 
-
 Task breakdown, deliverables per member and the team timeline: [docs/task-assignment-timeline.md](docs/task-assignment-timeline.md).
 
 ## Repository Structure
 
-Proposed layout, organized by module so each member can work independently with minimal conflicts. Update it once the architecture is finalized in the System Design phase.
+This tree is also the map of **where every deliverable lives** — each folder's comment says what goes there, so there is only one place to look.
 
 ```
 smart-e-mobility-hub/
 ├── docs/
-│   ├── requirements/          # assignment spec, rubric, FR/NFR/BR, use-case diagrams & tables
+│   ├── requirements/          # assignment spec, rubric, FR/NFR/BR, reference dataset, use-case diagrams & tables
 │   ├── design/
-│   │   ├── architecture/      # architecture diagram + justification
+│   │   ├── architecture/      # architecture diagram + justification, tech-stack proposal
 │   │   ├── structural/        # class diagram, ERD
 │   │   ├── behavioral/        # activity, sequence, state machine diagrams
 │   │   ├── ui/                # wireframes, UI flow
 │   │   └── simulation/        # What-if scenario & recommendation design
-│   ├── testing/               # test plan, test cases, execution report, defect log
-│   ├── report/                # integrated final report
-│   ├── ai-usage/              # one declaration file per member: <student-id>.md
-│   ├── DECISIONS.md           # assumptions & key decisions
+│   ├── testing/                # test plan, test cases, execution report, defect log
+│   ├── report/                 # integrated final report (one file per rubric section)
+│   ├── ai-usage/               # one declaration file per member: <student-id>.md
+│   ├── DECISIONS.md            # assumptions & key decisions, with date/owner/status
 │   └── task-assignment-timeline.md
 ├── src/
 │   ├── core/                  # M1 — domain model & state management
 │   ├── reservation/           # M2 — reserve, pick up/return
-│   ├── charging/              # M3 — charging request & scheduling
+│   ├── charging/               # M3 — charging request & scheduling
 │   ├── allocation/            # M4 — resource allocation & dispatching
-│   ├── monitoring/            # M5 — operator monitoring & incident handling
-│   ├── simulation/            # M6 — what-if simulation
-│   ├── iot_sim/               # M8 — simulated sensor/event feed & seed data
-│   └── ui/                    # M7 — student & operator interfaces
+│   ├── monitoring/             # M5 — operator monitoring & incident handling
+│   ├── simulation/             # M6 — what-if simulation
+│   ├── iot_sim/                # M8 — simulated sensor/event feed & seed data
+│   └── ui/                     # M7 — student & operator interfaces
 ├── tests/
-│   ├── <module>/              # unit tests, written by each module's owner
-│   └── integration/           # integration tests, owned by M8
-├── .github/                   # pull_request_template.md, CI workflow (if any)
-├── .env.example               # required environment variables (names only)
+│   ├── <module>/               # unit tests, written by each module's owner
+│   └── integration/            # integration tests, owned by M8
+├── .github/                    # pull_request_template.md, CODEOWNERS, CI workflow (if any)
+├── .env.example                 # required environment variables (names only)
 ├── .gitignore
-├── CONTRIBUTING.md            # coding rules & Git workflow
+├── CONTRIBUTING.md              # workflow & coding rules — read before your first PR
 └── README.md
 ```
-
-Diagrams are stored as source files (PlantUML / Mermaid / draw.io) next to their exported images.
 
 No hardware is used, so vehicle, parking and charging-point state comes from simulated data. `src/iot_sim/` (owner: M8) generates the seed data and a simulated sensor/event feed (battery drain/charge, parking occupancy changes, charging-point failures, peak-hour demand) and pushes it into the system through the state-update interface of `core`. It is separate from the What-if Simulation (`src/simulation/`, M6), which runs hypothetical scenarios on a copy of the state.
 
 ## Tech Stack
 
-> *TBD — to be filled in once the team finalizes the stack during the Design phase. Record the decision in* `docs/DECISIONS.md`*.*
+> *TBD — to be filled in once the team finalizes the stack during the Design phase (proposal: `docs/design/architecture/tech-stack-proposal.md`). Record the final decision in `docs/DECISIONS.md`.*
 
 - Backend language/framework: *TBD*
 - Frontend: *TBD*
 - Database: *TBD*
 - UML/wireframing tools: *TBD*
 - Test framework / test-case management: *TBD*
-
-
 
 ## Getting Started
 
@@ -143,62 +146,26 @@ cp .env.example .env        # then fill in values; never commit .env
 # ...
 ```
 
-
-
 ## Contributing
 
-All rules (branching, commits, pull requests, review, code style, security) live in **[CONTRIBUTING.md](CONTRIBUTING.md)**. In short:
-
-- Branches: `main` (releases/demo, protected) ← `develop` (integration, protected) ← `<type>/<module>-<short-desc>`, e.g. `feat/reservation-booking-flow`.
-- Commits follow Conventional Commits with the module as scope: `feat(reservation): add conflict check (FR-03)`.
-- Every change goes through a Pull Request into `develop` with at least one review and the matching tests. The Lead merges `develop` into `main` via PR.
-- Never commit secrets, `.env`, or large/generated files.
+All workflow rules — branching, commits, pull requests, review, code style, testing, security — live in **[CONTRIBUTING.md](CONTRIBUTING.md)**. Read it before opening your first PR; nothing below is a substitute for it.
 
 Progress is tracked on GitHub Projects (Kanban), mapped to the 8 modules and the project phases.
 
-## Documentation & Deliverables
-
-
-| Item                                         | Location                                 |
-| -------------------------------------------- | ---------------------------------------- |
-| Assignment specification                     | `docs/requirements/assignment-spec.pdf`  |
-| Report Guideline & Rubric                    | `docs/requirements/guideline-rubric.pdf` |
-| Task assignment & timeline                   | `docs/task-assignment-timeline.md`       |
-| Requirements (FR/NFR/BR), use cases          | `docs/requirements/`                     |
-| Software architecture                        | `docs/design/architecture/`              |
-| Class diagram, ERD                           | `docs/design/structural/`                |
-| Activity / sequence / state machine diagrams | `docs/design/behavioral/`                |
-| UI wireframes & flows                        | `docs/design/ui/`                        |
-| What-if Simulation design                    | `docs/design/simulation/`                |
-| Test plan, test cases, results               | `docs/testing/`                          |
-| Final report                                 | `docs/report/`                           |
-| Assumptions & decisions                      | `docs/DECISIONS.md`                      |
-| Generative AI declarations                   | `docs/ai-usage/`                         |
-
-
-Final submission consists of the report, the source code, the pre-recorded demo (≈3 minutes within the ≈20-minute presentation; live demos are not permitted) and the AI usage declaration. Large files such as the demo video are **not** committed; link them in the [Demo](#demo) section.
-
 ## Testing
 
-The test suite covers the following categories (per the rubric):
+Each module owner writes and owns the unit tests for their module in `tests/<module>/`. M8 owns the Test Plan, the standardized test cases (linked to `FR`/`UC` IDs), integration tests in `tests/integration/`, and the execution/defect report.
 
-- Normal operation
-- Invalid input / operation
-- Boundary & capacity conditions
-- Resource conflicts
-- State transitions
-- Equipment/resource failures
-- What-if Simulation scenarios
-- Integration across modules
-
-Ownership: each module owner writes the unit tests for their module in `tests/<module>/`. M8 owns the Test Plan (`docs/testing/test-plan.md`), the standardized test-case documents linked to `FR`/`UC` IDs, integration tests in `tests/integration/`, and the execution/defect report. A PR touching important business logic is only "Done" once its tests are included and M8 has confirmed that the tests are included and passing.
+Full testing process, required coverage categories and the PR sign-off rule: [CONTRIBUTING.md, section 10](CONTRIBUTING.md#10-testing-rules). Artifacts: `docs/testing/`.
 
 ## Generative AI Usage Declaration
 
-Per course requirements, any use of Generative AI (analysis, design, coding, report writing, etc.) must be transparently declared: which tool, for what purpose, and which parts were AI-generated, revised, or verified by the student. Students remain responsible for understanding and defending everything they submit.
+Per course requirements, any use of Generative AI (analysis, design, coding, report writing, etc.) must be transparently declared — tool, purpose, and which parts were AI-generated, revised, or verified. Students remain responsible for understanding and defending everything they submit.
 
-Each member records their own usage in `docs/ai-usage/<student-id>.md` **at the time of use**, not at the end. M8 consolidates the final declaration before submission.
+Each member records their own usage in `docs/ai-usage/<student-id>.md` **at the time of use**, not at the end — see [CONTRIBUTING.md, section 1](CONTRIBUTING.md#1-general-rules). M8 consolidates the final declaration before submission.
 
 ## Demo
 
-*Link to the recorded demo video: TBD (do not commit the video file).*
+A pre-recorded demo (≈3 minutes within the ≈20-minute presentation; live demos are not permitted). The video file is **not** committed to the repo — linked here instead.
+
+*Link to the recorded demo video: TBD.*
