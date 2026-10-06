@@ -1,6 +1,6 @@
 # Non-Functional Requirements (NFR) — v1
 
-> **Status:** Draft v1 · **Owner:** M1 · **Date:** 2026-10-05 · Phase 0 deliverable (due 2026-10-09)
+> **Status:** Draft v1 · **Owner:** M1 · **Date:** 2026-10-05 · Phase 0 deliverable (due 2026-10-10)
 > All targets are **proposals** to be agreed by the team and re-validated by measurement in Sprint 2 (2026-11-07 to 2026-11-13), tied to the reference dataset DS-STD (A-11).
 > Each requirement states a measurable target and how it is verified, so that M8 can derive test cases (`TC-xxx`) from it.
 

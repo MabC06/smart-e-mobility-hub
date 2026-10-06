@@ -58,11 +58,12 @@ No hardware is used — vehicle, parking and charging-point state comes from sim
 
 ## 4. Proposed Timeline (Oct 3 – Nov 25)
 
+> Updated 2026-10-06: Phase 0's deadline moved from 23:59 09/10 to **23:59 10/10** at the team's request. The extra day is absorbed by Phase 1 (now 16 days instead of 17) so the 26/10 design-review milestone — already flagged as fixed and non-negotiable — does not move, and nothing from Phase 2 onward shifts.
 
 | Phase                                           | Timeframe                    | Main content                                                                                                                                                                                                                            |
 | ----------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Phase 0 — Requirements Analysis                 | Oct 3 – Oct 9 (1 week)       | Stakeholder/actor analysis, consolidated use-case diagram, FR/NFR per module. M8 drafts a Test Plan skeleton in parallel. **Milestone:** Requirements v1 locked by Oct 9.                                                               |
-| Phase 1 — System Design                         | Oct 10 – Oct 26 (~2.5 weeks) | Architecture (M1), class diagram & ERD (M1+M7), activity/sequence/state-machine diagrams (M2–M6), UI mockups (M7). **Milestone:** team-wide design review on Oct 26 — mandatory, given the compressed schedule.                         |
+| Phase 0 — Requirements Analysis                 | Oct 3 – Oct 10 (8 days)      | Stakeholder/actor analysis, consolidated use-case diagram, FR/NFR per module. M8 drafts a Test Plan skeleton in parallel. **Milestone:** Requirements v1 locked by 23:59 10/10.                                                         |
+| Phase 1 — System Design                         | Oct 11 – Oct 26 (16 days)    | Architecture (M1), class diagram & ERD (M1+M7), activity/sequence/state-machine diagrams (M2–M6), UI mockups (M7). **Milestone:** team-wide design review on Oct 26 — mandatory, given the compressed schedule.                         |
 | Phase 2 — Implementation Sprint 1               | Oct 27 – Nov 6 (~1.5 weeks)  | M1 codes the core domain & state-update interface first (target: done within the first few days); M2, M3, M4 start in parallel; M5, M6 scaffold their modules; M2–M6 may code against stubs/mocks of the Core API spec until the minimal `core` lands on Oct 30; M7 finalizes the UI; M8 builds the IoT simulator and prepares test data. |
 | Phase 3 — Implementation Sprint 2 & Integration | Nov 7 – Nov 13 (1 week)      | Finalize module logic, integrate M4↔M2/M3 and M6↔M1. M8 finalizes the Test Plan & starts writing test cases with the team.                                                                                                              |
 | Phase 4 — Testing & Validation                  | Nov 14 – Nov 19 (~6 days)    | Per-module test cases (equivalence partitioning, boundary value, state-transition...), integration testing, defect logging & fixes. M8 consolidates results.                                                                            |
@@ -71,79 +72,101 @@ No hardware is used — vehicle, parking and charging-point state comes from sim
 
 ### 4.1 Deliverables per Module per Phase
 
-Each cell lists what the module owner must have **finished by the end of that phase**. Items marked **(hard)** are cross-module dependencies: other members are blocked if they slip.
+Each cell lists what the module owner must have **finished by the end of that phase**. Items marked **(hard)** are cross-module dependencies: other members are blocked if they slip. Every phase table below also has a **"Needs from"** column: `—` means that module's work for the phase can start immediately and run in parallel; anything else names the module(s)/deliverable it is blocked on.
 
-**Internal checkpoints:** Oct 9 Requirements v1 · Oct 20 Core API / state-update interface spec v1 (hard) · Oct 26 design review (hard) · Oct 30 minimal `core` (hard) · Nov 1 minimal `iot_sim` (hard) · Nov 13 code freeze (no new features or interface changes; bug fixes allowed until Nov 19) · Nov 19 test execution report · Nov 23 report freeze (final report, slides and demo video ready) · Nov 24–25 buffer; submit by Nov 25 at the latest.
+**Reviewer per module** (who signs off the deliverable before it's "done" — same mapping for every phase, full detail and reasons in `CONTRIBUTING.md` section 6):
 
-#### Phase 0 — Requirements Analysis (due Oct 9)
+| Module | Reviewer |
+|---|---|
+| M1 Core | M5 |
+| M2 Reservation | M7 |
+| M3 Charging | M6 |
+| M4 Allocation | M2 and M3 |
+| M5 Monitoring | M1 |
+| M6 Simulation | M1 |
+| M7 UI / Data design | M5 |
+| M8 Tests | M4 |
+| M8 IoT simulator (`iot-sim`) | M7 |
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | Introduction draft (context, objectives, scope, assumptions, system boundary); NFR list v1 with measurable targets; repo set-up (merge-process convention in place of branch protection — see D-001, `.gitignore`, `.env.example`, `docs/DECISIONS.md`); tech-stack proposal |
-| **M2** | Consolidated use-case diagrams v1 (split into several diagrams, not one large one) + stakeholder/actor list; FR-02–05 and FR-07 (parking side) requirements; use-case table for FR-02–05 and FR-07 (parking side); draft BRs (cancellation, hold time, double booking) |
-| **M3** | FR-06/07 (charging side) and FR-11 (scheduling side) requirements; use-case table for charging requests (fleet & private vehicles); draft BRs (schedule conflicts, charging-point capacity) |
-| **M4** | FR-10/11 (allocation side) requirements; draft BRs for allocation priority under scarce resources |
-| **M5** | FR-08/09 requirements; list of incident types (unavailable vehicle, failed charging point, ...); draft escalation BRs |
-| **M6** | FR-12 requirements; list of the 5 standard scenarios with their configurable inputs |
-| **M7** | Operator-side use cases (supporting M2); initial list of data entities for the ERD |
-| **M8** | Test Plan skeleton; ID traceability sheet (`FR`/`NFR`/`BR`/`UC`/`TC`); `docs/ai-usage/` file template for every member |
+**Internal checkpoints:** Oct 10 Requirements v1 · Oct 20 Core API / state-update interface spec v1 (hard) · Oct 26 design review (hard) · Oct 30 minimal `core` (hard) · Nov 1 minimal `iot_sim` (hard) · Nov 13 code freeze (no new features or interface changes; bug fixes allowed until Nov 19) · Nov 19 test execution report · Nov 23 report freeze (final report, slides and demo video ready) · Nov 24–25 buffer; submit by Nov 25 at the latest.
+
+#### Phase 0 — Requirements Analysis (due 23:59 10/10)
+
+Fully parallel phase — every module writes its own FR/BR scope from the assignment spec and the Introduction draft; nobody is blocked on another member's output this phase. The **deadline column staggers on workload and on who feeds M2's consolidation**: M1 is already close to done (give an early confirm date); M3–M7 each own a self-contained FR slice and get the same mid-phase date; M2 goes last because it both owns the heaviest FR slice (4 FRs) and has to merge everyone else's use cases into the consolidated diagram.
+
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M1** | 07/10 | Introduction draft (context, objectives, scope, assumptions, system boundary); NFR list v1 with measurable targets; repo set-up (merge-process convention in place of branch protection — see D-001, `.gitignore`, `.env.example`, `docs/DECISIONS.md`); tech-stack proposal | — (already largely done as of 06/10; this date is for finalizing after any team feedback) |
+| **M3** | 08/10 | FR-06/07 (charging side) and FR-11 (scheduling side) requirements; use-case table for charging requests (fleet & private vehicles); draft BRs (schedule conflicts, charging-point capacity) | — |
+| **M4** | 08/10 | FR-10/11 (allocation side) requirements; draft BRs for allocation priority under scarce resources; **use-case table for FR-10/11 (allocation side)** | — |
+| **M5** | 08/10 | FR-08/09 requirements; list of incident types (unavailable vehicle, failed charging point, ...); draft escalation BRs; **use-case table for FR-08/09** | — |
+| **M6** | 08/10 | FR-12 requirements; list of the 5 standard scenarios with their configurable inputs; **use-case table for FR-12** | — |
+| **M7** | 08/10 | Operator-side use cases (supporting M2); initial list of data entities for the ERD | — (loose: Introduction's actor/boundary draft from M1 helps scope operator-side use cases, but M7 does not need to wait for it) |
+| **M8** | 08/10 | Test Plan skeleton; ID traceability sheet (`FR`/`NFR`/`BR`/`UC`/`TC`); `docs/ai-usage/` file template for every member | — |
+| **M2** | 10/10 | Consolidated use-case diagrams v1 (split into several diagrams, not one large one) + stakeholder/actor list; FR-02–05 and FR-07 (parking side) requirements; use-case table for FR-02–05 and FR-07 (parking side); draft BRs (cancellation, hold time, double booking) | **M3, M4, M5, M6, M7** — needs their 08/10 FR/use-case text to finish the *consolidated* diagram; own FR-02–05/07 work can proceed in parallel before that |
 
 #### Phase 1 — System Design (due Oct 26)
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | Architecture diagram (components + communication flow) with justification and trade-offs; core class diagram (Hub, Vehicle, ParkingSpace, ChargingPoint); Vehicle state machine; **Core API / state-update interface spec v1 by Oct 20 (hard)**; final NFR list; tech stack recorded in `DECISIONS.md`; first draft of the Architecture and Structural Design (class diagram) report sections |
-| **M2** | Activity diagram (reservation, with conflict/no-availability branches); sequence diagram (reserve → pick up → return); Reservation state machine; final BRs; final use-case table; first draft of own report sections (requirements, behavioral design) |
-| **M3** | Activity diagram (charging priority algorithm); Charging Session state machine; final BRs; final charging use-case table; first draft of own report sections (requirements, behavioral design) |
-| **M4** | Sequence diagram (allocation engine ↔ M2 & M3); activity diagram (vehicle redistribution); allocation algorithm design doc with compared approaches and justified trade-off; final BRs; first draft of own report sections (requirements, behavioral design) |
-| **M5** | Activity diagram (incident handling); sequence diagram (hub approaching capacity → alert); incident data model; escalation BRs; first draft of own report sections (requirements, behavioral design) |
-| **M6** | Scenario definition & input spec; simulation logic / state-evolution flow (operates on a copy of state); impact metrics; recommendation-generation logic; how M6 reads the state snapshot from `core`; first draft of the What-if Simulation and Coordination Design report section |
-| **M7** | ERD (final, consistent with M1's class diagram); wireframes for student flow and operator dashboard; UI flow diagram per actor; UI ↔ class diagram ↔ ERD consistency review; first draft of the Structural/Data Design (ERD) and UI Design report sections |
-| **M8** | Test Plan v1 (objectives, scope, levels, environment, entry/exit criteria); assignment of test techniques per module; `iot_sim` design (event types, seed parameter, feed through `core` interface); design-review checklist |
+Mostly parallel; the one real dependency is M1's Core API spec v1 (Oct 20, hard), which M6 and, loosely, M8 need before finalizing their own interface-facing design. M1 and M8 each have **two** deadlines this phase: an earlier one for the part that unblocks someone else, and the phase-end one for the rest.
+
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M1** | 17/10 (architecture + class diagram draft) · **20/10 (Core API spec v1, hard)** · 26/10 (everything else, incl. final NFR list and report draft) | Architecture diagram (components + communication flow) with justification and trade-offs; core class diagram (Hub, Vehicle, ParkingSpace, ChargingPoint); Vehicle state machine; **Core API / state-update interface spec v1**; final NFR list; tech stack recorded in `DECISIONS.md`; first draft of the Architecture and Structural Design (class diagram) report sections | — |
+| **M8** | 17/10 (Test Plan v1 + test-technique assignment) · 26/10 (`iot_sim` design + design-review checklist) | Test Plan v1 (objectives, scope, levels, environment, entry/exit criteria); assignment of test techniques per module; `iot_sim` design (event types, seed parameter, feed through `core` interface); design-review checklist | **M1** — `iot_sim` design needs the 20/10 Core API spec v1; Test Plan itself is independent and due earlier |
+| **M2** | 24/10 | Activity diagram (reservation, with conflict/no-availability branches); sequence diagram (reserve → pick up → return); Reservation state machine; final BRs; final use-case table; first draft of own report sections (requirements, behavioral design) | — |
+| **M3** | 24/10 | Activity diagram (charging priority algorithm); Charging Session state machine; final BRs; final charging use-case table; first draft of own report sections (requirements, behavioral design) | — |
+| **M4** | 24/10 | Sequence diagram (allocation engine ↔ M2 & M3); activity diagram (vehicle redistribution); allocation algorithm design doc with compared approaches and justified trade-off; final BRs; first draft of own report sections (requirements, behavioral design) | — (soft: more accurate if M2/M3's Phase 0 FR/BR text is stable, but can draft against it as-is without waiting) |
+| **M5** | 24/10 | Activity diagram (incident handling); sequence diagram (hub approaching capacity → alert); incident data model; escalation BRs; first draft of own report sections (requirements, behavioral design) | — |
+| **M7** | 25/10 | ERD (final, consistent with M1's class diagram); wireframes for student flow and operator dashboard; UI flow diagram per actor; UI ↔ class diagram ↔ ERD consistency review; first draft of the Structural/Data Design (ERD) and UI Design report sections | **M1** — needs the 17/10 class diagram draft before the ERD can be made consistent with it; wireframes can start immediately, in parallel |
+| **M6** | 26/10 | Scenario definition & input spec; simulation logic / state-evolution flow (operates on a copy of state); impact metrics; recommendation-generation logic; how M6 reads the state snapshot from `core`; first draft of the What-if Simulation and Coordination Design report section | **M1** — blocked until the 20/10 Core API spec v1 (hard), leaving only 6 days; no slack left in this one |
 
 #### Phase 2 — Implementation Sprint 1 (due Nov 6)
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | **Minimal `core` (domain entities + state-update interface) by Oct 30 (hard)**; state management service with unit tests by Nov 6; core API changes announced to the team and logged in `DECISIONS.md` |
-| **M2** | Booking service: reserve, pick up, return (happy path) against the `core` interface (a stub/mock is allowed until Oct 30); unit tests (equivalence partitioning) for the happy path |
-| **M3** | Charging request + priority queue v1; unit tests (boundary value analysis on battery threshold) |
-| **M4** | Allocation/dispatching engine v1 coded against the M2/M3 interfaces (stubs allowed); unit tests for basic allocation |
-| **M5** | Monitoring backend scaffold: hub utilization aggregation, capacity alert; incident record creation |
-| **M6** | Simulation module scaffold: state snapshot/copy, scenario config parsing, **first scenario (demand surge) running end to end** |
-| **M7** | UI skeleton / clickable prototype for student and operator; DB schema from the ERD; review of `iot_sim` output against the ERD |
-| **M8** | **Minimal `iot_sim` (seed data, battery drain, parking occupancy) by Nov 1 (hard)**; full event feed (charging-point failures, peak-hour demand) by Nov 6; Test Plan final draft; test data set |
+The real bottleneck phase: M1 (`core`) and M8 (`iot_sim`) are depended on by nearly everyone else. Both have an explicit **minimal-by-date (hard)** target specifically so M2–M7 aren't blocked for the whole sprint — code against stubs/mocks of the Core API spec (v1, Oct 20) until the minimal `core` lands.
+
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M1** | **30/10 (minimal `core`, hard)** · 06/11 (state mgmt service + unit tests) | **Minimal `core` (domain entities + state-update interface)**; state management service with unit tests; core API changes announced to the team and logged in `DECISIONS.md` | — (this is what everyone else is waiting on; nothing blocks M1 itself) |
+| **M8** | **01/11 (minimal `iot_sim`, hard)** · 06/11 (full event feed, Test Plan final, test data set) | **Minimal `iot_sim` (seed data, battery drain, parking occupancy)**; full event feed (charging-point failures, peak-hour demand); Test Plan final draft; test data set | **M1** — `iot_sim` feeds state only through the `core` interface, so it needs at least the 30/10 minimal `core` to integrate against (can build generation logic standalone before that) |
+| **M2** | 06/11 | Booking service: reserve, pick up, return (happy path) against the `core` interface (a stub/mock is allowed until Oct 30); unit tests (equivalence partitioning) for the happy path | **M1** — can code against a stub until 30/10 (hard), then needs the real minimal `core` |
+| **M3** | 06/11 | Charging request + priority queue v1; unit tests (boundary value analysis on battery threshold) | **M1** — same stub-until-30/10 pattern |
+| **M4** | 06/11 | Allocation/dispatching engine v1 coded against the M2/M3 interfaces (stubs allowed); unit tests for basic allocation | **M1** (via stub until 30/10) and **M2, M3** (their interfaces; stubs allowed, so not a hard block) |
+| **M5** | 06/11 | Monitoring backend scaffold: hub utilization aggregation, capacity alert; incident record creation | **M1** — same stub-until-30/10 pattern |
+| **M6** | 06/11 | Simulation module scaffold: state snapshot/copy, scenario config parsing, **first scenario (demand surge) running end to end** | **M1** — same stub-until-30/10 pattern, and specifically the snapshot interface from Phase 1 |
+| **M7** | 03/11 (UI skeleton + DB schema) · 06/11 (`iot_sim` output reviewed against ERD) | UI skeleton / clickable prototype for student and operator; DB schema from the ERD; review of `iot_sim` output against the ERD | **M8** — the review step needs `iot_sim` minimal output (01/11, hard); UI skeleton/DB schema aren't blocked and are due earlier |
 
 #### Phase 3 — Implementation Sprint 2 & Integration (due Nov 13, code freeze)
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | Core bug fixes from integration; M6 ↔ M1 snapshot interface verified; outline of Implementation section (4.1–4.2) |
-| **M2** | Complete FR-02–05 and FR-07 (parking side): conflicts, cancel/expire, parking reservation (including private vehicles); integrated with M4; test cases written in the standard format; design sections of the report revised to match the implementation |
-| **M3** | Complete scheduling: private-vehicle charging, interruption/failure handling; integrated with M4; test cases written; design sections of the report revised to match the implementation |
-| **M4** | Complete engine integrated with M2/M3; test cases for conflict and resource-exhaustion scenarios; design sections of the report revised to match the implementation |
-| **M5** | All incident types + escalation rules; consuming `iot_sim` failure events; test cases per incident type; design sections of the report revised to match the implementation |
-| **M6** | All 5 standard scenarios, impact metrics and recommendations working; isolation from real state verified; test cases for the 5 scenarios; design section of the report revised to match the implementation |
-| **M7** | UI connected to the backend; final wireframes/screens for the report; demo script drafted; UI and data-design sections of the report revised to match the implementation |
-| **M8** | Test Plan final; all test cases in the standard format, traced to `FR`/`UC`; integration test skeleton in `tests/integration/`; test sign-off on PRs to `core`, `reservation`, `charging`, `allocation`, `simulation` (checks only that tests exist and pass; not a code review) |
+Integration phase — the dependencies run both ways (M2/M3 ↔ M4, M1 ↔ M6), so this is where modules genuinely wait on each other mid-phase rather than just at the start. M2, M3 and M6 get an earlier internal deadline specifically so M4 and M1 have real (not mocked) output to integrate against before the shared 13/11 code-freeze line.
+
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M2** | 11/11 | Complete FR-02–05 and FR-07 (parking side): conflicts, cancel/expire, parking reservation (including private vehicles); integrated with M4; test cases written in the standard format; design sections of the report revised to match the implementation | — (not blocked; finishes early so M4 can integrate against it) |
+| **M3** | 11/11 | Complete scheduling: private-vehicle charging, interruption/failure handling; integrated with M4; test cases written; design sections of the report revised to match the implementation | — (same as M2) |
+| **M5** | 11/11 | All incident types + escalation rules; consuming `iot_sim` failure events; test cases per incident type; design sections of the report revised to match the implementation | **M8** — needs the full `iot_sim` event feed (already due 06/11, end of Phase 2, so not a new wait) |
+| **M6** | 12/11 | All 5 standard scenarios, impact metrics and recommendations working; isolation from real state verified; test cases for the 5 scenarios; design section of the report revised to match the implementation | **M1** — needs the snapshot interface stable; finishes a day before M1 so M1 has something to verify against on 13/11 |
+| **M1** | **13/11 (code freeze)** | Core bug fixes from integration; M6 ↔ M1 snapshot interface verified; outline of Implementation section (4.1–4.2) | **M6** — the snapshot-interface verification needs M6's 12/11 simulation module to test against |
+| **M4** | **13/11 (code freeze)** | Complete engine integrated with M2/M3; test cases for conflict and resource-exhaustion scenarios; design sections of the report revised to match the implementation | **M2, M3** — needs their 11/11 services to integrate against; 2 days to finish integration |
+| **M7** | **13/11 (code freeze)** | UI connected to the backend; final wireframes/screens for the report; demo script drafted; UI and data-design sections of the report revised to match the implementation | **M2–M6** — needs each module's real API/service (no longer mocks); the M4 piece lands the same day, so wiring M4 is the last, tightest step |
+| **M8** | **13/11 (code freeze)** | Test Plan final; all test cases in the standard format, traced to `FR`/`UC`; integration test skeleton in `tests/integration/`; test sign-off on PRs to `core`, `reservation`, `charging`, `allocation`, `simulation` (checks only that tests exist and pass; not a code review) | **M1–M6** — sign-off is per PR as each module submits one, so M8's pace follows theirs through the phase |
 
 #### Phase 4 — Testing & Validation (due Nov 19)
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | Regression fixes on `core`; Architecture and Introduction sections finalized for the report |
-| **M2–M6** | Own module's test cases executed and passing (normal, invalid, boundary, conflict, state transition, failure); defects logged and fixed; own sections of Implementation (4.3 decisions, 4.4 deviations/limitations) drafted |
-| **M7** | UI polish from test findings; demo storyboard and shot list agreed with each member |
-| **M8** | Integration tests executed; test execution report + defect log (severity, related TC, status, resolution) by Nov 19; first draft of the consolidated Testing section |
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M2–M6** | 18/11 | Own module's test cases executed and passing (normal, invalid, boundary, conflict, state transition, failure); defects logged and fixed; own sections of Implementation (4.3 decisions, 4.4 deviations/limitations) drafted | — (own test cases can run as soon as 13/11 code freeze hits; largely parallel across modules; finish a day early so M7/M8 can consume the results) |
+| **M1** | 19/11 | Regression fixes on `core`; Architecture and Introduction sections finalized for the report | **M8** — regression fixes follow from defects M8's integration tests surface, found throughout the phase |
+| **M7** | 19/11 | UI polish from test findings; demo storyboard and shot list agreed with each member | **M2–M6, M8** — needs their 18/11 test findings to know what to polish |
+| **M8** | **19/11 (hard)** | Integration tests executed; test execution report + defect log (severity, related TC, status, resolution); first draft of the consolidated Testing section | **M1–M7** — integration testing needs the 13/11 code freeze (hard) across all modules |
 
 #### Phase 5 — Report, Demo & Presentation (report freeze Nov 23; submit by Nov 25)
 
-| Module | Deliverables due |
-| ------ | ---------------- |
-| **M1** | Final Introduction + Architecture; report consistency pass on requirements ↔ design ↔ code |
-| **M2–M6** | Record own demo segment (by Nov 21); own AI usage file complete; own report sections final (by Nov 22); own part of the slide deck |
-| **M7** | Demo video (3 min) edited from segments by Nov 23; UI section final; slide deck layout |
-| **M8** | Evaluation, Conclusion & consolidated AI Declaration; final consistency checklist; assemble the final report by Nov 23 (report freeze) and submit it by Nov 25 at the latest |
+| Module | Deadline (23:59) | Deliverables due | Needs from |
+| ------ | ----------------- | ---------------- | ---------- |
+| **M2–M6** | **21/11 (demo segment, hard)** · 22/11 (AI usage file, report sections, slide deck part) | Record own demo segment; own AI usage file complete; own report sections final; own part of the slide deck | — (each module's own output, fully parallel) |
+| **M1** | 22/11 | Final Introduction + Architecture; report consistency pass on requirements ↔ design ↔ code | — (the consistency pass reads everyone's sections, but M1's own writing doesn't block on anyone) |
+| **M7** | **23/11 (hard)** | Demo video (3 min) edited from segments; UI section final; slide deck layout | **M2–M6** — needs everyone's recorded segment by 21/11 (hard: only 2 days to edit before the 23/11 video deadline) |
+| **M8** | **23/11 (report freeze, hard)** · submit by 25/11 at the latest | Evaluation, Conclusion & consolidated AI Declaration; final consistency checklist; assemble the final report and submit it | **M1–M7** — needs everyone's final report sections by 22/11 (hard: report freeze is 23/11) |
 
 **Notes:**
 

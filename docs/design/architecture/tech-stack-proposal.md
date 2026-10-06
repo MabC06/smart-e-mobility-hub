@@ -1,6 +1,6 @@
 # Tech Stack Proposal
 
-> **Status:** Proposed (D-002) · **Owner:** M1 · **Date:** 2026-10-05 · **Team decision target:** 2026-10-09
+> **Status:** Proposed (D-002) · **Owner:** M1 · **Date:** 2026-10-05 · **Team decision target:** 2026-10-10
 > This is a recommendation, not a decision. It assumes most team members can work in Python. **Run a quick poll of the team's skills before accepting** (see section 7).
 
 ## 1. Selection criteria
@@ -86,7 +86,7 @@ The structure mandated by README and CONTRIBUTING is kept (`src/core`, `src/rese
 | Frontend work (M7) blocks on API | Publish the OpenAPI schema early (Core API spec v1 by 2026-10-20) and use mock data. |
 | Version drift between machines | Lock files, pinned versions, same Python minor version (3.12). |
 
-## 7. Questions for the team (decide by 2026-10-09)
+## 7. Questions for the team (decide by 2026-10-10)
 
 1. Which backend language do most members know? (Python / Java / JavaScript-TypeScript / other)
 2. Frontend: React + Vite, or server-rendered pages with HTMX? (M7 has the strongest voice.)
