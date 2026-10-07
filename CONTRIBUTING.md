@@ -46,7 +46,9 @@ Commits made with this address are still linked to your GitHub profile, but your
 | `refactor` | refactoring without behavior change |
 | `chore` | setup, config, dependencies |
 
-**module** (also used as the commit scope): `core`, `reservation`, `charging`, `allocation`, `monitoring`, `simulation`, `iot-sim`, `ui`, `docs`, `test`, `repo`. Use `repo` for anything that isn't owned by one module — `DECISIONS.md`, `task-assignment-timeline.md`, `README.md`, `CONTRIBUTING.md` itself, and report sections consolidated across modules (Introduction, Evaluation, AI Declaration). Don't invent a new scope (e.g. a filename) for these.
+**module** (also used as the commit scope): `core`, `reservation`, `charging`, `allocation`, `monitoring`, `simulation`, `iot-sim`, `ui`, `docs`, `test`, `repo`.
+
+Use `repo` for anything that isn't owned by one module — `DECISIONS.md`, `task-assignment-timeline.md`, `README.md`, `CONTRIBUTING.md` itself, and report sections consolidated across modules (Introduction, Evaluation, AI Declaration). Don't invent a new scope (e.g. a filename) for these.
 
 Examples: `feat/reservation-booking-flow`, `fix/charging-queue-overflow`, `docs/core-state-machine`, `feat/iot-sim-battery-drain`
 
