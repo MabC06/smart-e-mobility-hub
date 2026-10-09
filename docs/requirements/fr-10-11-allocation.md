@@ -8,9 +8,10 @@ This module decides "where limited resources go":
 1. It moves rental vehicles between Hubs, so no Hub runs out of vehicles or out of parking spaces (FR-10).
 2. It decides who gets a parking space or charging bay when several requests want the same one (FR-11, allocation side).
 
-## 2. Skateholders
+## 2. Stakeholders
 
 | Actor | What they do with this module |
+|---|---|
 | **Operator** | Sees recommendations, approves or rejects tasks, confirms pick-up and return, changes settings. |
 | **Student** | Does not call it directly. The reservation module asks for alternative Hubs for the student. |
 | **System / Scheduler** | Settles conflicts and re-plans automatically. |
@@ -19,7 +20,7 @@ This module decides "where limited resources go":
 ## 3. Functional requirements
 
 
-1)FR-10 — Redistribute rental vehicles between Hubs
+### FR-10 — Redistribute rental vehicles between Hubs
 
 | ID | The system must... | UC | BR |
 |---|---|---|---|
@@ -34,6 +35,7 @@ This module decides "where limited resources go":
 ### FR-11 — Charging priority (allocation side)
 
 | ID | The system must... | UC | BR |
+|---|---|---|---|
 | FR-11(a) | Decide who gets a space or charging bay when requests compete, using the priority order. | UC-A06 | BR A01, A02 |
 | FR-11(b) | Move charging requests to another point, another Hub, or the queue when a charging point fails or a Hub has no free bay. | UC-A07 | BR A11 |
 | FR-11(c) | Never go over a Hub's capacity. | UC-A02, A03 | BR A04, A09 |
@@ -59,11 +61,8 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 
 ## 5. Use cases
 
-![Use-case diagram of the allocation module](diagrams/allocation-use-cases.png)
-
-*UC-A04 (cancel) and UC-A08 (re-plan after a failure) extend UC-A03.*
-
 | ID     | Name |                  Actor |
+|---|---|---|
 | UC-A01 | View redistribution recommendations | Operator |
 | UC-A02 | Approve, reject or adjust a task | Operator |
 | UC-A03 | Carry out a dispatch task | Operator, Sensor |
