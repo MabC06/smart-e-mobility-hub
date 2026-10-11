@@ -1,0 +1,23 @@
+@startuml
+left to right direction
+title U1 - M2 rental use cases (provisional IDs)
+skinparam shadowing false
+skinparam defaultFontName Arial
+actor Student
+rectangle "Smart E-Mobility Hub - rental scope" {
+  usecase "UC-M2-01\nFind suitable vehicles" as Search
+  usecase "UC-M2-02\nReserve rental vehicle" as Reserve
+  usecase "UC-M2-03\nCancel rental reservation" as Cancel
+  usecase "UC-M2-04\nPick up vehicle" as Pickup
+  usecase "UC-M2-05\nReturn vehicle" as Return
+}
+Student -- Search
+Student -- Reserve
+Student -- Cancel
+Student -- Pickup
+Student -- Return
+note bottom of Reserve
+  No automatic destination parking hold.
+  Separate parking goal appears in U2.
+end note
+@enduml
