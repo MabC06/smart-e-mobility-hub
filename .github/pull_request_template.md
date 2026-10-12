@@ -10,7 +10,7 @@
 -
 
 ## Related requirement
-<!-- FR-xx / NFR-xx / BR-xx / UC-xx / TC-xxx / Issue # -->
+<!-- FR-xx / NFR-xx / BR-M<n>-## / UC-M<n>-## / TC-M<n>-### / Issue # -->
 -
 
 ## Verification

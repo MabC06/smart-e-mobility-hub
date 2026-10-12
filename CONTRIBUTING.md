@@ -74,7 +74,7 @@ Rules:
 feat(reservation): add double-booking check (FR-03, BR-M2-02)
 fix(charging): reject charging request below minimum battery (FR-06)
 docs(core): add vehicle state machine diagram
-test(allocation): cover no-available-hub case (FR-10, TC-041)
+test(allocation): cover no-available-hub case (FR-10, TC-M4-041)
 chore(repo): add .gitignore and .env.example
 ```
 
@@ -93,13 +93,27 @@ The report is graded on consistency between requirements, design, code and tests
 | `NFR-xx` | Non-Functional Requirement | Measurable quality attributes: performance, reliability, data consistency, etc. | `NFR-01` Hub status updates are visible within N seconds |
 | `BR-M<n>-##` | Business Rule | Rules constraining behavior and shared resources: reservation conflicts, capacity limits, valid state transitions. | `BR-M2-02` A vehicle cannot have two overlapping active reservations |
 | `UC-M<n>-##` | Use Case | An actor–system interaction scenario. | `UC-M2-02` Student reserves a vehicle |
-| `TC-xxx` | Test Case | A test linked to the FR/UC it verifies. | `TC-041` Allocation with no available hub |
+| `TC-M<n>-###` | Test Case | A test linked to the FR/BR/UC/NFR it verifies. | `TC-M4-041` Allocation with no available hub |
 
-- `FR-xx` and `NFR-xx` numbers are defined centrally in `docs/requirements/`. `BR` and `UC` IDs are created by each module in its own requirements file; the examples above are illustrative.
-- In `BR-M<n>-##` and `UC-M<n>-##`, `<n>` is the number of the module that owns the ID (M1–M8) and `##` runs from `01` within that module. The prefix prevents two modules from using the same ID; it does not say which FR the item serves.
-- Every BR and UC must have a `Trace:` line listing the FR IDs it relates to. A UC also lists the BRs it enforces; a BR also lists the UCs it applies to. Example: `Trace: FR-02, FR-03; BR-M2-01`. M8 collects these into `docs/testing/traceability-sheet.md`.
-- M8 assigns the official `TC-xxx` numbers. Until then a module may use a provisional `TC-M<n>-##` in its own branch.
+- `FR-xx` and `NFR-xx` numbers are defined centrally in `docs/requirements/`; a module may split its FR into sub-requirements `FR-xx.k` (e.g. `FR-06.1`). FR-07 and FR-11 are shared by two modules, so their sub-requirements carry the module number: `FR-xx.M<n>.k` (e.g. `FR-11.M4.1`). `BR`, `UC` and `TC` IDs are created by each module; the examples above are illustrative.
+- In `BR-M<n>-##`, `UC-M<n>-##` and `TC-M<n>-###`, `<n>` is the number of the module that owns the ID (M1–M8, see the table at the end of this section), counted from `01` (`001` for TC) within that module. A TC takes the prefix of the module that owns its test folder (`tests/<folder>/`); integration and system tests belong to M8. The prefix only prevents two modules from using the same ID; it does not say which requirement the item serves.
+- Links go one way, upward. `Trace:` is a line, or a `Trace` row or column when the item sits in a table. A UC has a `Trace:` line listing FRs, then BRs (`Trace: FR-02, FR-03; BR-M2-01`). A BR has a `Trace:` line listing FRs. A TC has a `Verifies:` line listing the FR/BR/UC/NFR IDs it checks. NFR IDs may appear in any of them, and FR sub-requirements may be cited by their full ID (`FR-xx.k` or `FR-xx.M<n>.k`). Do not write the reverse link by hand: M8 derives it in `docs/testing/traceability-sheet.md` and checks for duplicate and orphan IDs.
+- A rule that constrains core state for every module (capacity, uniqueness, state transitions) is owned by M1 as `BR-M1-##`; other modules cite it instead of restating it. A use case is defined once, by the module that owns the FR; other modules refer to it by ID.
+- An ID that has been merged is never reused or renumbered; a retired one is marked `Withdrawn`.
 - This is a team naming convention, not a GitHub feature.
+
+Module numbers (`<n>`) and folders:
+
+| `<n>` | Module | Folders (`src/<folder>/`, `tests/<folder>/`) |
+|---|---|---|
+| M1 | Core | `core` |
+| M2 | Reservation | `reservation` |
+| M3 | Charging | `charging` |
+| M4 | Allocation | `allocation` |
+| M5 | Monitoring | `monitoring` |
+| M6 | Simulation | `simulation` |
+| M7 | UI | `ui` |
+| M8 | IoT simulator, integration and system tests | `iot_sim`; `tests/integration/` |
 
 ## 6. Pull Requests & Review
 
