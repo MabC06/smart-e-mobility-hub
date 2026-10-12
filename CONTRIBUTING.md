@@ -71,7 +71,7 @@ Rules:
 - `ID`: related requirement / use-case / issue ID, if any (section 5).
 
 ```
-feat(reservation): add double-booking check (FR-03, BR-02)
+feat(reservation): add double-booking check (FR-03, BR-M2-02)
 fix(charging): reject charging request below minimum battery (FR-06)
 docs(core): add vehicle state machine diagram
 test(allocation): cover no-available-hub case (FR-10, TC-041)
@@ -91,11 +91,14 @@ The report is graded on consistency between requirements, design, code and tests
 |---|---|---|---|
 | `FR-xx` | Functional Requirement | What the system must do. | `FR-03` Reserve rental electric vehicles |
 | `NFR-xx` | Non-Functional Requirement | Measurable quality attributes: performance, reliability, data consistency, etc. | `NFR-01` Hub status updates are visible within N seconds |
-| `BR-xx` | Business Rule | Rules constraining behavior and shared resources: reservation conflicts, capacity limits, valid state transitions. | `BR-02` A vehicle cannot have two overlapping active reservations |
-| `UC-xx` | Use Case | An actor–system interaction scenario. | `UC-05` Student reserves a vehicle |
+| `BR-M<n>-##` | Business Rule | Rules constraining behavior and shared resources: reservation conflicts, capacity limits, valid state transitions. | `BR-M2-02` A vehicle cannot have two overlapping active reservations |
+| `UC-M<n>-##` | Use Case | An actor–system interaction scenario. | `UC-M2-02` Student reserves a vehicle |
 | `TC-xxx` | Test Case | A test linked to the FR/UC it verifies. | `TC-041` Allocation with no available hub |
 
-- Actual numbers are defined in `docs/requirements/`; the examples above are illustrative.
+- `FR-xx` and `NFR-xx` numbers are defined centrally in `docs/requirements/`. `BR` and `UC` IDs are created by each module in its own requirements file; the examples above are illustrative.
+- In `BR-M<n>-##` and `UC-M<n>-##`, `<n>` is the number of the module that owns the ID (M1–M8) and `##` runs from `01` within that module. The prefix prevents two modules from using the same ID; it does not say which FR the item serves.
+- Every BR and UC must have a `Trace:` line listing the FR IDs it relates to. A UC also lists the BRs it enforces; a BR also lists the UCs it applies to. Example: `Trace: FR-02, FR-03; BR-M2-01`. M8 collects these into `docs/testing/traceability-sheet.md`.
+- M8 assigns the official `TC-xxx` numbers. Until then a module may use a provisional `TC-M<n>-##` in its own branch.
 - This is a team naming convention, not a GitHub feature.
 
 ## 6. Pull Requests & Review
