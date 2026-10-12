@@ -1,0 +1,34 @@
+@startuml
+title S1 - Reserve rental: proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+Student -> UI: Confirm selected vehicle
+UI -> Reservation: vehicle, origin, destination, min_soc,\nduration, version, command key
+Reservation -> Core: Authenticate and submit reservation intent
+Core -> Core: Validate actor / payload; lookup command key
+alt Exact replay or key misuse
+  Core --> Reservation: Recorded outcome or KEY_REUSE
+else Fresh valid intent
+  group Atomic Core-coordinated unit of work (M2 ports included)
+    Core -> Core: Serialize vehicle + user quota; settle expired claims\nRead authoritative time; recheck state, version and battery
+    alt Eligible vehicle and user below live rental limit
+      Core -> Core: Create Confirmed reservation + claim\nVehicle Reserved; retain origin occupancy\nexpiry = confirmed_at + 10 min; persist result/event
+    else Stale version, competing claim, fault or quota
+      Core -> Core: No booking / resource writes\nRecord rejection for this key
+    end
+  end
+  Core --> Reservation: Confirmation or explicit rejection
+end
+Reservation --> UI: Result, IDs, expiry, server time / reason
+UI --> Student: Confirmation deadline or refresh guidance
+note over Reservation,Core
+  No destination hold. No Trip before pickup.
+  Commit failure rolls back the full write set.
+  UI timeout means unknown outcome: lookup / retry same key.
+end note
+@enduml

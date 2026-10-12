@@ -1,0 +1,22 @@
+@startuml
+left to right direction
+title U2 - M2 parking use cases (provisional IDs)
+skinparam shadowing false
+skinparam defaultFontName Arial
+actor Student
+actor "Private EV owner" as Owner
+Owner --|> Student
+rectangle "Smart E-Mobility Hub - parking scope" {
+  usecase "UC-M2-06\nReserve parking" as Reserve
+  usecase "UC-M2-07\nCancel parking" as Cancel
+  usecase "UC-M2-08\nArrive and leave private parking" as Stay
+}
+Student -- Reserve
+Student -- Cancel
+Owner -- Stay
+note bottom of Reserve
+  Charging is an optional coordinated M3 flow.
+  Registered private ownership is a precondition.
+  Rental return consumes its hold in UC-M2-05.
+end note
+@enduml

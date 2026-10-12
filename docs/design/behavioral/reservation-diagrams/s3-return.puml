@@ -1,0 +1,43 @@
+@startuml
+title S3 - Return: proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+control "Allocation (M4)" as Allocation
+Student -> UI: Confirm return Hub
+UI -> Reservation: trip ID, Hub, optional parking hold, version, key
+Reservation -> Core: Authenticated return intent
+Core -> Core: Authenticate; replay lookup; validate Trip ownership
+alt Replay / already completed with same actor and context
+  Core --> Reservation: Original receipt / ALREADY_COMPLETED; no movement
+else Invalid owner, state, destination or stale version
+  Core --> Reservation: Error; Trip and location unchanged
+else Owned Active rental and open Trip
+  group Atomic return under Core serialization
+    Core -> Core: Recheck Hub; consume own valid hold or select\nempty unclaimed space without conflicting future claim
+    alt Receiving space exists
+      Core -> Core: Occupy destination and set vehicle location\nTrip Completed; Reservation Completed\nConsume matching return-parking hold\nVehicle Returned (Maintenance if fault); persist result/event
+      Core --> Reservation: Return receipt and actual time / Hub
+    else No usable parking / concurrent capacity loss
+      Core --> Reservation: NO_PARKING / CONFLICT; no return writes
+    end
+  end
+  opt Return rejected for capacity
+    Reservation -> Core: Query alternative Hubs (no mutation)
+    Core -> Allocation: Rank currently feasible Hubs per UC-A05
+    Allocation --> Core: Candidates + as_of, or none / unavailable
+    Core --> Reservation: Advisory alternatives; zero holds
+  end
+end
+Reservation --> UI: Receipt or error + advisory alternatives
+UI --> Student: Complete, or select and confirm another Hub
+note over Reservation,Core
+  No space means rental remains Active and Trip remains open.
+  Post-commit Core / M3 readiness is separate from ending the Trip.
+  A failed notification never undoes a committed return.
+end note
+@enduml
