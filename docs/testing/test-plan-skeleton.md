@@ -159,8 +159,8 @@ The standardized test-case format will include at least:
 
 | Field | Description |
 |---|---|
-| TC ID | Unique `TC-xxx` identifier |
-| Requirement / UC | Linked `FR`, `NFR`, `BR`, and/or `UC` IDs |
+| TC ID | Unique `TC-M<n>-###` identifier |
+| Verifies | Linked `FR`, `NFR`, `BR`, and/or `UC` IDs verified by this test case |
 | Technique | EP, BVA, decision table, state transition, etc. |
 | Preconditions | Required initial state/data |
 | Input / Event | Data or action under test |

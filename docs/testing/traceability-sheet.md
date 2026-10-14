@@ -70,7 +70,7 @@ Business-rule IDs are not yet present in the current requirements directory. Mod
 
 | ID | Module | Rule | Related FR / UC | Status | Test Case ID(s) |
 |---|---|---|---|---|---|
-| BR-xx | TBD | Pending module requirements | TBD | Pending | — |
+| BR-M<n>-## | TBD | Pending module requirements | TBD | Pending | — |
 
 ## 4. Use Cases
 
@@ -78,7 +78,7 @@ Use-case tables are being produced by M2–M7 during Phase 0. M8 will populate t
 
 | ID | Use Case | Actor | Related FR | Status | Test Case ID(s) |
 |---|---|---|---|---|---|
-| UC-xx | Pending consolidated use-case tables | TBD | TBD | Pending | — |
+| UC-M<n>-## | Pending consolidated use-case tables | TBD | TBD | Pending | — |
 
 ## 5. Test Cases
 
@@ -86,7 +86,7 @@ Standardized test cases will be created in `docs/testing/test-cases/` after the 
 
 | TC ID | Test Case | Technique | Linked IDs | Status |
 |---|---|---|---|---|
-| TC-xxx | Pending test-case set | TBD | TBD | Planned |
+| TC-M<n>-### | Pending test-case set | TBD | TBD | Planned |
 
 ## 6. Coverage / Orphan Check
 
@@ -100,8 +100,8 @@ Standardized test cases will be created in `docs/testing/test-cases/` after the 
 
 ## 7. Update Protocol
 
-1. Module owner adds/updates FR, BR, or UC → M8 updates this sheet.
-2. M8 assigns standardized `TC-xxx` IDs when test cases are created.
+1. Module owners add or update FR, BR, or UC definitions in their respective module documents. M8 updates this sheet to reflect the changes.
+2. M8 collects TC IDs from test files and tables, derives the BR → UC and requirement → TC relationships from the `Trace:` and `Verifies:` entries, and checks for duplicate and orphan IDs.
 3. Test execution records Pass / Fail / Blocked and evidence.
 4. Failed tests link to the defect log.
 5. Before code freeze and final submission, M8 performs an orphan-ID check.
