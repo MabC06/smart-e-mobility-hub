@@ -63,7 +63,7 @@ Represents an individual parking slot within a `Hub` (400 total spaces in `A-11`
 - **Foreign Keys:**
   - `hub_id` $\rightarrow$ `Hub.hub_id` (not null)
 - **Attributes:**
-  - `space_Label` (String — e.g., `H01-P01`)
+  - `space_label` (String — e.g., `H01-P01`)
   - `status` (Enum: `AVAILABLE`, `RESERVED`, `OCCUPIED`, `MAINTENANCE`)
   - `has_charger_access` (Boolean — indicates whether a `ChargingPoint` is co-located)
   - `version` (Integer, not null, default `1` — **Optimistic Locking** per `D-002`)
@@ -123,12 +123,12 @@ Covers rental vehicle reservations (`FR-03`), destination/origin parking space r
 - **Primary Key:** `reservation_id` (String / UUID)
 - **Foreign Keys:**
   - `user_id` $\rightarrow$ `UserAccount.user_id` (not null)
-  - `reservation_type` (Enum: `FLEET_VEHICLE_RENTAL`, `PARKING_ONLY`, `PRIVATE_EV_PARKING_CHARGING`)
   - `vehicle_id` $\rightarrow$ `Vehicle.vehicle_id` (nullable — required for vehicle rental or private EV booking)
   - `pickup_hub_id` $\rightarrow$ `Hub.hub_id` (not null — target Hub for parking or vehicle pickup)
   - `return_hub_id` $\rightarrow$ `Hub.hub_id` (nullable — planned destination Hub for rental trip)
   - `reserved_parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (nullable)
 - **Attributes:**
+  - `reservation_type` (Enum: `FLEET_VEHICLE_RENTAL`, `PARKING_ONLY`, `PRIVATE_EV_PARKING_CHARGING`)
   - `created_at` (Timestamp, not null)
   - `scheduled_start_time` (Timestamp, not null)
   - `hold_expires_at` (Timestamp, not null — enforces hold-time limit BR)
@@ -214,10 +214,10 @@ Records operational failures such as damaged/unavailable vehicles, failed chargi
   - `reported_by_user_id` $\rightarrow$ `UserAccount.user_id` (nullable — `NULL` if reported automatically by `iot_sim`)
   - `assigned_operator_id` $\rightarrow$ `UserAccount.user_id` (nullable)
 - **Attributes:**
-  - `incident_type` (Enum: `VEHICLE_BREAKDOWN`, `BATTERY_CRITICAL_FAULT`, `CHARGING_POINT_FAILURE`, `PARKING_SENSOR_FAULT`, `OVERDUE_VEHICLE`)
-  - `severity` (Enum: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
+  - `incident_type` (Enum: `CHARGING_POINT_FAILURE`, `PARKING_SENSOR_FAULT`, `HUB_CAPACITY_FULL`, `HUB_VEHICLE_DEFICIT`, `BATTERY_CRITICAL_FAULT`, `TELEMETRY_CONNECTION_LOSS`, `OVERDUE_VEHICLE`)
+  - `severity` (Enum: `LOW`, `MEDIUM`, `HIGH`)
   - `escalation_level` (Integer, default `0` — increments per M5 escalation BRs)
-  - `status` (Enum: `OPEN`, `IN_PROGRESS`, `ESCALATED`, `RESOLVED`, `CLOSED`)
+  - `status` (Enum: `OPEN`, `IN_PROGRESS`, `ESCALATED`, `CLOSED`)
   - `description` (Text, not null)
   - `resolution_notes` (Text, nullable)
   - `created_at` (Timestamp, not null)
