@@ -1,8 +1,9 @@
-# Initial Data-Entity List for the ERD (Draft v1.0)
+# Initial Data-Entity List for the ERD (Draft v1.1)
 
-> **Status:** Draft v1.0 · **Owner:** M7 (Nguyễn Trung Kiên) · **Date:** 2026-10-11 · **Reviewer:** M5 (Đỗ Hoàng Việt)
+> **Status:** Draft v1.1 · **Owner:** M7 (Nguyễn Trung Kiên) · **Date:** 2026-10-15 · **Reviewer:** M5 (Đỗ Hoàng Việt)
 > This document defines the initial catalog of persistent data entities, key attributes, state enumerations, and relationships for the **Smart E-Mobility Hub** relational database schema (SQLAlchemy 2.x on SQLite/PostgreSQL per `D-002`).
 > It serves as the Phase 0 structural baseline to be synchronized with M1's Core Class Diagram (`docs/design/structural/class-diagram-core.md`) by 2026-10-16 and finalized into `docs/design/structural/erd.md` by 2026-10-24.
+> v1.1 aligns the baseline with the latest Phase 0 files of M2, M3, M4, M5, M6 and with `D-007`; section 6 lists the changes and section 7 lists what is left for Phase 1.
 
 ---
 
@@ -34,8 +35,8 @@ To guarantee consistency between Requirements, Architecture (`M1`), Implementati
 | **C. Reservation & Trip (Student)** | `Trip` | M2 (`reservation`) | `FR-04` | Operational (Pick-up to return lifecycle) |
 | **D. Charging & Smart Scheduling** | `ChargingSession` | M3 (`charging`) | `FR-06`, `FR-07`, `FR-11` | Operational (Queue & charging lifecycle) |
 | **E. Resource Allocation & Dispatch** | `RedistributionTask` | M4 (`allocation`) | `FR-10`, `FR-11` | Operational (Hub-to-hub vehicle dispatch) |
+| **E. Resource Allocation & Dispatch** | `RedistributionTaskVehicle` | M4 (`allocation`) | `FR-10` | Operational (Vehicles and held spaces of a dispatch task) |
 | **F. Monitoring & Incident Handling** | `Incident` | M5 (`monitoring`) | `FR-08`, `FR-09` | Operational (Equipment/resource failures) |
-| **F. Monitoring & Incident Handling** | `CapacityAlert` | M5 (`monitoring`) | `FR-08` | Operational (Hub threshold warnings) |
 | **G. What-if Simulation Metadata** | `SimulationRun` | M6 (`simulation`) | `FR-12` | Analytical / Read-only snapshot metadata |
 | **G. What-if Simulation Metadata** | `CoordinationRecommendation` | M6 (`simulation`) | `FR-12`, `FR-10`, `FR-11` | Analytical / Recommendation output |
 
@@ -53,8 +54,8 @@ Represents a physical Mobility Hub in the VNU-HCM Urban Area (e.g., Metro Statio
   - `zone_code` (String — e.g., `METRO`, `DORM`, `CAMPUS`, `SERVICE`)
   - `location_description` (String)
   - `total_parking_capacity` (Integer, not null, $> 0$)
-  - `total_charging_points` (Integer, not null, $\ge 0$)
-  - `status` (Enum: `ACTIVE`, `CAPACITY_WARNING`, `FULL`, `MAINTENANCE`)
+  - `total_charging_points` (Integer, not null, $\ge 0$, $\le$ `total_parking_capacity` per `D-007`)
+  - `status` (Enum: `ACTIVE`, `WARNING`, `CRITICAL`, `MAINTENANCE` — `WARNING` at parking occupancy $\ge 90\%$ per `BR-M5-01`, `CRITICAL` at $100\%$ per `BR-M5-02`)
   - `updated_at` (Timestamp)
 
 #### 2. `ParkingSpace`
@@ -65,7 +66,6 @@ Represents an individual parking slot within a `Hub` (400 total spaces in `A-11`
 - **Attributes:**
   - `space_label` (String — e.g., `H01-P01`)
   - `status` (Enum: `AVAILABLE`, `RESERVED`, `OCCUPIED`, `MAINTENANCE`)
-  - `has_charger_access` (Boolean — indicates whether a `ChargingPoint` is co-located)
   - `version` (Integer, not null, default `1` — **Optimistic Locking** per `D-002`)
   - `updated_at` (Timestamp)
 
@@ -74,11 +74,11 @@ Represents a charging unit at a `Hub` capable of charging any of the three vehic
 - **Primary Key:** `charging_point_id` (String / UUID)
 - **Foreign Keys:**
   - `hub_id` $\rightarrow$ `Hub.hub_id` (not null)
-  - `parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (nullable/unique — if tied to a dedicated charging bay)
+  - `parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (not null, unique — a charging point is attached to exactly one parking space of the same Hub per `D-007`)
 - **Attributes:**
   - `point_code` (String — e.g., `H01-CP01`)
   - `power_rate_kw` (Float, not null — fixed charging rate per `A-04`)
-  - `status` (Enum: `AVAILABLE`, `SCHEDULED`, `CHARGING`, `FAILED`, `MAINTENANCE`)
+  - `status` (Enum: `AVAILABLE`, `SCHEDULED`, `CHARGING`, `OUT_OF_SERVICE`, `MAINTENANCE`)
   - `version` (Integer, not null, default `1` — **Optimistic Locking** per `D-002`)
   - `updated_at` (Timestamp)
 
@@ -95,6 +95,7 @@ Represents both shared fleet electric vehicles (250 rental vehicles in `A-11`) a
   - `vehicle_type` (Enum: `E_BIKE`, `E_SCOOTER`, `E_MOTORCYCLE` — 3 types per `A-03`)
   - `battery_level_pct` (Integer / Float, $0 \le \text{value} \le 100$)
   - `battery_capacity_kwh` (Float, $> 0$)
+  - `connector_type` (String, nullable — only for `PRIVATE` EVs; stored from the M3 profile `FR-07.M3.1`; all chargers remain compatible per `A-03`)
   - `status` (Enum matching M1 State Machine: `AVAILABLE`, `RESERVED`, `IN_USE`, `RETURNED`, `CHARGING`, `MAINTENANCE`)
   - `version` (Integer, not null, default `1` — **Optimistic Locking** per `D-002`)
   - `updated_at` (Timestamp)
@@ -132,6 +133,7 @@ Covers rental vehicle reservations (`FR-03`), destination/origin parking space r
   - `created_at` (Timestamp, not null)
   - `scheduled_start_time` (Timestamp, not null)
   - `hold_expires_at` (Timestamp, not null — enforces hold-time limit BR)
+  - `planned_duration_minutes` (Integer, nullable — rental duration used to compute `Trip.expected_return_at`)
   - `ended_at` (Timestamp, nullable)
   - `status` (Enum matching M2 State Machine: `PENDING`, `CONFIRMED`, `ACTIVE`, `COMPLETED`, `CANCELLED`, `EXPIRED`)
   - `cancellation_reason` (String, nullable)
@@ -149,6 +151,7 @@ Tracks the actual hub-to-hub rental journey (`A-01`, `FR-04`) once a student pic
   - `return_parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (nullable until return completed)
 - **Attributes:**
   - `pickup_time` (Timestamp, not null)
+  - `expected_return_at` (Timestamp, not null — computed once at pickup; used by incident type `OVERDUE_VEHICLE`)
   - `return_time` (Timestamp, nullable)
   - `start_battery_pct` (Float, not null)
   - `end_battery_pct` (Float, nullable)
@@ -168,10 +171,11 @@ Represents both charging requests in the priority queue and active/completed cha
   - `requested_by_user_id` $\rightarrow$ `UserAccount.user_id` (nullable — student for private EV/manual request, operator, or `NULL` if system auto-queued on vehicle return)
   - `related_reservation_id` $\rightarrow$ `Reservation.reservation_id` (nullable — links to upcoming usage requirement or private EV slot)
 - **Attributes:**
-  - `request_type` (Enum: `FLEET_AUTO`, `FLEET_OPERATOR`, `PRIVATE_USER`)
+  - `request_type` (Enum: `FLEET_AUTO`, `FLEET_OPERATOR`, `FLEET_STUDENT`, `PRIVATE_USER`)
   - `initial_battery_pct` (Float, not null)
   - `target_battery_pct` (Float, not null, default `80.0` or `100.0`)
   - `priority_score` (Float, not null — computed from battery threshold, upcoming reservation urgency, and waiting time)
+  - `low_battery_override` (Boolean, default `false` — set when battery is at or below `LOW_BATTERY_THRESHOLD`, per `BR-M3-03`)
   - `requested_at` (Timestamp, not null)
   - `scheduled_start_time` (Timestamp, nullable)
   - `scheduled_end_time` (Timestamp, nullable)
@@ -185,25 +189,35 @@ Represents both charging requests in the priority queue and active/completed cha
 ### 3.5 Group E — Resource Allocation & Vehicle Dispatching Entities (`M4`)
 
 #### 9. `RedistributionTask`
-Represents an operator-approved or system-generated vehicle dispatching order to rebalance rental vehicles between Hubs (`FR-10`).
+Represents an operator-approved or system-generated vehicle dispatching order to rebalance rental vehicles between Hubs (`FR-10`). A task may move several vehicles (see `RedistributionTaskVehicle`).
 - **Primary Key:** `task_id` (String / UUID)
 - **Foreign Keys:**
   - `source_hub_id` $\rightarrow$ `Hub.hub_id` (not null)
   - `destination_hub_id` $\rightarrow$ `Hub.hub_id` (not null)
-  - `vehicle_id` $\rightarrow$ `Vehicle.vehicle_id` (not null)
-  - `target_parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (nullable — reserved at destination Hub)
   - `initiated_by_operator_id` $\rightarrow$ `UserAccount.user_id` (nullable)
 - **Attributes:**
+  - `quantity_recommended` (Integer, not null, $> 0$)
+  - `quantity_approved` (Integer, nullable — the operator may lower it)
   - `priority_level` (Enum: `LOW`, `NORMAL`, `HIGH`, `URGENT`)
-  - `status` (Enum: `PLANNED`, `IN_TRANSIT`, `COMPLETED`, `CANCELLED`)
+  - `status` (Enum: `RECOMMENDED`, `APPROVED`, `IN_PROGRESS`, `COMPLETED`, `REJECTED`, `CANCELLED`, `FAILED`)
+  - `reason` (Text, not null — why the task was proposed)
+  - `failure_or_cancel_reason` (Text, nullable)
   - `created_at` (Timestamp, not null)
   - `completed_at` (Timestamp, nullable)
+
+#### 10. `RedistributionTaskVehicle`
+Lists the vehicles of a dispatch task and the destination spaces held for them (`FR-10`).
+- **Primary Key:** (`task_id`, `vehicle_id`)
+- **Foreign Keys:**
+  - `task_id` $\rightarrow$ `RedistributionTask.task_id` (not null)
+  - `vehicle_id` $\rightarrow$ `Vehicle.vehicle_id` (not null — a vehicle is in at most one active task)
+  - `target_parking_space_id` $\rightarrow$ `ParkingSpace.parking_space_id` (nullable — reserved at destination Hub)
 
 ---
 
 ### 3.6 Group F — Operator Monitoring & Incident Handling Entities (`M5`)
 
-#### 10. `Incident`
+#### 11. `Incident`
 Records operational failures such as damaged/unavailable vehicles, failed charging points, or blocked spaces (`FR-09`).
 - **Primary Key:** `incident_id` (String / UUID)
 - **Foreign Keys:**
@@ -215,26 +229,14 @@ Records operational failures such as damaged/unavailable vehicles, failed chargi
   - `assigned_operator_id` $\rightarrow$ `UserAccount.user_id` (nullable)
 - **Attributes:**
   - `incident_type` (Enum: `CHARGING_POINT_FAILURE`, `PARKING_SENSOR_FAULT`, `HUB_CAPACITY_FULL`, `HUB_VEHICLE_DEFICIT`, `BATTERY_CRITICAL_FAULT`, `TELEMETRY_CONNECTION_LOSS`, `OVERDUE_VEHICLE`)
-  - `severity` (Enum: `LOW`, `MEDIUM`, `HIGH`)
-  - `escalation_level` (Integer, default `0` — increments per M5 escalation BRs)
-  - `status` (Enum: `OPEN`, `IN_PROGRESS`, `ESCALATED`, `CLOSED`)
+    - Mapping to M5 incident IDs: `CHARGING_POINT_FAILURE` = `INC-HW-01`, `PARKING_SENSOR_FAULT` = `INC-HW-02`, `HUB_CAPACITY_FULL` = `INC-CAP-01`, `HUB_VEHICLE_DEFICIT` = `INC-CAP-02`, `BATTERY_CRITICAL_FAULT` = `INC-BAT-01`, `TELEMETRY_CONNECTION_LOSS` = `INC-COMM-01`, `OVERDUE_VEHICLE` = `INC-USR-01`
+  - `severity` (Enum: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
+  - `acknowledged_at` (Timestamp, nullable)
+  - `escalated_at` (Timestamp, nullable — set when a High incident stays unacknowledged for more than 5 minutes, per `BR-M5-04`)
+  - `status` (Enum: `OPEN`, `IN_PROGRESS`, `ESCALATED`, `RESOLVED`, `CLOSED`)
   - `description` (Text, not null)
   - `resolution_notes` (Text, nullable)
   - `created_at` (Timestamp, not null)
-  - `resolved_at` (Timestamp, nullable)
-
-#### 11. `CapacityAlert`
-Tracks utilization warnings when a Hub approaches parking or charging capacity limits (`FR-08`).
-- **Primary Key:** `alert_id` (String / UUID)
-- **Foreign Keys:**
-  - `hub_id` $\rightarrow$ `Hub.hub_id` (not null)
-  - `acknowledged_by_operator_id` $\rightarrow$ `UserAccount.user_id` (nullable)
-- **Attributes:**
-  - `alert_type` (Enum: `PARKING_NEAR_CAPACITY`, `PARKING_FULL`, `VEHICLE_SHORTAGE`, `CHARGING_QUEUE_CONGESTION`)
-  - `utilization_pct` (Float, not null)
-  - `threshold_pct` (Float, not null)
-  - `status` (Enum: `ACTIVE`, `ACKNOWLEDGED`, `AUTO_RESOLVED`)
-  - `triggered_at` (Timestamp, not null)
   - `resolved_at` (Timestamp, nullable)
 
 ---
@@ -276,6 +278,7 @@ Tracks utilization warnings when a Hub approaches parking or charging capacity l
 |---|---|---|---|
 | `Hub` | `ParkingSpace` | `1 : N` | A Hub contains multiple parking spaces; each space belongs to exactly one Hub. |
 | `Hub` | `ChargingPoint` | `1 : N` | A Hub contains multiple charging points; each point belongs to one Hub. |
+| `ParkingSpace` | `ChargingPoint` | `0..1 : 1` | A charging point is attached to exactly one parking space (its charging bay, `D-007`); a parking space has at most one charging point. |
 | `Hub` | `Vehicle` | `1 : 0..N` | A Hub currently hosts zero or more parked vehicles (`NULL` when a vehicle is `IN_USE`). |
 | `ParkingSpace` | `Vehicle` | `0..1 : 0..1` | An occupied parking space holds at most one vehicle at any instant. |
 | `UserAccount` | `Vehicle` | `0..1 : 0..N` | A student may register private EV(s); fleet vehicles have `owner_user_id = NULL`. |
@@ -284,6 +287,7 @@ Tracks utilization warnings when a Hub approaches parking or charging capacity l
 | `Vehicle` | `ChargingSession` | `1 : 0..N` | A vehicle participates in multiple charging sessions over its lifecycle (at most one active at a time). |
 | `ChargingPoint` | `ChargingSession` | `0..1 : 0..N` | A charging point serves many sessions over time, but at most one `CHARGING` session at a time (`A-04`). |
 | `Hub` | `RedistributionTask` | `1 : 0..N` | A Hub acts as source or destination for multiple vehicle redistribution tasks. |
+| `RedistributionTask` | `RedistributionTaskVehicle` | `1 : 1..N` | A task moves one or more vehicles; a vehicle is in at most one active task. |
 | `Hub` / `Vehicle` / `ChargingPoint` | `Incident` | `1 : 0..N` | Operational incidents are logged against a Hub and optionally a specific failed vehicle or charger. |
 | `SimulationRun` | `CoordinationRecommendation` | `1 : 1..N` | Each What-if Simulation run produces one or more coordination recommendations. |
 
@@ -296,8 +300,8 @@ erDiagram
     HUB ||--o{ PARKING_SPACE : "contains"
     HUB ||--o{ CHARGING_POINT : "contains"
     HUB ||--o{ VEHICLE : "currently hosts"
-    HUB ||--o{ CAPACITY_ALERT : "triggers"
     HUB ||--o{ INCIDENT : "logs"
+    PARKING_SPACE ||--o| CHARGING_POINT : "is bay of"
 
     USER_ACCOUNT ||--o{ RESERVATION : "places"
     USER_ACCOUNT ||--o{ VEHICLE : "owns (if PRIVATE)"
@@ -311,9 +315,36 @@ erDiagram
     CHARGING_POINT ||--o{ CHARGING_SESSION : "serves"
 
     HUB ||--o{ REDISTRIBUTION_TASK : "source / destination"
-    VEHICLE ||--o{ REDISTRIBUTION_TASK : "dispatched in"
+    REDISTRIBUTION_TASK ||--|{ REDISTRIBUTION_TASK_VEHICLE : "moves"
+    VEHICLE ||--o{ REDISTRIBUTION_TASK_VEHICLE : "dispatched in"
 
     VEHICLE ||--o{ INCIDENT : "involves"
     CHARGING_POINT ||--o{ INCIDENT : "involves"
 
     SIMULATION_RUN ||--|{ COORDINATION_RECOMMENDATION : "generates"
+
+---
+
+## 6. Changes from v1.0
+
+| Change | Reason |
+|---|---|
+| `Incident`: `severity` adds `CRITICAL`; `status` adds `RESOLVED`; `escalation_level` replaced by `acknowledged_at` and `escalated_at`; `incident_type` mapped to `INC-*` codes | M5 `FR-09.4`, `BR-M5-04`, incident type table |
+| `ChargingPoint.parking_space_id` is not null and unique; `ParkingSpace.has_charger_access` removed | `D-007`, `NFR-07` |
+| `ChargingPoint.status`: `FAILED` replaced by `OUT_OF_SERVICE` | M3 `BR-M3-01`, M5 `BR-M5-03` |
+| `Hub.status`: `WARNING` / `CRITICAL`; `total_charging_points` limited by parking capacity | M5 `BR-M5-01`, `BR-M5-02`; `D-007` |
+| `CapacityAlert` removed (proposal, to be confirmed with M5) | M5 uses Hub status and incidents `INC-CAP-01`, `INC-CAP-02` |
+| `RedistributionTask` restructured, `RedistributionTaskVehicle` added | M4 tasks have a quantity and many vehicles; states follow `BR-A08` |
+| `Trip.expected_return_at`, `Reservation.planned_duration_minutes` added | M5 `INC-USR-01` needs a due time; M2 proposal |
+| `Vehicle.connector_type`, `ChargingSession.low_battery_override` added; `request_type` adds `FLEET_STUDENT` | M3 `FR-07.M3.1`, `BR-M3-03`, `FR-06.1` |
+
+## 7. Left for Phase 1 (needs M1 / M4 agreement)
+
+1. Interval claims for future parking and charging (`ResourceClaim`, `scheduled_end_time`) and a separate record of current occupancy (M2 proposal).
+2. More reservation fields from M2 (`confirmed_at`, `selected_min_soc`, arrival and end times, parking purpose, incident reference on `Trip`).
+3. Command-result record for retries (idempotency) and a durable event record.
+4. State-transition log (`NFR-25`, `BR-A12`, `FR-09.4`).
+5. Allocation settings edited by the operator (`UC-A09`) and shared thresholds (`LOW_BATTERY_THRESHOLD`, near-full limit).
+6. Closeness between Hubs for alternative-Hub ranking (M4 open point 6).
+7. `REBALANCE` handling and whether `PENDING` reservations are stored (M2, M4 open points).
+8. Representation of M5's low-battery lockout (`BR-M5-05`) and a `CANCELLED` state for charging sessions (`FR-06.3`).
