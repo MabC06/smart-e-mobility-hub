@@ -1,7 +1,7 @@
 # FR-12: What-if Simulation & Coordination Design
 **Owner:** M6 – Thân Ngô Tuấn  
 **Phase:** Phase 0 — Requirements Analysis  
-**Status:** Ready for Review (Locked for Phase 0)
+**Status:** Draft v1 — ready for review
 
 ---
 
@@ -28,7 +28,7 @@
 - **FR-12.5 – Coordination Recommendation Generation:**
   - The system shall automatically evaluate simulation outcomes and synthesize actionable coordination proposals:
     - Fleet Rebalancing / Dispatch orders (transferred to M4)
-    - Dynamic Reservation / Return incentives to neighboring hubs (transferred to M2/M4)
+    - Suggest reserving or returning at a neighbouring Hub (transferred to M2/M4)
     - Charging queue shifting and throttle policies (transferred to M3)
 
 - **FR-12.6 – Comparative Analytics & Output:**
@@ -84,13 +84,14 @@
 
 | Field | Specification |
 | :--- | :--- |
-| **Use Case ID** | **UC-12** |
+| **Use Case ID** | **UC-M6-01** |
 | **Use Case Name** | Run What-if Simulation and Generate Coordination Recommendations |
+| **Trace** | FR-12, NFR-05, NFR-12, NFR-13; BR-M6-01, BR-M6-02, BR-M6-03 |
 | **Actor** | Operator |
 | **Description** | Operator configures and executes a simulation scenario on an isolated state snapshot to predict bottlenecks and obtain actionable coordination recommendations. |
 | **Preconditions** | 1. Operator is authenticated with operator privileges.<br>2. Core domain service provides an accessible point-in-time state snapshot. |
 | **Postconditions** | 1. Simulation metrics and impact analyses are stored in the temporary session.<br>2. Actionable mitigation recommendations are generated.<br>3. Production/real-time operational state remains untouched. |
 | **Main Flow** | 1. Operator navigates to the **What-if Simulation** dashboard.<br>2. System clones a point-in-time snapshot from Core domain into sandbox memory.<br>3. Operator selects one of the 5 standard scenarios (or compound scenario).<br>4. Operator customizes the scenario parameters (duration, multiplier, target hubs).<br>5. Operator clicks **Run Simulation**.<br>6. Simulation engine executes state transitions over discrete time steps.<br>7. System evaluates performance indicators (shortage rate, overflow rate, queue times).<br>8. Engine synthesizes coordination recommendations (dispatching, rerouting, charging shift).<br>9. System displays comparative dashboard (Baseline vs. Mitigated).<br>10. Operator reviews and exports or saves the simulation session. |
-| **Alternative Flows** | **3a. Custom Scenario:** Operator combines multiple scenarios (e.g., Demand Surge + Station Failure).<br> **10a. Dispatch Trigger:** Operator approves recommendations; system formats and forwards orders to M4 (Dispatch) / M5 (Incident). |
-| **Exception Flows** | **2a. Snapshot Unavailable:** Core domain unreachable; system alerts operator and aborts session.<br> **4a. Invalid Input Parameter:** Input outside bounds (e.g., multiplier $\le 0$); system displays inline validation error and prevents execution.<br> **6a. Simulation Timeout:** Computation exceeds 15 seconds; system safely terminates job and reports execution error. |
-| **Business Rules** | **BR-SIM-01 (Strict Isolation):** Read-only snapshot access; zero write-back to production database.<br>**BR-SIM-02 (Determinism):** Identical seeds and parameters must yield reproducible outcomes.<br>**BR-SIM-03 (Feasibility Check):** Generated dispatch recommendations must respect truck capacities and physical transit delays. |
+| **Alternative Flows** | **3a. Custom Scenario:** Operator combines multiple scenarios (e.g., Demand Surge + Station Failure).<br>**10a. Dispatch Trigger:** Operator approves recommendations; system formats and forwards orders to M4 (Dispatch) / M5 (Incident). |
+| **Exception Flows** | **2a. Snapshot Unavailable:** Core domain unreachable; system alerts operator and aborts session.<br>**4a. Invalid Input Parameter:** Input outside bounds (e.g., multiplier $\le 0$); system displays inline validation error and prevents execution.<br>**6a. Simulation Timeout:** Computation exceeds configured threshold ($> 60$s by default, configurable for larger datasets); system safely terminates job and reports execution error. |
+| **Business Rules** | • **BR-M6-01 (Strict Isolation):** Read-only snapshot access; zero write-back to production database. (Trace: FR-12.1, NFR-12)<br>• **BR-M6-02 (Determinism):** Identical seeds and parameters must yield reproducible outcomes. (Trace: FR-12.3, NFR-13)<br>• **BR-M6-03 (Feasibility Check):** Generated dispatch recommendations must respect truck capacities and physical transit delays. (Trace: FR-12.5, NFR-05) |
