@@ -1,0 +1,66 @@
+@startuml
+title A3 - Parking booking and admission (proposed)
+skinparam shadowing false
+skinparam defaultFontName Arial
+start
+:Student chooses Hub and parking purpose;
+if (Private EV stay?) then (yes)
+  :Validate registered ownership;\nstart within 24 h; stay 30..240 min;
+else (rental return)
+  :Validate owned Active Trip;\nimmediate 10-minute hold;
+endif
+:Core checks quota, input, replay,\noccupancy and calendar under serialization;
+if (Valid capacity and claims?) then (yes)
+  if (Charging requested?) then (yes)
+    :Core / M3 validate compatible bay + charger;\nprepare one joint interval claim;
+  else (no)
+    :Prepare parking claim;
+  endif
+  if (All checks and commit succeed?) then (yes)
+    :Confirm all claims atomically;\nshow arrival deadline / planned end;
+  else (no)
+    :Rollback; show error; no partial hold;
+    stop
+  endif
+else (no)
+  :Show validation / quota / capacity conflict;\nalternatives hold nothing;
+  stop
+endif
+:Wait for arrival, cancellation or deadline;
+if (Arrival requested?) then (yes)
+else (cancel / no-show)
+  :Run A2 release workflow;
+  stop
+endif
+:Core rechecks owner, time, state\nand actual occupancy;
+if (Within arrival window?) then (yes)
+else (no)
+  :Early: reject unchanged;\nat / after deadline: run expiry;
+  stop
+endif
+if (Space still usable?) then (yes)
+else (no)
+  if (Compatible replacement exists?) then (yes)
+    :Atomically transfer whole claim;\ninclude charger if bundled;
+  else (no)
+    :Cancel unconsumed claim with reason;\nkeep other vehicle occupancy; offer alternatives;
+    stop
+  endif
+endif
+if (Private stay?) then (yes)
+  :Atomically mark Active; occupy one space;\nconsume claim; no rental Trip;
+  :Wait for departure or planned end;
+  if (Still present at planned end?) then (yes)
+    :Keep occupancy; flag overstay to M5;\nwait for actual departure;
+  else (departing earlier)
+  endif
+  :On actual departure coordinate charging stop;\nCore completes stay and frees occupancy atomically;
+  note right
+    If stop / commit fails, remain Active
+    and occupied; retry same command key.
+  end note
+else (rental return)
+  :Run S3 atomic return;\ncomplete return-parking booking;\nkeep returned vehicle occupying its space;
+endif
+stop
+@enduml

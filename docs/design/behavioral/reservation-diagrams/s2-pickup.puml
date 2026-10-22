@@ -1,0 +1,44 @@
+@startuml
+title S2 - Pick up: proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+Student -> UI: Confirm pickup at origin
+UI -> Reservation: reservation ID, origin, version, key
+Reservation -> Core: Authenticated pickup intent
+Core -> Core: Validate actor; deduplicate command
+alt Exact replay
+  Core --> Reservation: Original result / same Trip ID
+else Fresh command
+  group Serialize reservation, vehicle and source occupancy
+    Core -> Core: Read current state and authoritative t
+    alt Wrong owner / Hub or terminal state
+      Core --> Reservation: Error; no pickup writes
+    else Already Active with same pickup context
+      Core --> Reservation: ALREADY_ACTIVE and existing Trip; no writes
+    else Conflicting version
+      Core --> Reservation: CONFLICT; no pickup writes
+    else Confirmed and t >= hold_expires_at
+      Core -> Core: Separate expiry transition:\nExpired; release claim; keep occupancy
+      Core --> Reservation: EXPIRED; no Trip created
+    else Confirmed but vehicle faulty / battery ineligible
+      Core -> Core: Separate invalidation transition:\nCancelled; release claim; preserve occupancy\nCore keeps vehicle unavailable
+      Core --> Reservation: RESOURCE_UNAVAILABLE
+    else Confirmed, t < expiry, own Reserved vehicle eligible
+      Core -> Core: Atomic pickup: Reservation Active; create unique Trip\nIN_PROGRESS, expected_return_at = t + planned duration\nVehicle InUse; clear Hub/space; free source occupancy\nPersist command result and event
+      Core --> Reservation: Trip ID, pickup time, expected return, Active
+    end
+  end
+end
+Reservation --> UI: Result and authoritative state
+UI --> Student: Trip started or specific recovery guidance
+note over Reservation,Core
+  Cancel / expiry / incident / pickup share the same serialization boundary.
+  A failed pickup transaction leaves all pickup entities unchanged.
+  The separately logged expiry or invalidation is not a partial pickup.
+end note
+@enduml

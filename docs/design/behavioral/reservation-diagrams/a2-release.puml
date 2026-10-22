@@ -1,0 +1,39 @@
+@startuml
+title A2 - Cancel or expire (proposed)
+skinparam shadowing false
+skinparam defaultFontName Arial
+start
+:Receive owner cancellation\nor internal expiry event;
+:Core authenticates source and checks\ncommand replay / event duplication;
+if (New authorized event?) then (yes)
+else (no)
+  :Return prior result or authorization error;
+  stop
+endif
+:Serialize reservation and claims;\nread authoritative time;
+if (State is Confirmed?) then (yes)
+else (no)
+  :No release; return current outcome\nor invalid-state error;
+  stop
+endif
+if (t >= hold_expires_at?) then (yes)
+  :Choose Expired;
+else (no)
+  if (Owner requested cancellation?) then (yes)
+    :Validate linked charging cancellation\nthrough Core / M3;
+    if (Bundle can be cancelled?) then (yes)
+      :Choose Cancelled;
+    else (no)
+      :Return LINKED_CHARGING; unchanged;
+      stop
+    endif
+  else (no)
+    :Not due; no transition;
+    stop
+  endif
+endif
+:Atomically end booking and release\nunconsumed claims (linked bundle if any);\nrecord result and event;
+:Keep actual vehicle occupancy;\nCore re-evaluates vehicle eligibility;
+:Publish committed result to UI / subscribers;
+stop
+@enduml
