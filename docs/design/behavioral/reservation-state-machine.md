@@ -2,7 +2,7 @@
 
 > Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-10-11. **Proposed for team review**.
 
-Canonical guards and parameter values: [requirements §§3-5](../../requirements/fr-02-05-07-reservation.md). All UC-M2/BR-M2 labels are provisional. M1's Vehicle state machine is absent; Vehicle names below are mapped to the timeline/M7 draft and need M1 validation. Title case here maps to M7 uppercase values (Active = ACTIVE, InUse = IN_USE), not different states.
+Canonical guards and parameter values: [requirements §§3-5](../../requirements/fr-02-05-07-reservation.md). UC-M2/BR-M2 IDs are stable under CONTRIBUTING section 5. M1's Vehicle state machine is absent; Vehicle names below are mapped to the timeline/M7 draft and need M1 validation. Title case here maps to M7 uppercase values (Active = ACTIVE, InUse = IN_USE), not different states.
 
 ## Meaning of the six states
 

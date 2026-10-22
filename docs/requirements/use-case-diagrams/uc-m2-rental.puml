@@ -1,6 +1,6 @@
 @startuml
 left to right direction
-title U1 - M2 rental use cases (provisional IDs)
+title U1 - M2 rental use cases (module-scoped IDs)
 skinparam shadowing false
 skinparam defaultFontName Arial
 actor Student

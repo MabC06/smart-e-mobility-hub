@@ -4,7 +4,7 @@
 
 These are UML activity diagrams authored in PlantUML, not flowcharts relabelled as UML. Initial/final nodes, actions, decisions with guards and responsibility partitions describe control flow. Concurrent requests are separate activity executions serialized at Core admission; a fork is deliberately not used to imply that a single Student makes two bookings.
 
-The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines all parameters (§3), provisional UC/BR IDs (§8) and verification scenarios (§9). Core interactions are proposed; no existing API is asserted. Editable sources and SVG exports live beside this file under `reservation-diagrams/`.
+The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines all parameters (§3), stable UC/BR IDs (§8) and verification scenarios (§9). Core interactions are proposed; no existing API is asserted. Editable sources and SVG exports live beside this file under `reservation-diagrams/`.
 
 ## A1 - Find and reserve a rental vehicle
 

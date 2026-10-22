@@ -28,7 +28,7 @@ else Owned Active rental and open Trip
   end
   opt Return rejected for capacity
     Reservation -> Core: Query alternative Hubs (no mutation)
-    Core -> Allocation: Rank currently feasible Hubs per UC-A05
+    Core -> Allocation: Rank currently feasible Hubs per UC-M4-05
     Allocation --> Core: Candidates + as_of, or none / unavailable
     Core --> Reservation: Advisory alternatives; zero holds
   end

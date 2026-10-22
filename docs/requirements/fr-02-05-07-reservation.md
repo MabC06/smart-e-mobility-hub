@@ -1,6 +1,6 @@
 # M2 - Reservation & Trip: requirements and design baseline
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-10-11 (ICT).
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-10-22 (ICT).
 > Status: **Proposed for team review**. Phase 1 design with the missing M2 Phase 0 FR/UC/BR foundation supplied here. This is not approval of shared interfaces, parameters or other modules' drafts.
 
 ## 1. Scope and evidence
@@ -21,24 +21,34 @@ The following sources were read on 2026-10-11, after `git fetch origin`. Working
 | [M7 PR #8](https://github.com/MabC06/smart-e-mobility-hub/pull/8), `docs/design/structural/erd-entities-draft.md`; `docs/requirements/use-case-operator-support.md` | `docs/ui-phase0-operator-erd` @ `c3dae2835086076e495d63e105c67f5359f044b4`; open; bot COMMENTED that review quota was exhausted, not an approval | Reservation/Trip entities, nullable charging-bay association, operator UC mappings |
 | [M8 PR #5](https://github.com/MabC06/smart-e-mobility-hub/pull/5), `docs/testing/test-plan-skeleton.md`; `docs/testing/traceability-sheet.md`; `docs/ai-usage/_template.md` | `docs/test-m8-phase0` @ `f8b687aeac81c483c0350197b1dec6c3006a940a`; open, M1 APPROVED on this head | Test techniques, unassigned BR/UC/TC register, AI log structure |
 
-PR approval does not make every cross-module assumption Accepted. No Core API spec, Core class diagram or Vehicle state-machine document exists in the fetched branch trees. The timeline's list of Vehicle states and M7's enum are provisional inputs, not a validated M1 transition contract. M2's former Phase 0 file, consolidated actor analysis and five system-wide use-case diagrams are absent. This change supplies only M2's foundation and two scoped use-case diagrams, not all of Phase 0.
+PR approval does not make every cross-module assumption Accepted. No Core API spec, Core class diagram or Vehicle state-machine document exists in the fetched branch trees. The timeline's list of Vehicle states and M7's enum are provisional inputs, not a validated M1 transition contract. This paragraph and the source table record the initial Oct 11 inspection. The Oct 22 update below supersedes the former consolidation plan.
+
+## 1.1 Review refresh - 2026-10-22
+
+Synced with `origin/develop` at `57c064d26267bf1720685d8cb0bbfa73e77fd7ca`. CONTRIBUTING now requires stable module-scoped IDs. M2 adopts that convention and the M1 review on PR #11; D-011's decision-log status remains Proposed and is not changed here. D-012 is Accepted: M3 owns charging-point failure UC-M3-08, M4 owns cross-Hub lookup UC-M4-07; BR-M4-01 orders classes, BR-M3-03 orders requests within the charging class.
+
+[Actor analysis](stakeholder-actor-analysis.md) now consolidates the available M3-M7 tables. [Overview](use-case-diagrams/uc-overview.svg) is a draft built from those tables and available M2/M4 diagrams. M1's open [timeline PR #15](https://github.com/MabC06/smart-e-mobility-hub/pull/15) replaces the old five-diagram consolidation plan: each module supplies its own diagrams, M2 supplies the overview. M2 own design is due Oct 23; overview/updated actor list and team review Oct 25. M3/M5/M6 final diagrams are still absent in the inspected refs, so final diagram reconciliation remains due Oct 25. No exact submission hour is specified.
+
+The actor analysis records current dependency SHAs and renamed paths; the Oct 11 table above is historical evidence, not today's source catalog. Core API/class/Vehicle-state specifications remain absent from the fetched sources. M4's new [Phase 1 PR #16](https://github.com/MabC06/smart-e-mobility-hub/pull/16) agrees on Core-mediated, atomic, replay-safe writes and read-only alternatives but proposes system `REBALANCE` reservations. M2's response: reuse the claim coordinator, not the Student booking/pickup endpoints. Dispatch needs an authenticated operator/service principal, task-owned claims, no student quota and no student Trip. The typed ResourceClaim proposal remains pending M1/M4/M7 agreement; do not claim the REBALANCE schema is approved. After dispatch pickup, timeout/cancellation must preserve physical custody and destination protection until verified return/recovery; releasing an in-transit vehicle as Available is invalid. Before pickup, only unconsumed claims may be released.
+
+M3's current BR-M3-03 uses battery **at or below 15%**, superseding the earlier strict-less-than wording. M2's charging urgency reference below is updated accordingly; rental eligibility remains at least 20%, M5 lockout at most 15%, M5 critical incident at most 10%, and M6's analytics threshold less than 20%. These have different purposes.
 
 ## 2. Dependency reconciliation before design
 
 | Source | Relevant rule/data | Effect on M2 | Unresolved mismatch | Proposed resolution | Confirm with |
 |---|---|---|---|---|---|
-| M1 D-007, dataset §2; M3 BR-08/09; M7 ChargingPoint | Charging occupies one bay | Parking and charging need one capacity claim | D-007 is 1:1; M7 FK nullable | A schedulable charger must reference one unique same-Hub space. An unbound charger cannot be scheduled. Joint confirmation commits the bay interval and charger interval together; one vehicle counts once. | M1/M3/M7 |
+| M1 D-007, dataset §2; M3 BR-M3-01/02; M7 ChargingPoint | Charging occupies one bay | Parking and charging need one capacity claim | D-007 is 1:1; M7 FK nullable | A schedulable charger must reference one unique same-Hub space. An unbound charger cannot be scheduled. Joint confirmation commits the bay interval and charger interval together; one vehicle counts once. | M1/M3/M7 |
 | M3 future charging; M7 ParkingSpace.status | Future booking differs from present occupancy | A status enum alone cannot represent a calendar | No full parking end-time model | Separate current occupancy, immediate hold and future interval claims; add scheduled_end_time and claim linkage (§7). Never free occupancy on cancellation of a booking/session. | M1/M3/M7 |
-| M3 UC-07.1/07.2; M1 A-03 | Connector validation vs universal compatibility | Private EV booking prerequisites | M3 profiles require connector type; baseline has universal chargers | Keep A-03 for the baseline fixture; compatibility predicate returns true for supported types. Profile fields can be stored by M3; unsupported type fails validation, no new hardware scope. | M1/M3 |
-| M4 BR-A01/A02; M3 BR-10 | Priority, low-battery override | Competing resource admission | Override scope is unspecified | Apply M4 class priority to uncommitted requests; M3 override only reorders eligible waiting requests within its allocated charging class, using the next unclaimed bay. No preemption of Confirmed/Active claims for charging or rebalancing. Safety isolation is a separate incident, not priority stealing. | M1/M3/M4 |
+| M3 UC-M3-04/05; M1 A-03 | Connector validation vs universal compatibility | Private EV booking prerequisites | M3 profiles require connector type; baseline has universal chargers | Keep A-03 for the baseline fixture; compatibility predicate returns true for supported types. Profile fields can be stored by M3; unsupported type fails validation, no new hardware scope. | M1/M3 |
+| M4 BR-M4-01/02; M3 BR-M3-03; D-012 | Priority, low-battery override | Competing resource admission | D-012 fixes the class boundary | Apply M4 class priority to uncommitted requests; M3 override only reorders eligible waiting requests within its allocated charging class, using the next unclaimed bay. No preemption of Confirmed/Active claims for charging or rebalancing. Safety isolation is a separate incident, not priority stealing. | M1/M3/M4 |
 | M4 open point 2; M7 Reservation and RedistributionTask | Proposed REBALANCE reservation | Allocation ownership and user limits | Required user_id; no REBALANCE enum; task enums also differ | Keep student Reservation separate. Propose a Core ResourceClaim with exactly one owner: student reservation or RedistributionTask. Reuse claim invariants, not a fake student. M4 owns dispatch lifecycle; do not silently add REBALANCE to M2. | M1/M4/M7 |
-| M4 UC-A05/BR-A10 | Alternative-Hub query | Search and full-Hub return | Public interface absent | M2 calls Core facade; Core delegates ranking to M4. Results are advisory, timestamped and hold no resource. Revalidate only when user confirms. | M1/M4/M7 |
-| M5 BR-09-03/INC-BAT-01; M3 BR-10; M6 FR-12.4 | <=15%, <=10%, <15%, <20% | Admission, incident and analytics differ | Same word “low” for different purposes | Preserve distinct names and comparisons (§3). Propose rental minimum 20%, which is stricter than safety lockout; 15% is blocked, 20% is eligible absent other faults. | M1/M3/M4/M5/M6 |
+| M4 UC-M4-05/BR-M4-10 | Alternative-Hub query | Search and full-Hub return | Public interface absent | M2 calls Core facade; Core delegates ranking to M4. Results are advisory, timestamped and hold no resource. Revalidate only when user confirms. | M1/M4/M7 |
+| M5 BR-M5-05/INC-BAT-01; M3 BR-M3-03; M6 FR-12.4 | <=15%, <=10%, <=15%, <20% | Admission, incident and analytics differ | Same word “low” for different purposes | Preserve distinct names and comparisons (§3). Propose rental minimum 20%, which is stricter than safety lockout; 15% is blocked, 20% is eligible absent other faults. | M1/M3/M4/M5/M6 |
 | M5 INC-USR-01; M7 Trip | More than 60 min after expected return | Overdue cannot be calculated without a due time | No expected_return_at in Trip | Add planned_duration_minutes and immutable expected_return_at calculated at actual pickup. No extension or fine in M2 baseline; overdue does not auto-complete the trip. | M2/M5/M7 |
-| M5 incidents; M7 UC-OP-02/08 | Failure before/during use | Reservation cannot force Vehicle Available | M7 repair flow broadly restores Available | Before pickup, cancel affected booking with reason and keep parked occupancy; in use, keep Active until verified return/custody recovery, never expire it. Core decides vehicle readiness after repair/return. M5 hardware commands mean simulated state changes here. | M1/M5/M7 |
+| M5 incidents; M7 UC-M7-02/08 | Failure before/during use | Reservation cannot force Vehicle Available | M7 repair flow broadly restores Available | Before pickup, cancel affected booking with reason and keep parked occupancy; in use, keep Active until verified return/custody recovery, never expire it. Core decides vehicle readiness after repair/return. M5 hardware commands mean simulated state changes here. | M1/M5/M7 |
 | M7 status enums | Six reservation states, separate Trip | Lifecycle mapping | Persistent Pending semantics unspecified | Pending is transient validation with no durable reservation/claim; failed submission produces an error, not a seventh persisted state. Retain all six names in design (§6). | M1/M7 |
-| M3/M4/M5/M6/M7/M8 ID catalogs | UC-Axx, UC-OP-xx, UC-06.x, UC-08, UC-12 | Cross-module traceability | CONTRIBUTING requests UC-xx/BR-xx; M8 has placeholders | Use visibly provisional UC-M2/BR-M2 IDs here; propose numeric mapping (§8), no renumbering of other work and no official TC allocation. | M2/M8/team |
-| M6 BR-SIM-01/02; M7 UC-OP-10 | Snapshot execution and later application | Same rules with isolated clock/store | “Incentives” might imply billing | Use informational redirection only. Snapshot includes reservations/trips/claims, not just resources. Applying a recommendation is a separately confirmed operational command with fresh checks. | M1/M4/M6/M7 |
+| CONTRIBUTING section 5; D-011; PR #11 review | Module-scoped UC/BR IDs | Stable cross-module traceability | Old flat-ID proposal is obsolete | Keep UC-M2-01..08 and BR-M2-01..16; Trace points upward to FR/NFR; M8 derives reverse mappings. | M2/M8/team |
+| M6 BR-M6-01/02; M7 UC-M7-10 | Snapshot execution and later application | Same rules with isolated clock/store | “Incentives” might imply billing | Use informational redirection only. Snapshot includes reservations/trips/claims, not just resources. Applying a recommendation is a separately confirmed operational command with fresh checks. | M1/M4/M6/M7 |
 | Timeline vs old architecture/NFR/M8 text | Core API due 19/10; M2 due 23/10; review 25/10 | Handoff dates | Stack proposal says 20/10 API and 26/10 architecture; A-10 says Nov 25 vs timeline Nov 24; NFR Sprint 2 dates and M8 early Test Plan date are stale | Use current task timeline for planning. Keep source files unchanged. M1/M8 reconcile their dates. M6's 15 s timeout vs NFR-05's 30 s remains M1/M6/M8 scope, not a reservation hold time. | M1/M8 |
 
 ## 3. Canonical parameter register
@@ -59,9 +69,9 @@ PR approval does not make every cross-module assumption Accepted. No Core API sp
 | RENTAL_PLANNED_DURATION | 30 default; 5 to 120 inclusive | minutes | expected_return_at = pickup_time + chosen duration | Supplies M5's overdue baseline | Early/late return allowed subject to capacity; no automatic expiry of Active | M2/M5/M7 | Proposed; M2/M5 |
 | RENTAL_OVERDUE_GRACE | 60 | minutes | M5 INC-USR-01 trigger | Preserve M5 proposal | t > expected_return_at+60 min; equality is not overdue | M2/M5/M7 | Proposed; M5 |
 | RENTAL_MIN_SOC | 20 | percent | Search/confirmation/pickup minimum | Usable campus buffer, distinct from safety floor | soc >= max(20, requested minimum); range 0..100; unknown battery ineligible | M1/M2/M3/M4 | Proposed; M1/M3/M4 |
-| RENTAL_POOL_LOCKOUT | 15 | percent | M5 BR-09-03 | Safety exclusion | soc <=15 is blocked independently of search filter | M1/M2/M5 | Proposed; M5 |
+| RENTAL_POOL_LOCKOUT | 15 | percent | M5 BR-M5-05 | Safety exclusion | soc <=15 is blocked independently of search filter | M1/M2/M5 | Proposed; M5 |
 | BATTERY_CRITICAL_INCIDENT | 10 | percent | M5 INC-BAT-01 | Incident severity | soc <=10 triggers incident | M1/M5 | Proposed; M5 |
-| CHARGING_URGENT_SOC | 15 | percent | M3 BR-10 example adopted for review | Queue urgency, not rental eligibility | soc <15; at 15 no special override; only next unclaimed bay | M3/M4 | Proposed; M3/M4 |
+| CHARGING_URGENT_SOC | 15 | percent | M3 BR-M3-03 current draft | Queue urgency, not rental eligibility | soc <=15; at 15 urgency applies; only next unclaimed bay | M3/M4 | Proposed; M3/M4 |
 | SIMULATION_LOW_SOC | 20 | percent | M6 depletion metric | Analytics only | soc <20; at 20 not depleted for this metric | M6 | Proposed; M6 |
 | UPCOMING_WINDOW | 30 | minutes | 0 <= scheduled_start_time-t <=30 min, plus all unexpired immediate rental holds | Common view for M3/M4 | Expired claims excluded; all Confirmed/Active claims protected even outside window | M1/M2/M3/M4 | Proposed; M1/M3/M4 |
 | STUDENT_LIMITS | 1 rental and 1 parking | live reservation per category | Count Confirmed + Active, including future parking | Prevent hoarding; parking+charging bundle counts once | Check per-user counters atomically across different resources; terminal records excluded | M1/M2/M7 | Proposed; M1/M2 |
@@ -85,26 +95,28 @@ All operations require an authenticated active Student account (NFR-16); derive 
 | FR-05 | Hub plus arrival interval/private vehicle, or an owned Active trip for immediate return-space hold. Return parking reservation ID, assigned space, arrival deadline and planned end when applicable. Support cancellation, arrival and departure. | No two overlapping claims for one space and no two actual occupants. At expiry no admission. Cancel releases only the claim. Private departure releases actual occupancy after confirmation through Core. Rental return consumes its hold once but does not free the returned vehicle's space. |
 | FR-07 (parking) | An owned registered PRIVATE vehicle, Hub/start/duration, optional M3 charging request correlation. Confirm private parking or return validation/conflict reason. | Another owner's/unregistered vehicle is rejected; private vehicles never appear in FR-02 fleet results. Charging bundle confirms the bay and charger jointly, counting one parking space, or neither. Charging cancellation alone leaves active parking intact. No rental Trip is created for private parking. |
 
-## 5. Business rules (provisional M2 IDs)
+## 5. Business rules (stable M2 IDs)
 
-| ID | Rule |
-|---|---|
-| BR-M2-01 | Validate role, ownership, entity existence, type/range, Hub association and reservation type for each command; never trust client user_id, time or battery. |
-| BR-M2-02 | Search/confirmation eligibility requires FLEET, Core Available, current origin occupancy, no incident/dispatch/charging/other claim, known battery meeting RENTAL_MIN_SOC and requested minimum, and no M5 lockout. At pickup require Core Reserved with this booking's own claim instead of Available; recheck all other eligibility conditions. |
-| BR-M2-03 | Enforce STUDENT_LIMITS atomically for all live bookings. Joint parking/charging counts once; dispatch claims do not consume student quota. |
-| BR-M2-04 | Use canonical hold/arrival windows (§3). Rental is immediate only. At t >= hold_expires_at a Confirmed reservation is unusable. Process expiry as a distinct valid transition; Active never expires from a pickup deadline. |
-| BR-M2-05 | Owner cancellation is allowed only in Confirmed and before expiry. Cancel/expire removes unconsumed claims, not occupied spaces. Core re-evaluates readiness before making a formerly reserved vehicle Available. |
-| BR-M2-06 | Core serializes competing commands and checks resource versions, per-user limits, vehicle uniqueness and interval exclusion in the same transaction. No read-then-write gap. First admissible serialized command wins among same-class requests; M4's earlier accepted request time then lower ID is the proposed tie-break if requests are queued together. No retrospective preemption after commit. |
-| BR-M2-07 | Each mutation carries a key unique per (actor, operation, key), with a canonical payload hash. Exact retry returns recorded outcome and entity IDs; changed payload under the same key returns KEY_REUSE. Retain successful keys for the entity's retained lifetime; retain rejected outcomes for 24 h. A new attempt after changed conditions uses a new key. Natural constraints (one Trip per rental Reservation, one completion per Trip) also prevent duplicates after key loss. |
-| BR-M2-08 | Each reserve/pickup/return/cancel/expire/joint-bay operation commits every affected reservation, trip, resource claim, occupancy and audit/result record or rolls back all. Core coordinates the transaction through public interfaces; M2 never independently commits a vehicle update. Notification failure after commit does not roll back business success. |
-| BR-M2-09 | Pickup requires owner, Confirmed, correct origin and t < expiry, plus current eligibility with this reservation's own claim permitted. It creates one IN_PROGRESS Trip with expected_return_at from actual pickup and releases precisely the occupied origin space. |
-| BR-M2-10 | Return requires owned Active rental and open Trip, a valid receiving Hub, and an available space or the student's valid matching hold. Capacity check and occupancy commit are one operation. Full/failed destination leaves trip, vehicle location and reservation unchanged. Consume only a matching hold; an unrelated destination hold remains until explicit cancellation/expiry, with a UI reminder. Return completion is not vehicle rental readiness. |
-| BR-M2-11 | Parking uses interval exclusion plus actual occupancy checks (§3). On private arrival consume claim into one occupancy; on departure close booking and release that occupancy. End time/charging completion alone never frees parking. Rental return parking completes upon successful rental return while the space remains occupied by the fleet vehicle. |
-| BR-M2-12 | A charging bundle reserves one same-Hub bay and charger for compatible intervals in one Core transaction. Charger interval must lie within parking interval. Reuse the vehicle's matching occupancy/claim instead of adding a second space. No connector-only allocation without parking. Cancel before arrival can cancel the whole bundle through coordinated M2/M3 commands; reject parking-only cancellation while a linked charging commitment exists. |
-| BR-M2-13 | Preserve Confirmed/Active claims against charging/rebalancing priority. Upcoming means §3; all unexpired immediate holds qualify. ResourceClaim owner is either Reservation or RedistributionTask. M4 alternatives are read-only and never silently change the chosen Hub or hold resources. |
-| BR-M2-14 | Core-accepted failure before pickup cancels the booking with RESOURCE_UNAVAILABLE, releases the exclusive claim and keeps vehicle/space physically occupied and unavailable. During a trip record the incident but keep Reservation Active and Trip open until verified return or operator-confirmed custody recovery. Only then finish with Trip INCIDENT_ABORTED and Reservation Completed; no fabricated arrival/space release. |
-| BR-M2-15 | At t > expected_return_at +60 min the open Trip becomes OVERDUE through M5/Core; reservation stays Active. At private parking end, mark overstay for M5 while keeping Active and occupied. No fines, auto-extension or forced completion. |
-| BR-M2-16 | Evaluate identical admission and lifecycle rules with explicit state/clock context in simulation. Clone bookings, trips, claims and command-result namespace too. Simulation writes/events stay in its namespace; only a separately confirmed fresh operational command can apply a recommendation. |
+| ID | Rule | Trace |
+|---|---|---|
+| BR-M2-01 | Validate role, ownership, entity existence, type/range, Hub association and reservation type for each command; never trust client user_id, time or battery. | FR-02, FR-03, FR-04, FR-05, FR-07, NFR-16 |
+| BR-M2-02 | Search/confirmation eligibility requires FLEET, Core Available, current origin occupancy, no incident/dispatch/charging/other claim, known battery meeting RENTAL_MIN_SOC and requested minimum, and no M5 lockout. At pickup require Core Reserved with this booking's own claim instead of Available; recheck all other eligibility conditions. | FR-02, FR-03, FR-04, NFR-07 |
+| BR-M2-03 | Enforce STUDENT_LIMITS atomically for all live bookings. Joint parking/charging counts once; dispatch claims do not consume student quota. | FR-03, FR-05, FR-07, NFR-06 |
+| BR-M2-04 | Use canonical hold/arrival windows (§3). Rental is immediate only. At t >= hold_expires_at a Confirmed reservation is unusable. Process expiry as a distinct valid transition; Active never expires from a pickup deadline. | FR-03, FR-05, FR-07, NFR-08 |
+| BR-M2-05 | Owner cancellation is allowed only in Confirmed and before expiry. Cancel/expire removes unconsumed claims, not occupied spaces. Core re-evaluates readiness before making a formerly reserved vehicle Available. | FR-03, FR-05, FR-07, NFR-08, NFR-09 |
+| BR-M2-06 | Core serializes competing commands and checks resource versions, per-user limits, vehicle uniqueness and interval exclusion in the same transaction. No read-then-write gap. First admissible serialized command wins among same-class requests; M4's earlier accepted request time then lower ID is the proposed tie-break if requests are queued together. No retrospective preemption after commit. | FR-03, FR-04, FR-05, FR-07, NFR-06 |
+| BR-M2-07 | Each mutation carries a key unique per (actor, operation, key), with a canonical payload hash. Exact retry returns recorded outcome and entity IDs; changed payload under the same key returns KEY_REUSE. Retain successful keys for the entity's retained lifetime; retain rejected outcomes for 24 h. A new attempt after changed conditions uses a new key. Natural constraints (one Trip per rental Reservation, one completion per Trip) also prevent duplicates after key loss. | FR-03, FR-04, FR-05, FR-07, NFR-08, NFR-09 |
+| BR-M2-08 | Each reserve/pickup/return/cancel/expire/joint-bay operation commits every affected reservation, trip, resource claim, occupancy and audit/result record or rolls back all. Core coordinates the transaction through public interfaces; M2 never independently commits a vehicle update. Notification failure after commit does not roll back business success. | FR-03, FR-04, FR-05, FR-07, NFR-09, NFR-22 |
+| BR-M2-09 | Pickup requires owner, Confirmed, correct origin and t < expiry, plus current eligibility with this reservation's own claim permitted. It creates one IN_PROGRESS Trip with expected_return_at from actual pickup and releases precisely the occupied origin space. | FR-04, NFR-08, NFR-09 |
+| BR-M2-10 | Return requires owned Active rental and open Trip, a valid receiving Hub, and an available space or the student's valid matching hold. Capacity check and occupancy commit are one operation. Full/failed destination leaves trip, vehicle location and reservation unchanged. Consume only a matching hold; an unrelated destination hold remains until explicit cancellation/expiry, with a UI reminder. Return completion is not vehicle rental readiness. | FR-04, FR-05, NFR-07, NFR-09 |
+| BR-M2-11 | Parking uses interval exclusion plus actual occupancy checks (§3). On private arrival consume claim into one occupancy; on departure close booking and release that occupancy. End time/charging completion alone never frees parking. Rental return parking completes upon successful rental return while the space remains occupied by the fleet vehicle. | FR-05, FR-07, NFR-06, NFR-07 |
+| BR-M2-12 | A charging bundle reserves one same-Hub bay and charger for compatible intervals in one Core transaction. Charger interval must lie within parking interval. Reuse the vehicle's matching occupancy/claim instead of adding a second space. No connector-only allocation without parking. Cancel before arrival can cancel the whole bundle through coordinated M2/M3 commands; reject parking-only cancellation while a linked charging commitment exists. | FR-05, FR-06, FR-07, NFR-07, NFR-09 |
+| BR-M2-13 | Preserve Confirmed/Active claims against charging/rebalancing priority. Upcoming means §3; all unexpired immediate holds qualify. ResourceClaim owner is either Reservation or RedistributionTask. M4 alternatives are read-only and never silently change the chosen Hub or hold resources. | FR-03, FR-05, FR-10, FR-11, NFR-06 |
+| BR-M2-14 | Core-accepted failure before pickup cancels the booking with RESOURCE_UNAVAILABLE, releases the exclusive claim and keeps vehicle/space physically occupied and unavailable. During a trip record the incident but keep Reservation Active and Trip open until verified return or operator-confirmed custody recovery. Only then finish with Trip INCIDENT_ABORTED and Reservation Completed; no fabricated arrival/space release. | FR-03, FR-04, FR-09, NFR-08, NFR-09 |
+| BR-M2-15 | At t > expected_return_at +60 min the open Trip becomes OVERDUE through M5/Core; reservation stays Active. At private parking end, mark overstay for M5 while keeping Active and occupied. No fines, auto-extension or forced completion. | FR-04, FR-05, FR-07, FR-09, NFR-08 |
+| BR-M2-16 | Evaluate identical admission and lifecycle rules with explicit state/clock context in simulation. Clone bookings, trips, claims and command-result namespace too. Simulation writes/events stay in its namespace; only a separately confirmed fresh operational command can apply a recommendation. | FR-12, NFR-12 |
+
+These rules specify M2 command obligations against Core-owned invariants; they do not transfer ownership of capacity, uniqueness or resource-state rules from M1. Cite M1 BR IDs once published; no placeholder M1 IDs are invented here.
 
 Replay lookup follows authentication and precedes version checks; a replay returns the original operation outcome, not a new state transition. UI refreshes current state separately so an old confirmation receipt is not mistaken for a still-live hold. A new-key pickup of an already Active booking returns the existing Trip as ALREADY_ACTIVE; a new-key return of a Completed trip returns ALREADY_COMPLETED without modifying destination or timestamps. Conflicting destination/payload is rejected. A reservation already Cancelled/Expired cannot be revived.
 
@@ -114,7 +126,7 @@ For deadlines, Core checks time **after acquiring the serialization boundary**. 
 
 The system boundary is the whole Smart E-Mobility Hub. Student is the primary actor; Private EV Owner is a Student role. Operator is external for incident recovery; the simulated sensor/event source is external per D-004. UI, Core, Reservation and the internal expiry scheduler are **not** external use-case actors. Timer expiry is an internal event, not a human goal.
 
-All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active Student, reachable Core; failures return a reason and no command side effects except separately identified expiry/incident transitions. All mutations follow BR-M2-06/07/08. UML sources/previews: [rental](use-case-diagrams/uc-m2-rental.svg) ([source](use-case-diagrams/uc-m2-rental.puml)) and [parking](use-case-diagrams/uc-m2-parking.svg) ([source](use-case-diagrams/uc-m2-parking.puml)). These are scoped additions, not replacements for the missing consolidated Phase 0 diagrams.
+UC-M2 IDs follow the stable module-scoped convention (section 8). Shared preconditions: authenticated active Student, reachable Core; failures return a reason and no command side effects except separately identified expiry/incident transitions. All mutations follow BR-M2-06/07/08. UML sources/previews: [rental](use-case-diagrams/uc-m2-rental.svg) ([source](use-case-diagrams/uc-m2-rental.puml)) and [parking](use-case-diagrams/uc-m2-parking.svg) ([source](use-case-diagrams/uc-m2-parking.puml)). These scoped diagrams feed the Phase 1 overview linked in the actor analysis.
 
 ### UC-M2-01 - Find suitable rental vehicles
 
@@ -124,7 +136,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Select origin, optional destination, type and minimum battery. 2. Validate fields. 3. Read Core snapshot and apply eligibility filter. 4. Sort and show candidates, battery, as_of and destination capacity. 5. Student selects a candidate for UC-M2-02.
 - **Alternatives/exceptions:** Invalid field gives a field error; no match gives NO_VEHICLE and Core/M4 advisory Hub alternatives; Core unavailable gives retry feedback, not an empty-success list. Selecting an alternative reruns the search and makes no hold.
 - **Postconditions:** No resources changed; results may change before confirmation.
-- **Trace:** FR-02; BR-M2-01/02/13/16.
+- **Trace:** FR-02; BR-M2-01, BR-M2-02, BR-M2-13, BR-M2-16.
 
 ### UC-M2-02 - Reserve a rental vehicle
 
@@ -134,7 +146,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. UI sends key, vehicle/origin, filters, duration and observed version. 2. Validate and check replay. 3. At Core serialization boundary read fresh eligibility/time/quota. 4. Atomically create Confirmed reservation and claim, set Vehicle Reserved and retain origin occupancy. 5. Show ten-minute deadline, ID and explicit absence of an automatic return-space hold.
 - **Alternatives/exceptions:** Stale version/concurrent booking yields CONFLICT; low battery, fault, dispatch or charging yields RESOURCE_UNAVAILABLE; quota yields LIMIT_REACHED; future rental start rejected. Failed attempt holds nothing. Exact retry returns its original result; timeout triggers status lookup using the same key.
 - **Postconditions:** One exclusive vehicle hold or none; no Trip yet; no destination claim.
-- **Trace:** FR-03; BR-M2-01/02/03/04/06/07/08/13.
+- **Trace:** FR-03; BR-M2-01, BR-M2-02, BR-M2-03, BR-M2-04, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-13.
 
 ### UC-M2-03 - Cancel a rental reservation
 
@@ -144,7 +156,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Send ID/key. 2. Validate owner/time/state at Core boundary. 3. Commit Cancelled and release vehicle claim. 4. Core chooses eligible Available or unavailable state; leave origin occupancy unchanged. 5. Show cancellation receipt.
 - **Alternatives/exceptions:** At expiry, process expiry instead and report EXPIRED. Concurrent pickup winner makes cancellation invalid; do not undo the Trip. Exact retry returns original result; already Cancelled returns ALREADY_CANCELLED. Active/Completed rejected.
 - **Postconditions:** Cancelled hold no longer blocks resource; parked vehicle remains parked.
-- **Trace:** FR-03; BR-M2-01/04/05/06/07/08.
+- **Trace:** FR-03; BR-M2-01, BR-M2-04, BR-M2-05, BR-M2-06, BR-M2-07, BR-M2-08.
 
 ### UC-M2-04 - Pick up a rental vehicle
 
@@ -154,7 +166,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Submit booking/origin/key/version. 2. Core checks owner, deadline, resource and competing events. 3. Commit Active reservation, unique IN_PROGRESS Trip and expected_return_at; set Vehicle InUse, clear current Hub/space and free the source occupancy. 4. Return trip ID, pickup time and expected return time.
 - **Alternatives/exceptions:** t = expiry is expired; wrong owner/Hub fails; current fault cancels via separate incident transition, not pickup; low battery makes vehicle ineligible and cancels with reason. Cancel/expiry winning the race prevents Trip creation. Retry returns existing Trip once.
 - **Postconditions:** One open trip and no source occupancy, or no pickup effects.
-- **Trace:** FR-04; BR-M2-01/02/04/06/07/08/09/14/15.
+- **Trace:** FR-04; BR-M2-01, BR-M2-02, BR-M2-04, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-09, BR-M2-14, BR-M2-15.
 
 ### UC-M2-05 - Return a rental vehicle
 
@@ -164,7 +176,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Send trip/destination, optional matching parking hold and key. 2. Core checks owner/open trip and destination serviceability. 3. Select own valid held space or an unclaimed available space with no future commitment that indefinite fleet occupancy would violate. 4. Atomically occupy destination, record actual Hub/time/battery, complete Trip/reservation, consume matching parking hold and set Vehicle Returned (Maintenance if fault). 5. Show receipt; Core/M3 separately determine charging/readiness.
 - **Alternatives/exceptions:** Full/blocked Hub returns NO_PARKING and advisory alternatives through Core/M4; choosing one requires a new confirmation. Expired destination hold offers a new unheld capacity check without reviving the hold. Changed resources cause CONFLICT and rollback. Fault does not invent physical recovery: normal return can still park safely if Hub accepts it; operator recovery is separately authorized under BR-M2-14. Duplicate return never moves a completed vehicle again.
 - **Postconditions:** Trip ends once with one destination occupancy; or rental remains Active and current in-trip location unchanged.
-- **Trace:** FR-04/05; BR-M2-01/06/07/08/10/11/13/14/15.
+- **Trace:** FR-04, FR-05; BR-M2-01, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-10, BR-M2-11, BR-M2-13, BR-M2-14, BR-M2-15.
 
 ### UC-M2-06 - Reserve parking
 
@@ -174,7 +186,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. For private EV choose start within 24 h and duration 30..240 min (default 120); for rental return use immediate ten-minute hold. 2. Validate vehicle association, quota and times. 3. Through Core select a usable space, check interval exclusion/occupancy and commit Confirmed booking/claim. 4. Show space, arrival window/deadline and planned end when private.
 - **Alternatives/exceptions:** Full Hub, overlapping claim, different owner, invalid duration or concurrent request rejects without claim. Charging option delegates charging validation to M3 through Core; commit linked bay+charger together or neither. Already parked same vehicle reuses its occupancy only through coordinated validation; it must not create duplicate occupancy. No early admission or automatic extension.
 - **Postconditions:** One exclusive claim (one bay for a bundle), no occupancy created before actual arrival.
-- **Trace:** FR-05/07 parking; BR-M2-01/03/06/07/08/11/12/13.
+- **Trace:** FR-05, FR-07 parking; BR-M2-01, BR-M2-03, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-11, BR-M2-12, BR-M2-13.
 
 ### UC-M2-07 - Cancel parking
 
@@ -184,7 +196,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Submit ID/key. 2. Check ownership/state/linkage. 3. If bundled, coordinate cancellation of the unstarted charging claim and parking claim through Core/M3. 4. Commit Cancelled and show receipt.
 - **Alternatives/exceptions:** Parking-only cancellation with a linked charging commitment rejects LINKED_CHARGING; offer bundle cancellation. Active parking requires departure UC-M2-08, not cancellation. At deadline expiry wins. Concurrent arrival/cancel serializes; winner determines state. Retry does not release twice.
 - **Postconditions:** Only unconsumed claims removed; never remove physical occupancy or an independently active charging session.
-- **Trace:** FR-05/07 parking; BR-M2-01/04/05/06/07/08/11/12.
+- **Trace:** FR-05, FR-07 parking; BR-M2-01, BR-M2-04, BR-M2-05, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-11, BR-M2-12.
 
 ### UC-M2-08 - Arrive at and leave private parking
 
@@ -194,7 +206,7 @@ All UC-M2 IDs are provisional (§8). Shared preconditions: authenticated active 
 - **Main flow:** 1. Arrival validates owner, time and space under serialization. 2. Consume claim into one occupancy and set booking Active. 3. If charging was linked, M3 starts only with valid bay occupancy/connection simulation. 4. On departure, coordinate stop/completion of any active charging and Core occupancy removal in one accepted departure operation. 5. Set booking Completed and actual ended_at.
 - **Alternatives/exceptions:** Early arrival rejected; at deadline expires. Unexpected occupant/overstay: try free compatible replacement with atomic claim transfer (plus charger if bundled), otherwise report RESOURCE_UNAVAILABLE, cancel unconsumed claim and offer alternatives. At planned end remain Active/occupied and notify M5. Charging stop failure prevents departure commit and preserves occupancy. Repeated arrival/departure returns prior outcome. Rental destination parking uses UC-M2-05, not this private departure flow.
 - **Postconditions:** On arrival one parked private EV and no rental Trip; on departure no occupancy from this stay; on failure no partial mutation.
-- **Trace:** FR-05/07 parking; BR-M2-01/04/06/07/08/11/12/14/15.
+- **Trace:** FR-05, FR-07 parking; BR-M2-01, BR-M2-04, BR-M2-06, BR-M2-07, BR-M2-08, BR-M2-11, BR-M2-12, BR-M2-14, BR-M2-15.
 
 ## 7. Proposed data and interaction obligations
 
@@ -215,11 +227,11 @@ M1 must provide snapshot queries, atomic admission/release/pickup/return/bay-bun
 
 ## 8. ID inventory, proposed mapping and handoff
 
-Inventory from all fetched dependency documents: M3 uses UC-06/06.1/06.2/06.3, UC-07/07.1/07.2, UC-11/11.1/11.2/11.3 and BR-08/09/10; M4 UC-A01..A09 and BR-A01..A12; M5 UC-08/09, BR-08-01/02 and BR-09-01/02/03; M6 UC-12 and BR-SIM-01..03; M7 UC-OP-01..10; M8 still has UC-xx/BR-xx/TC-xxx placeholders. CONTRIBUTING examples UC-05/BR-02/TC-041 are explicitly illustrative, not allocations.
+Current owner catalogs use UC-M3-01..08, UC-M4-01..09, UC-M5-01..02, UC-M6-01 and UC-M7-01..10. The actor analysis links exact revisions and identifies M7 stale aliases. The initial Oct 11 source table preserves historical labels only.
 
-Use UC-M2-01..08 and BR-M2-01..16 as **temporary, module-scoped labels**, intentionally not a claim of compliance with finalized team numbering. Proposed mapping for M8 review: UC-M2-01..08 -> UC-20..27, in order; BR-M2-01..16 -> BR-20..35, in order. Those numeric ranges were unused in fetched sources but are not reserved globally. M8 confirms availability, then updates all citations together. Verification labels V-M2 below are local design scenarios, **not TC IDs**.
+UC-M2-01..08 and BR-M2-01..16 are stable module-scoped IDs under CONTRIBUTING section 5 and the PR review. No flat-number conversion is planned. FR-07 remains one M2 parking row; if it is split, use FR-07.M2.1, FR-07.M2.2, etc., distinct from M3. Verification labels V-M2 below are local design scenarios, **not TC IDs**.
 
-Operator overlap mapping for later consolidation: UC-OP-01/07 refine M5 UC-08; UC-OP-02/08 refine M5 UC-09; UC-OP-03/04 expose M3 UC-11 and M4 UC-A06/A07; UC-OP-05/06 expose M4 UC-A01..A04/A08; UC-OP-09/10 split M6 UC-12 into execution and review/application. These are UI views of existing capabilities, not ten new M2 functions. Internal schedulers remain internal; keep Operator or external event source only where it crosses the system boundary.
+Current operator-view mappings and external/internal actor boundaries are recorded in [stakeholder/actor analysis](stakeholder-actor-analysis.md). M7 UI views do not create duplicate business use cases; its UC-M7-02 resource-state override remains a separately owned capability pending M1 state guards.
 
 ## 9. Traceability and planned verification
 

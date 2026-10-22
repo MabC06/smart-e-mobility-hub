@@ -16,7 +16,7 @@ M2 covers FR-02 (search and battery/availability), FR-03 (reserve/cancel), FR-04
 
 The [M2 requirements baseline](../requirements/fr-02-05-07-reservation.md) is authoritative for input/output contracts, acceptance criteria (§4), business rules (§5) and complete use-case specifications (§6). It supplies the missing M2 Phase 0 foundation specifically for Phase 1 review.
 
-| Requirement | Student goal / provisional use cases | Observable acceptance outcome |
+| Requirement | Student goal / use cases | Observable acceptance outcome |
 |---|---|---|
 | FR-02 | UC-M2-01 Find suitable vehicles | Filtered fleet candidates with battery/state/as_of; invalid inputs rejected; empty results and alternatives explained |
 | FR-03 | UC-M2-02 Reserve; UC-M2-03 Cancel | One exclusive ten-minute hold, concurrency/quota checks, owner-only cancellation before pickup |
@@ -28,7 +28,7 @@ The [M2 requirements baseline](../requirements/fr-02-05-07-reservation.md) is au
 
 ![M2 parking use cases](../requirements/use-case-diagrams/uc-m2-parking.svg)
 
-Editable PlantUML sources accompany each SVG. These two scoped diagrams support M2 review; the timeline's five consolidated diagrams and full actor analysis remain a separate Phase 0 integration task. M7's UC-OP-01..10 are UI refinements of M3-M6 capabilities, not additional M2 features; the correspondence is documented in the baseline §8.
+Editable PlantUML sources accompany each SVG. These scoped diagrams feed the [draft system overview](../requirements/use-case-diagrams/uc-overview.svg). The [actor analysis](../requirements/stakeholder-actor-analysis.md) records current participation and UI-view overlap. Final reconciliation awaits M3/M5/M6 diagrams by Oct 25 under the open timeline PR #15.
 
 ### Business constraints and parameter rationale
 
@@ -36,7 +36,7 @@ The **canonical parameter register is baseline §3**. The proposed rental is imm
 
 Private parking can start within 24 hours, with a default two-hour stay (30..240 minutes), and arrival in `[start,start+10 min)`. Intervals use half-open overlap rules; actual occupancy overrides calendar optimism. Overstay keeps occupancy and triggers monitoring instead of an automatic release. A rental's planned duration defaults to 30 minutes (5..120); expected return is calculated at actual pickup. M5's overdue condition is strictly more than 60 minutes beyond that time, without fines or forced completion.
 
-Rental minimum battery is proposed at 20%, distinct from M5's <=15% rental-pool lockout and <=10% critical incident, M3's <15% charging urgency and M6's <20% depletion metric. UTC storage/ICT display follows proposed D-005; server time at the serialized command boundary is authoritative.
+Rental minimum battery is proposed at 20%, distinct from M5's <=15% rental-pool lockout and <=10% critical incident, M3's <=15% charging urgency and M6's <20% depletion metric. UTC storage/ICT display follows proposed D-005; server time at the serialized command boundary is authoritative.
 
 The rules prioritize consistency over pretending that future arrivals or departures are certain. A charging point requires its associated parking bay; one vehicle is counted once. M3 urgency reorders eligible waiting requests, never takes a confirmed student's resource. RedistributionTask and student Reservation share a proposed Core claim mechanism while retaining separate ownership and lifecycles.
 

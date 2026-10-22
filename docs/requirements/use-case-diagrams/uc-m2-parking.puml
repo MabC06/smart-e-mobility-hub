@@ -1,6 +1,6 @@
 @startuml
 left to right direction
-title U2 - M2 parking use cases (provisional IDs)
+title U2 - M2 parking use cases (module-scoped IDs)
 skinparam shadowing false
 skinparam defaultFontName Arial
 actor Student

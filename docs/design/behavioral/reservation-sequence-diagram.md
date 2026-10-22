@@ -8,7 +8,7 @@ All messages below form a **proposed interaction contract**, not existing API na
 
 Student is the human actor. UI validates for convenience and sends commands; it cannot decide ownership, battery or success. Reservation owns rental/parking workflow and policy. Core owns shared resource state and coordinates an atomic unit of work with public M2 policy/persistence ports. They are logical components of the proposed modular monolith, not separate network services. Core's internal transaction box includes M2 Reservation/Trip writes via those ports; it does not transfer their business ownership to M1.
 
-No database, scheduler or payment participant is invented. M4 appears only as an internal ranking provider reached through the proposed Core facade, supported by UC-A05. M3/M5 receive post-commit domain events through Core. Direct access to another module's repository is forbidden (CONTRIBUTING §9).
+No database, scheduler or payment participant is invented. M4 appears only as an internal ranking provider reached through the proposed Core facade, supported by UC-M4-05. M3/M5 receive post-commit domain events through Core. Direct access to another module's repository is forbidden (CONTRIBUTING §9).
 
 ## S1 - Reserve
 

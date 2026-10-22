@@ -1,201 +1,56 @@
-# M2 Phase 1 - Review and delivery handoff
+# M2 Phase 1 review handoff
 
-> Prepared 2026-10-11 (ICT) for 2452620 Đặng Tuấn Kiệt. **Draft; human review pending.**
+> Owner: M2 - 2452620. Updated 2026-10-22. Design proposals require human review.
 
-## What is ready
+## Submission and deadlines
 
-The seven requested Markdown deliverables are present: M2 requirements, three behavioral design documents, M2-only report sections 02/05, and AI declaration. Supporting artifacts are ten editable PlantUML sources plus ten SVG exports (eight behavioral and two scoped use-case diagrams). This handoff is an additional review aid. No existing tracked file, other module, Core API or decision status was modified.
+Branch: `docs/reservation-phase1-design`; [PR #11](https://github.com/MabC06/smart-e-mobility-hub/pull/11), target `develop`. Initial submission was commit `69312c2` on Oct 11. The branch is now synced with develop `57c064d`. This supersedes the original unexecuted Git handoff: the PR already exists. M7 (`sharkin206`) was requested as reviewer. No merge or human approval is claimed.
 
-Start with [requirements](../requirements/fr-02-05-07-reservation.md), then [activity](../design/behavioral/reservation-activity-diagram.md), [sequence](../design/behavioral/reservation-sequence-diagram.md) and [state tables](../design/behavioral/reservation-state-machine.md). The report sections summarize the design for integration; they do not replace the canonical requirements/parameter register.
+M2 own design is due **Oct 23**. Team design review is **Oct 25**. M1's open [timeline PR #15](https://github.com/MabC06/smart-e-mobility-hub/pull/15) places the final overview and updated actor list on Oct 25, after module diagrams arrive. No deadline hour is specified. The former five consolidated Phase 0 diagrams are replaced by module-owned diagrams plus M2's overview under that proposal and M1's PR feedback.
 
-## Source and dependency status
+## What to review
 
-Fetched source base: `46811d57f5f99cd026b29ddae42503d9744084ab`; `main` and `origin/develop` matched. PRs [#1](https://github.com/MabC06/smart-e-mobility-hub/pull/1) (M4), [#5](https://github.com/MabC06/smart-e-mobility-hub/pull/5) (M8), [#7](https://github.com/MabC06/smart-e-mobility-hub/pull/7) (M3), [#8](https://github.com/MabC06/smart-e-mobility-hub/pull/8) (M7), [#9](https://github.com/MabC06/smart-e-mobility-hub/pull/9) (M6), [#10](https://github.com/MabC06/smart-e-mobility-hub/pull/10) (M5) were all open. #1/#5 had M1 approval on the inspected head; others had no human approval. Exact paths/SHAs are in requirements §1. None was merged into the working tree.
+- [Requirements baseline](../requirements/fr-02-05-07-reservation.md): FR acceptance criteria, 8 use cases, 16 business rules with upward Trace, parameters, dependency decisions and 13 planned verification scenarios.
+- [Actor analysis](../requirements/stakeholder-actor-analysis.md): stakeholders, actor participation, M7 UI overlap, source SHAs and diagram coverage.
+- [Draft overview](../requirements/use-case-diagrams/uc-overview.svg): seven goal groups; individual IDs remain in module documents. Available M2/M4 diagrams and M3/M5/M6 tables are the inputs.
+- [Activity](../design/behavioral/reservation-activity-diagram.md), [sequence](../design/behavioral/reservation-sequence-diagram.md) and [state machine](../design/behavioral/reservation-state-machine.md): 8 behavioral diagrams plus 2 M2 use-case diagrams, with source/export pairs.
+- [Requirements report](../report/02-requirements-analysis.md), [behavioral report](../report/05-behavioral-design.md) and [AI declaration](../ai-usage/2452620.md).
 
-Core API/class/Vehicle-state source documents were absent in all fetched refs. Do not treat the proposed transaction messages as published endpoints. Shared D-002/003/005/007 remain Proposed. No messages, review requests or PR comments have been sent by the assistant.
+## Response to M1 review
 
-## Review decisions
+| PR #11 feedback | Revision |
+|---|---|
+| Add FR/NFR Trace to BRs, no reverse UC list | All 16 BR rows have Trace; UC Trace lines use complete identifiers for M8 extraction |
+| Shared FR-07 sub-IDs must be module-scoped | Retain one parking row; require FR-07.M2.n if later split, distinct from FR-07.M3.n |
+| Actor analysis missing; diagram responsibility changed | Added actor analysis and draft uc-overview source/SVG; removed obsolete five-diagram gap wording |
+| UC-M2/BR-M2 IDs are final, no flat mapping | Stable module-scoped IDs retained throughout; removed flat mapping and provisional-ID wording. D-011 decision-log status is untouched |
 
-| Owner(s) | Question | Recommended proposal |
+These revisions address the comments in documents. The reviewer determines acceptance; review threads are not automatically resolved.
+
+## Dependency findings and M2 response
+
+| Module | What was collected | Effect on M2 / remaining decision |
 |---|---|---|
-| M1/M2/M7 | Can Core coordinate all resource and workflow writes? | One public unit of work with module-owned ports, command-result replay and invariant checks; no separately committed vehicle/booking calls |
-| M1/M3/M7 | Can charging be scheduled without a bay? | No; non-null unique same-Hub bay for schedulable chargers; joint interval claim; one vehicle counts once |
-| M1/M3/M4 | Can urgency take confirmed resources? | No; apply M4 class priority to uncommitted requests and M3 urgency within eligible waiting charging class |
-| M1/M4/M7 | Is redistribution a student Reservation? | Keep separate RedistributionTask; share Core ResourceClaim with typed owner; no fake user or silent REBALANCE enum addition |
-| M1/M3/M4/M5/M6 | Should all battery numbers become one threshold? | No; rental >=20%, pool lockout <=15%, critical incident <=10%, urgent charge <15%, simulation metric <20% |
-| M2/M5/M7 | How is overdue computable? | Store planned duration and Trip expected_return_at at actual pickup; strict t > due+60 min; no fines/automatic trip end |
-| M1/M2/M7 | How do deadlines/Pending work? | Ten-minute immediate rental, zero grace, Pending transient; preserve six names; exact expiry not eligible |
-| M2/M3/M5/M7 | How do future parking and overstays work? | Private start within 24 h, 30..240 min, arrival before start+10; preserve real occupancy and reassign/reject following arrival |
-| M1/M2/M4/M7 | Reserve destination automatically? | No; clear UI warning plus optional immediate ten-minute return hold on a space without future commitments |
-| M1/M5/M7 | Does a fault end custody? | Pre-pickup cancel without freeing occupancy; in-trip remains Active until verified Hub return/recovery |
-| M1/M6/M7 | Can simulation apply changes directly? | No; isolated state/clock/result namespace; separate operational confirmation and fresh checks |
-| M2/M8/team | Are IDs final? | Provisional UC-M2/BR-M2 now; review suggested UC-20..27 and BR-20..35 mapping; M8 assigns official TC IDs |
+| M1 | CONTRIBUTING, D-011, Accepted D-012 and timeline PR #15 | Stable IDs; M3 owns charging failure, M4 cross-Hub lookup. Core API/class/Vehicle-state source remains absent; sequence messages are proposed ports |
+| M3 | UC-M3-01..08, BR-M3-01..03, private profile, joint bay/charger requirements | One bay per charging vehicle and atomic claims; urgency is now <=15%, not the older <15%. Numeric policies require review |
+| M4 | PR #16 allocation algorithm, interaction design and two UC sources | Atomic claims/read-only alternatives align. REBALANCE reservation conflicts with typed task-owned claims: no Student pickup or student Trip for dispatch. Preserve custody/destination protection after pickup even on timeout |
+| M5 | UC-M5-01/02, BR-M5-01..05, incident/overdue requirements | Pool lockout <=15%, critical incident <=10%, overdue >due+60 min. Time/cancellation never removes actual occupancy |
+| M6 | UC-M6-01, isolated simulation and metrics | Clone bookings/trips/claims/clock/results; recommendation application needs fresh operational checks. Analytics <20% differs from rental eligibility >=20% |
+| M7 | Operator views and schema draft | Separate UI views from business UCs; flag stale UC-12 references. Due-time/calendar fields and typed claims need M1/M7 agreement |
+| M8 | Current test-plan/traceability branch and naming convention | Upward traces and planned scenarios; no invented TC results or reverse FR/BR catalog |
 
-## Verification record
+Exact revisions and paths are in the actor analysis. The requirements' original Oct 11 source table remains historical evidence.
 
-- Both assignment PDFs were extracted and read in full (4 assignment pages, 7 rubric pages); local rules and all six listed PR documents were inspected.
-- PlantUML 1.2026.2 `-checkonly` and SVG generation succeeded for all ten sources. PNG previews of all ten were inspected; revised R1/A3/S2 previews were inspected again after fixes. R1 overlapping self-event labels were replaced with state-internal text; A3 now allows departure before planned end. No remaining clipped text or ambiguous crossing labels were observed in the final previews.
-- Requirements walkthrough covered 13 V-M2 scenario groups. Review clarified Available-at-search vs own-Reserved-at-pickup, and prevented future private commitments behind indefinite fleet-return occupancy.
-- Final local checks passed: 28 new files (8 Markdown, 10 PlantUML, 10 SVG), 44 valid local links, parseable SVG XML/source pairs, 8 unique UC definitions, 16 unique BR definitions and 13 scenario definitions; zero undefined full M2-ID references, unbalanced fences, replacement characters or trailing whitespace. `git diff --check` also passed; it alone does not inspect untracked content. Tracked diff and staged diff were empty.
-- No application implementation exists in this change; no application/unit/integration tests were run. V-M2 cases are planned test obligations, not TC execution results. No performance or runtime concurrency guarantees have been empirically verified.
-- Limitations: Core/API and schema remain unapproved; browser-specific SVG behavior has not been checked; full Phase 0 system-wide actor/use-case consolidation is outstanding. Human review, personal AI-log verification and future M8 testing remain necessary.
+## Verification and remaining work
 
-Render commands and proposed Oct 12-25 review schedule are in [report 05](../report/05-behavioral-design.md). Repo deadlines are Oct 23 for M2 and Oct 25 for team review; Core API v1 is due Oct 19. Intermediate dates are proposals only.
+The Oct 11 package passed ten PlantUML renders, visual review and local link/ID checks. Oct 22 validation passed: 52 local Markdown links (including the new actor index), 16 BR Trace rows, 8 UC definitions and 11 SVG/source pairs. Visual checks covered all changed diagrams and the four-page Vietnamese PDF. PlantUML syntax checking covers eleven PlantUML sources including the overview, regenerated changed use-case exports, local links, SVG XML, 16 BR Trace rows, 8 UC definitions and whitespace. No application/unit/integration or concurrency tests are claimed: this is design documentation.
 
-## Safe Git handoff (commands for the student, not executed)
+Before final cross-module sign-off on Oct 25: obtain M3/M5/M6 final diagrams, M4 SVG exports and M1 Core contract; reconcile the overview and agree dispatch-claim/custody interfaces. Current draft covers available evidence and does not claim these external deliverables exist.
 
-At handoff, the branch is still `main`, the index is untouched, and task files are untracked. Initial tree was clean; no pre-existing user changes needed preservation. Current Git identity was `kevindangpetrichor` / `kiet.dangcs@hcmut.edu.vn`, which does not follow the repository name/noreply recommendation. No Git configuration was changed.
+## Personal reading checklist
 
-Inspect before doing anything:
-
-```powershell
-git status --short --untracked-files=all
-git branch --show-current
-git config --get user.name
-git config --get user.email
-git diff
-git diff --staged
-git rev-parse HEAD origin/develop
-```
-
-If the two SHAs still match `46811d5...` and only the documented task files are present, create the working branch directly from the fetched integration ref. This does not require discarding or stashing these files:
-
-```powershell
-git switch --no-track -c docs/reservation-phase1-design origin/develop
-```
-
-Do not force the command if it reports a collision or if the branch already exists. If HEAD/develop changed or unrelated edits appeared, first **copy** all task and unrelated changed/untracked files to a separate backup folder preserving paths; verify the copies (a patch alone misses untracked files). A separate `git worktree add -b docs/reservation-phase1-design <new-empty-directory> origin/develop` then lets you copy only the reviewed M2 files into a fresh checkout, leaving the original work untouched. If target report/requirements files now exist, integrate the clearly marked M2 sections manually; do not overwrite teammates' content. No automatic stash/reset/delete is needed.
-
-After creating the branch, set repo-local identity only if you want to follow the documented convention. Obtain the real noreply address from your own GitHub Settings -> Emails; the placeholder below must be replaced, not run literally:
-
-```powershell
-git config --local user.name "2452620 Đặng Tuấn Kiệt"
-git config --local user.email "<YOUR_ACTUAL_GITHUB_NOREPLY_EMAIL>"
-git config --get user.name
-git config --get user.email
-```
-
-Recommended initial commit: M2 requirements/design/report/AI declaration and handoff together as one coherent traceable design change. Keeping parameters, diagrams and handoff together avoids intermediate broken links or conflicting policies. A meaningful second commit can later record human-review revisions or accepted parameter/interface changes together with their affected diagrams and AI log, using `docs(reservation): address M2 design review (FR-03, FR-05)`. Do not split source and generated SVG changes into separate commits. The explicit file lists below stage only this task; inspect all staged content first if you previously staged anything else.
-
-```powershell
-$m2DesignFiles = @(
-  'docs/requirements/fr-02-05-07-reservation.md'
-  'docs/requirements/use-case-diagrams/uc-m2-rental.puml'
-  'docs/requirements/use-case-diagrams/uc-m2-rental.svg'
-  'docs/requirements/use-case-diagrams/uc-m2-parking.puml'
-  'docs/requirements/use-case-diagrams/uc-m2-parking.svg'
-  'docs/design/behavioral/reservation-activity-diagram.md'
-  'docs/design/behavioral/reservation-sequence-diagram.md'
-  'docs/design/behavioral/reservation-state-machine.md'
-  'docs/design/behavioral/reservation-diagrams/a1-rental.puml'
-  'docs/design/behavioral/reservation-diagrams/a1-rental.svg'
-  'docs/design/behavioral/reservation-diagrams/a2-release.puml'
-  'docs/design/behavioral/reservation-diagrams/a2-release.svg'
-  'docs/design/behavioral/reservation-diagrams/a3-parking.puml'
-  'docs/design/behavioral/reservation-diagrams/a3-parking.svg'
-  'docs/design/behavioral/reservation-diagrams/s1-reserve.puml'
-  'docs/design/behavioral/reservation-diagrams/s1-reserve.svg'
-  'docs/design/behavioral/reservation-diagrams/s2-pickup.puml'
-  'docs/design/behavioral/reservation-diagrams/s2-pickup.svg'
-  'docs/design/behavioral/reservation-diagrams/s3-return.puml'
-  'docs/design/behavioral/reservation-diagrams/s3-return.svg'
-  'docs/design/behavioral/reservation-diagrams/r1-rental.puml'
-  'docs/design/behavioral/reservation-diagrams/r1-rental.svg'
-  'docs/design/behavioral/reservation-diagrams/r2-parking.puml'
-  'docs/design/behavioral/reservation-diagrams/r2-parking.svg'
-  'docs/report/02-requirements-analysis.md'
-  'docs/report/05-behavioral-design.md'
-  'docs/ai-usage/2452620.md'
-)
-git add -- $m2DesignFiles
-git add -- docs/reviews/m2-phase1-review.md
-git diff --staged --stat
-git diff --staged
-git diff --staged --check
-git diff --check
-git commit -m "docs(reservation): define Phase 1 design (FR-02, FR-03, FR-04, FR-05, FR-07)"
-```
-
-Once your work is committed and the tree is clean, fetch and check the current integration base before pushing:
-
-```powershell
-git status --short
-git fetch origin
-git log --oneline HEAD..origin/develop
-git diff --stat origin/develop...HEAD
-```
-
-If `origin/develop` has new commits, run `git merge origin/develop` on the M2 branch only. Resolve conflicts by preserving others' sections and integrating M2; regenerate affected diagrams and repeat checks. Then:
-
-```powershell
-git branch --show-current
-git push -u origin docs/reservation-phase1-design
-```
-
-Open GitHub's new PR page with base `develop` and compare `docs/reservation-phase1-design`. Copy the draft below using `.github/pull_request_template.md`. Request **M7 Nguyễn Trung Kiên (`sharkin206`, author of PR #8)** as reviewer. Recheck the account before selection. Do not push directly to main/develop, force-push or merge your own PR. For this design-only PR mark runtime tests N/A; ask M8 to confirm documentation verification suffices for this phase rather than checking “all tests pass” without tests.
-
-## Ready-to-copy PR draft
-
-**Title:** `docs(reservation): define Phase 1 design (FR-02, FR-03, FR-04, FR-05, FR-07)`
-
-### Problem
-
-M2 had no requirements foundation or Phase 1 behavioral design on develop. Reservation, pickup/return and parking need explicit conflict, expiry, retry and shared-resource behavior before implementation.
-
-### Changes
-
-- Add M2 FR acceptance criteria, 8 full use cases, 16 provisional business rules, concrete parameter register and FR/UC/BR/diagram/scenario traceability.
-- Add 3 UML activity, 3 sequence and 2 state-machine diagrams with editable PlantUML sources and SVG previews, plus 2 scoped M2 use-case diagrams.
-- Add only M2 contributions to requirements/behavioral report sections, transparent AI declaration and review/Git handoff.
-- Specify atomic Core-coordinated operations, exact deadline guards, replay-safe pickup/return, separate physical occupancy/calendar claims and coupled bay/charger admission.
-
-### Assumptions
-
-- All new shared policies are Proposed for team review. D-002/003/005/007 remain Proposed; no Core API or other owner's document is changed.
-- Dependencies #1/#5/#7/#8/#9/#10 were open at inspection (exact head SHAs in requirements §1); #1/#5 approval does not approve all integration assumptions.
-- Immediate ten-minute rental hold, no grace, 20% rental minimum, one live rental plus one parking per student; no automatic destination hold.
-- Private parking start within 24 h, 30..240-minute stay; actual occupancy is never released merely by time/cancellation. M3 bay coordination and M4 typed dispatch claims require owner confirmation.
-- Core API/state source is still absent; all sequence messages are a proposed interaction contract. M7 due-time/calendar fields and provisional UC/BR mapping need reconciliation.
-- Proposals are localized in the M2 dependency/parameter tables. Adopted shared-interface decisions must later follow the repository DECISIONS/team-notice protocol.
-
-### Related requirement
-
-- FR-02, FR-03, FR-04, FR-05, FR-07 (parking); provisional UC-M2-01..08, BR-M2-01..16.
-- NFR-06..09, NFR-12/13/16/18/21/22/25/26. V-M2 labels are planned scenarios, not official TC IDs.
-
-### Verification
-
-- PlantUML 1.2026.2 `-checkonly` and `-tsvg`: 10/10 sources successful; PNG visual inspection, including corrected R1/A3/S2.
-- Local Markdown links, SVG source/export pairs, provisional-ID inventory and whitespace checked; 13 scenario groups reviewed for document consistency.
-- [ ] Tests added/updated for this change - N/A, design-only documentation; implementation test obligations supplied for M8.
-- [ ] All tests pass - N/A, no application test execution claimed.
-- Re-run `git diff --staged --check` after staging and record the result before opening this PR.
-
-### AI usage
-
-- [ ] No substantial Generative AI use in this PR
-- [ ] AI was used; I updated `docs/ai-usage/2452620.md`, reviewed the output, and can explain every change
-
-Substantial Codex assistance is declared. The author should check the second box only after actual personal review and update the log with any revisions.
-
-### Reviewer notes
-
-- Primary reviewer: M7 (`sharkin206`). Check UI errors/unknown outcomes, parking/charging data, proposed Pending semantics and reservation-vs-trip lifecycle.
-- M1/M3/M4/M5 input needed on atomicity, bay ownership, priorities, due-time/incident handling. No runtime API is approved by this PR alone.
-- The two M2 use-case diagrams are not the missing system-wide Phase 0 consolidation.
-
-### Checklist
-
-- [ ] Synced with `develop` (target branch is `develop`)
-- [ ] No secrets, `.env`, large files, build output or debug code (small SVGs are intentional diagram deliverables)
-- [ ] Commit messages follow `CONTRIBUTING.md`
-- [ ] If the `src/core/` interface changed: team notified and `docs/DECISIONS.md` updated - N/A, no implementation/interface file changed
-
-## Personal review checklist
-
-- [ ] Explain exact expiry, concurrent cancellation/pickup and replay behavior without reading AI output verbatim.
-- [ ] Approve or revise parameters in the single canonical register and regenerate affected diagrams.
-- [ ] Review dependency disagreements with owners; leave unapproved items Proposed.
-- [ ] Confirm M2-only scope in shared reports and that unmerged source references still match PR heads.
-- [ ] Confirm ID mapping with M8; do not claim executed TC results.
-- [ ] Update personal AI verification, check staged files and real Git identity before commit.
+- [ ] Read the Vietnamese PDF review, then parameter and dependency registers.
+- [ ] Explain exact expiry, atomicity, retries and occupancy versus scheduled claims.
+- [ ] Review distinct battery thresholds and the M4 dispatch disagreement.
+- [ ] Confirm/revise numeric proposals with owners; update the AI log after personal review.
+- [ ] Read reviewer feedback and attend the Oct 25 team design review.

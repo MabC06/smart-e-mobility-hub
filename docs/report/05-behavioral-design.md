@@ -55,9 +55,9 @@ Render using Java 17 and PlantUML **1.2026.2** (Graphviz 2.44.1 reported by the 
 
 ```powershell
 $plantUmlJar = Join-Path $env:TEMP 'plantuml-m2.jar'
-java -jar $plantUmlJar -charset UTF-8 -checkonly 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/uc-m2-*.puml'
-java -jar $plantUmlJar -charset UTF-8 -tsvg 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/uc-m2-*.puml'
-java -jar $plantUmlJar -charset UTF-8 -tpng -o "$env:TEMP/m2-diagram-preview" 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/uc-m2-*.puml'
+java -jar $plantUmlJar -charset UTF-8 -checkonly 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/*.puml'
+java -jar $plantUmlJar -charset UTF-8 -tsvg 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/*.puml'
+java -jar $plantUmlJar -charset UTF-8 -tpng -o "$env:TEMP/m2-diagram-preview" 'docs/design/behavioral/reservation-diagrams/*.puml' 'docs/requirements/use-case-diagrams/*.puml'
 git diff --check
 ```
 
@@ -65,7 +65,9 @@ The initial syntax check and rendering succeeded for all ten sources. PNG previe
 
 Limitations: the Core contract has not been exercised, browser-specific SVG display has not been tested, and system-wide use-case consolidation remains separate. Human review/approval and M8's future implementation tests are still required.
 
-### Proposed M2 review schedule
+### Original proposed schedule and Oct 22 status
+
+Oct 22 status: PR #11 was published Oct 11. M1 feedback is addressed in the current revision; stable IDs and BR traces are supplied. Actor analysis and a draft overview are added; final module diagrams and Core API remain pending. Open timeline PR #15 assigns final overview/actor reconciliation to Oct 25. The intermediate dates below are the original plan, **not a record of completed meetings or approvals**.
 
 Repository commitments: M2 Phase 1 due **2026-10-23**, team design review **2026-10-25**; M1 Core API v1 due **2026-10-19**. The following intermediate dates are proposed, not changes to the shared timeline. All dates use ICT.
 
