@@ -1,0 +1,30 @@
+@startuml
+title S5 - Alternative charging point for displaced requests (UC-M4-07), called from UC-M3-08
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+participant "Sensor / iot_sim" as Sensor
+control Core
+control Charging
+control Allocation
+Sensor -> Core: Charging-point failure event
+Core -> Charging: Domain event
+Charging -> Charging: UC-M3-08: look for a free port in the same Hub
+alt Free port in the same Hub
+  Charging -> Charging: Reassign the session or re-queue (M3 only)
+else No free port at this Hub
+  Charging -> Core: Ask for alternatives for the displaced requests
+  Core -> Allocation: find_alternative_charging(requests, current Hub) [read-only]
+  Allocation -> Core: Read network snapshot
+  Core --> Allocation: Free charging bays per Hub, as_of
+  Allocation -> Allocation: Order requests (BR-M4-01, then BR-M3-03 inside the charging class)\nOffer each free bay to at most one request\nRank other Hubs by closeness, free bays, Hub ID
+  alt Alternatives found
+    Allocation --> Core: Alternative Hub and bay per request
+  else Nothing free anywhere
+    Allocation --> Core: NO_CHARGER (BR-M4-10)
+  end
+  Core --> Charging: Result
+  Charging -> Charging: Move or re-queue sessions (M3 owns the failure handling)
+end
+note over Allocation: Read-only: no resource is held by M4.\nM3 confirms the new bay through its own flow.
+@enduml

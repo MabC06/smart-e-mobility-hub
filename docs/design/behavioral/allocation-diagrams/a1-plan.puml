@@ -1,0 +1,32 @@
+@startuml
+title A1 - Plan vehicle redistribution among Hubs (UC-M4-01, FR-10.1 to FR-10.3)
+skinparam shadowing false
+skinparam defaultFontName Arial
+start
+:Read snapshot and demand forecast (as_of);
+:Compute effective vehicles, expected pickups and returns,\nneed and surplus for every Hub (per vehicle type);
+if (Any Hub with need > 0 and any Hub with surplus > 0?) then (no)
+  :Report "no task needed";
+  stop
+endif
+:Sort destinations by urgency (highest first), then Hub ID;
+while (Destinations left?) is (yes)
+  :Take the next destination d;
+  while (need(d) > 0 and a source with surplus exists?) is (yes)
+    :Pick source s: nearest, then largest surplus, then Hub ID;
+    :q = min(need(d), surplus(s), free spaces(d) - buffer, max per task);
+    if (q > 0, s keeps its safety stock,\nper-Hub task limit not reached?) then (yes)
+      :Select q vehicles at s (Available, battery OK,\nno reservation soon, not in another task);
+      if (Enough vehicles?) then (yes)
+        :Create DispatchTask (Recommended) with reason;\nupdate need, surplus and free spaces;
+      else (no)
+        :Reduce q to the vehicles found, or drop the pair;
+      endif
+    else (no)
+      :Drop the pair (s, d);
+    endif
+  endwhile (no)
+endwhile (no)
+:Sort tasks (priority, then task key) and show them to the Operator;
+stop
+@enduml

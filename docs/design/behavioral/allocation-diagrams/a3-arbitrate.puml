@@ -1,0 +1,22 @@
+@startuml
+title A3 - Settle competing requests for one resource (UC-M4-06, FR-11.M4.1)
+skinparam shadowing false
+skinparam defaultFontName Arial
+start
+:Collect the requests that want the same vehicle,\nparking space or charging bay;
+:Give each request a class level (BR-M4-01);
+:Sort by class level, then request time, then request ID;\n(inside the charging class: BR-M3-03);
+:Take the first request;
+:Try to claim the resource in one atomic step\n(version check in Core);
+if (Claim succeeded?) then (yes)
+  :Grant the resource;
+else (no, another claim was committed first)
+  :Answer conflict with the reason;
+endif
+while (More requests?) is (yes)
+  :Answer conflict with the reason;
+  :Offer an alternative Hub if one exists (UC-M4-05);
+endwhile (no)
+:Log every decision with its reason (BR-M4-12);
+stop
+@enduml

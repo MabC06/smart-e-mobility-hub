@@ -1,0 +1,32 @@
+@startuml
+title S1 - Plan redistribution (UC-M4-01): proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Operator
+boundary UI
+control Allocation
+control Core
+control Reservation
+control Charging
+Operator -> UI: Open dispatch screen or refresh
+UI -> Allocation: plan_redistribution()
+Allocation -> Core: Read network snapshot (read-only)
+Core --> Allocation: Hubs, vehicles (state, battery), spaces, bays,\nsnapshot version, as_of
+Allocation -> Core: Read upcoming demand for the horizon
+Core -> Reservation: Confirmed bookings and trips due (public port)
+Core -> Charging: Scheduled charging sessions (public port)
+Core --> Allocation: Demand per Hub (pickups, returns, bays needed)
+Allocation -> Allocation: Load active dispatch tasks (inbound and outbound)
+Allocation -> Allocation: Pure planning on the snapshot:\nneed and surplus per Hub, greedy matching,\nvehicle selection, BR-M4-03..07 checks
+alt Every Hub is covered
+  Allocation --> UI: Empty plan "no task needed", as_of
+else Tasks found
+  Allocation -> Allocation: Store tasks as Recommended\n(deterministic task key, reason, priority)
+  Allocation --> UI: Task list with quantity, priority, reason, as_of
+end
+opt Snapshot older than the staleness limit
+  UI --> Operator: Show snapshot time and a warning
+end
+UI --> Operator: Show recommendations
+@enduml
