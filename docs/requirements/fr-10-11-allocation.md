@@ -44,7 +44,7 @@ This module decides "where limited resources go":
 
 | ID | Rule | Trace |
 |---|---|---|
-| BR-M4-01 | **Priority when requests compete** (highest first): 1) operator order for an incident, 2) confirmed reservation starting soon, 3) vehicle in use that needs a space to return, 4) charging for a vehicle with a reservation soon, 5) charging for a low-battery rental vehicle, 6) charging for a private vehicle, 7) rebalancing move, 8) walk-in. Same level: the earlier request wins; then the lower ID. | FR-11.M4.1 |
+| BR-M4-01 | **Priority when requests compete** (highest first): 1) operator order for an incident, 2) confirmed reservation starting soon, 3) vehicle in use that needs a space to return, 4) charging for a vehicle with a reservation soon, 5) charging for a low-battery rental vehicle, 6) charging for a private vehicle, 7) rebalancing move, 8) walk-in. Same level: the earlier request wins; then the lower ID. Between charging requests of the same level (4 to 6), BR-M3-03 decides (D-012). | FR-11.M4.1; BR-M3-03 |
 | BR-M4-02 | Never cancel a confirmed or active reservation to serve a lower priority. | FR-10.4, FR-11.M4.1 |
 | BR-M4-03 | Only move a vehicle that is `Available`, has no reservation soon, and has enough battery. | FR-10.1, FR-10.3 |
 | BR-M4-04 | Hold a free space at the destination before the move starts. Never send vehicles to a Hub with no free space left. | FR-10.4, FR-10.5, FR-11.M4.3 |
@@ -142,13 +142,13 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - Trace: FR-11.M4.1; BR-M4-01, BR-M4-02
 
 ### UC-M4-07 — Find an alternative charging point for displaced requests
-- **Actor:** M3 (charging module) calls it; System
-- **Before:** M3 has charging requests that lost their charging point (for example after a failure, UC-M3-08) and the Hub has no free bay.
+- **Actor:** M3 (charging module) calls it from UC-M3-08; System
+- **Before:** In UC-M3-08, M3 has charging requests that lost their charging point and finds no free charging point at the current Hub.
 - **Steps:**
   1. M3 asks the allocation module for an alternative for each displaced request.
-  2. The system looks for a free charging point in the same Hub, then in another Hub (closer first).
+  2. The system looks for a free charging point in another Hub (closer first).
   3. The system returns the best alternative for each request.
-  4. M3 moves or re-queues the sessions. M3 owns the failure handling.
+  4. M3 moves or re-queues the sessions. M3 owns the failure handling (UC-M3-08).
 - **If not normal:** No free charging point anywhere → return `NO_CHARGER`. M3 puts the requests back in its queue.
 - **After:** Nothing changes in the allocation module. No vehicle is left without a space (BR-M4-11).
 - Trace: FR-11.M4.2; BR-M4-11
@@ -174,13 +174,13 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** New plans use the new value. Approved tasks keep their quantities.
 - Trace: (no FR, supporting use case); BR-M4-03, BR-M4-05, BR-M4-06
 
-## 6. Open points (not decided yet)
+## 6. Open points
 
 Each question has an assumption used in this version, so the document is valid now. If the answer is different, only the listed parts change.
 
 | # | Question | Assumed now | Parts to change if different | Ask |
 |---|---|---|---|---|
-| 1 | Is the FR-11 split with M3 acceptable? | Yes; D-012 gives failed-charging-point handling to M3 | FR-11.M4.1 to FR-11.M4.3, BR-M4-01 levels 4–6, BR-M4-11, UC-M4-06, UC-M4-07 | M3 |
+| 1 | Is the FR-11 split with M3 acceptable? | **Decided:** D-012 (Accepted) gives failed-charging-point handling to M3 and the cross-Hub lookup to M4 | Only if M3 or M4 objects in Phase 1: FR-11.M4.1 to FR-11.M4.3, BR-M4-01, BR-M4-11, UC-M4-06, UC-M4-07 | M3 |
 | 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes | BR-M4-08, BR-M4-09, UC-M4-02, UC-M4-03 | M1, M2 |
 | 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | A public interface from M2 and M3, defined in Core API spec v1 | Design phase only | M1 |
 | 4 | Do low-battery and near-full limits use the same values as M3 and M5? | Yes | Settings list | M3, M5 |
