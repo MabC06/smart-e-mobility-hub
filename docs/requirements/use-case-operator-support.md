@@ -32,7 +32,7 @@ The operator use cases are grouped by functional area. Each is a UI view of a us
 | `UC-M3-06` (view for `UC-M7-03`)<br>`UC-M3-07` (view for `UC-M7-04`) | Charging Request & Smart Scheduling | `UC-M7-03` Monitor Charging Queues & Point Utilization<br>`UC-M7-04` Coordinate & Override Charging Priorities / Schedules | `FR-06`, `FR-07`, `FR-11` |
 | `UC-M4-01` (view for `UC-M7-05`)<br>`UC-M4-02`, `UC-M4-03` (view for `UC-M7-06`) | Resource Allocation & Vehicle Dispatching | `UC-M7-05` Review Resource Allocation Bottlenecks<br>`UC-M7-06` Coordinate & Dispatch Vehicle Redistribution Among Hubs | `FR-10`, `FR-11` |
 | `UC-M5-01`, `UC-M5-02` (view for `UC-M7-07`)<br>`UC-M5-02` (view for `UC-M7-08`) | Operator Monitoring & Incident Handling | `UC-M7-07` Monitor Hub Capacity Utilization & Acknowledge Alerts<br>`UC-M7-08` Log, Escalate, and Resolve Operational Incidents | `FR-08`, `FR-09` |
-| `UC-12` (view for `UC-M7-09`, `UC-M7-10`) | What-if Simulation & Coordination | `UC-M7-09` Configure & Execute What-if Simulation Scenario<br>`UC-M7-10` Evaluate Simulation Impact Metrics & Apply Coordination Recommendations | `FR-12` |
+| `UC-M6-01` (view for `UC-M7-09`, `UC-M7-10`) | What-if Simulation & Coordination | `UC-M7-09` Configure & Execute What-if Simulation Scenario<br>`UC-M7-10` Evaluate Simulation Impact Metrics & Apply Coordination Recommendations | `FR-12` |
 
 ---
 
