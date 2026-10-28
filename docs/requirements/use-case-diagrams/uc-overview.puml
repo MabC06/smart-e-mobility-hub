@@ -1,0 +1,38 @@
+@startuml
+title Smart E-Mobility Hub - draft use-case overview (2026-10-22)
+left to right direction
+skinparam shadowing false
+actor Student
+actor "Private EV owner" as Owner
+actor Operator
+actor "Simulated sensor / event source" as Sensor
+Owner --|> Student
+rectangle "Smart E-Mobility Hub" {
+  usecase "Rental lifecycle\nUC-M2-01..05" as Rental
+  usecase "Parking lifecycle\nUC-M2-06..08" as Parking
+  usecase "Charging requests / private profile\nUC-M3-01..05" as Charge
+  usecase "Charging scheduling / recovery\nUC-M3-06..08" as Schedule
+  usecase "Allocation / dispatch\nUC-M4-01..09" as Dispatch
+  usecase "Monitoring / incident handling\nUC-M5-01..02\nResource override: UC-M7-02" as Monitor
+  usecase "What-if simulation\nUC-M6-01" as Simulation
+}
+Student -- Rental
+Student -- Parking
+Student -- Charge
+Owner -- Parking
+Owner -- Charge
+Operator -- Schedule
+Operator -- Dispatch
+Operator -- Monitor
+Operator -- Simulation
+Student -- Dispatch : alternatives via M2
+Sensor -- Monitor
+Sensor -- Dispatch
+Sensor -- Parking : occupancy evidence
+legend bottom
+  Goal groups, not additional use-case IDs. Detailed participation: stakeholder-actor-analysis.md.
+  M7 UI views reuse M3-M6 goals. Core/scheduler are internal collaborators.
+  Sources: M2 diagrams, M4 diagram sources, M3/M5/M6 tables.
+  Final M3/M5/M6 diagrams and M4 SVG exports still awaited; reconcile by Oct 25.
+endlegend
+@enduml

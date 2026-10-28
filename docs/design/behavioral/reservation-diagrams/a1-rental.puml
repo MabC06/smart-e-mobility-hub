@@ -1,0 +1,57 @@
+@startuml
+title A1 - Find and reserve (proposed)
+skinparam shadowing false
+skinparam defaultFontName Arial
+start
+partition Student_UI {
+  :Choose origin, optional destination,\ntype and minimum battery;
+}
+partition Reservation {
+  :Validate authenticated student\nand search inputs;
+  if (Valid inputs?) then (yes)
+  else (no)
+    :Show field error;
+    stop
+  endif
+  :Read eligible fleet from Core;
+  if (Candidates exist?) then (yes)
+    :Show battery, availability,\nas_of and destination capacity;
+  else (no)
+    :Show NO_VEHICLE and\nCore / M4 advisory alternatives;
+    stop
+  endif
+}
+partition Student_UI {
+  if (Student confirms a vehicle?) then (yes)
+    :Send command key, version,\nfilters and planned duration;
+  else (no)
+    :End without a hold;
+    stop
+  endif
+}
+partition Core_coordinated_transaction {
+  :Authenticate; replay exact prior command\nor reject changed key payload;
+  if (Fresh valid command?) then (yes)
+  else (no)
+    :Return recorded result or error;
+    stop
+  endif
+  :Serialize vehicle and user quota;\nsettle expired claims; read fresh time;
+  if (Student has no live rental?) then (yes)
+  else (no)
+    :Return LIMIT_REACHED; no new hold;
+    stop
+  endif
+  :Recheck origin, version, claims,\nserviceability and battery >= max(20, filter);
+  if (Still eligible; no competing winner?) then (yes)
+    :Atomically create Confirmed reservation\nand exclusive claim; Vehicle Reserved;\nkeep origin occupancy; expiry = t + 10 min;
+  else (no)
+    :Return CONFLICT or RESOURCE_UNAVAILABLE;\nno new reservation or resource change;
+    stop
+  endif
+}
+partition Student_UI {
+  :Show confirmation ID and deadline;\nreturn parking is not reserved;
+}
+stop
+@enduml
