@@ -1,0 +1,36 @@
+@startuml
+title S2 - Approve or reject a dispatch task (UC-M4-02): proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Operator
+boundary UI
+control Allocation
+control Core
+control Reservation
+Operator -> UI: Choose task and decision
+alt Operator approves (optional lower quantity)
+  UI -> Allocation: approve_task(task_id, qty, command key)
+  Allocation -> Allocation: Check task is Recommended (BR-M4-08)
+  Allocation -> Core: Begin unit of work on a fresh snapshot (version)
+  Allocation -> Allocation: Re-check BR-M4-02..07 on the fresh snapshot
+  alt Conditions still valid
+    group Atomic Core-coordinated unit of work (BR-M4-04, BR-M4-07)
+      Allocation -> Reservation: Create system reservation (purpose REBALANCE):\nvehicle claim + destination space hold
+      Reservation -> Core: Apply claims, Vehicle Reserved
+    end
+    Core --> Allocation: Committed (new version)
+    Allocation -> Allocation: Task Approved; log transition (BR-M4-12)
+    Allocation --> UI: Approved
+  else Conditions changed or a competing claim won
+    Allocation -> Core: Roll back (nothing held)
+    Allocation -> Allocation: Task Failed with reason code; log
+    Allocation --> UI: Failed (reason), offer to re-plan
+  end
+else Operator rejects
+  UI -> Allocation: reject_task(task_id)
+  Allocation -> Allocation: Task Rejected; log
+  Allocation --> UI: Rejected
+end
+UI --> Operator: Show result
+@enduml

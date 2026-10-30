@@ -1,0 +1,20 @@
+@startuml
+title Allocation: alternatives and competing requests (FR-10.6, FR-11.M4.1, FR-11.M4.2)
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+actor "Student (via M2)" as Student
+actor "System / Scheduler" as Sys
+actor "M3 Charging module" as M3
+rectangle "Allocation and dispatching (M4)" {
+  usecase "UC-M4-05\nSuggest alternative\nHubs" as UC05
+  usecase "UC-M4-06\nSettle competing\nrequests" as UC06
+  usecase "UC-M4-07\nFind an alternative\ncharging point" as UC07
+}
+Student --> UC05
+Sys --> UC05
+Sys --> UC06
+M3 --> UC07
+Sys --> UC07
+note bottom of UC07 : Called from UC-M3-08\n(D-012)
+@enduml
