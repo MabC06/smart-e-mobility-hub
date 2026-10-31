@@ -3,7 +3,7 @@
 > **Owner:** M8 - Testing, QA & Report Integration Lead
 > **Phase:** Phase 0 - Requirements Analysis
 > **Status:** Initial baseline (v0.1)
-> **Last updated:** 2026-10-09
+> **Last updated:** 2026-10-31
 
 ## Purpose
 
@@ -39,30 +39,30 @@ Per NFR-26, every FR, BR, and UC must have at least one test case and there must
 | NFR-01 | After `core` accepts a state update, subsequent reads return the new state; the UI shows it shortly after. | FR-01, FR-08 | M | Planned | — |
 | NFR-02 | Read operations (view Hubs, search vehicles, dashboard queries) respond quickly under load. | FR-01, FR-02, FR-08 | M | Planned | — |
 | NFR-03 | Write operations (reserve, pick up, return, parking reservation, charging request) respond quickly. | FR-03 to FR-07 | M | Planned | — |
-| NFR-04 | Allocation and scheduling computations finish in interactive time. | FR-10, FR-11 | S | Planned | — |
-| NFR-05 | A What-if scenario completes in acceptable time without hurting normal operation. | FR-12 | S | Planned | — |
-| NFR-06 | No double allocation of a vehicle, parking space or charging slot. | FR-03, FR-05, FR-06; BR (double booking) | M | Planned | — |
-| NFR-07 | Capacity and uniqueness invariants always hold. | FR-01 to FR-11 | M | Planned | — |
-| NFR-08 | Only transitions allowed by the state machines are executed. | All state machines | M | Planned | — |
+| NFR-04 | Allocation and scheduling computations finish in interactive time. | FR-10, FR-11 | M | Planned | — |
+| NFR-05 | A What-if scenario completes in acceptable time. | FR-12 | M | Planned | — |
+| NFR-06 | No double allocation of a vehicle, parking space or charging slot. | BR-M1-01 | M | Planned | — |
+| NFR-07 | Capacity and uniqueness invariants always hold. | BR-M1-02, BR-M1-03 | M | Planned | — |
+| NFR-08 | Only transitions allowed by the state machines are executed. | BR-M1-03 | M | Planned | — |
 | NFR-09 | Multi-entity operations are atomic. | FR-03, FR-04, FR-05 | M | Planned | — |
 | NFR-10 | The system tolerates faulty input and equipment failures. | FR-09 | M | Planned | — |
-| NFR-11 | Stable under continuous operation. | FR-08 | S | Planned | — |
+| NFR-11 | **Withdrawn.** Stable under continuous operation. | FR-08 | Withdrawn | Withdrawn | — |
 | NFR-12 | What-if Simulation never changes real operational state. | FR-12 | M | Planned | — |
 | NFR-13 | Results are deterministic. | FR-12; CONTRIBUTING 9.8, 9.13 | M | Planned | — |
 | NFR-14 | Reproducible from a clean clone. | All | M | Planned | — |
-| NFR-15 | Handles growth of the network. | FR-01, FR-08 | S | Planned | — |
+| NFR-15 | Handles growth of the network. | FR-01, FR-08 | M | Planned | — |
 | NFR-16 | Authentication and role-based access (A-06). | FR-08 to FR-12 | M | Planned | — |
 | NFR-17 | Credentials and secrets are protected. | CONTRIBUTING 11 | M | Planned | — |
 | NFR-18 | External input is validated. | All | M | Planned | — |
-| NFR-19 | Students can reserve a vehicle easily. | FR-02, FR-03 | S | Planned | — |
-| NFR-20 | Operators see critical status at a glance. | FR-08, FR-09 | S | Planned | — |
-| NFR-21 | Rejections are understandable. | FR-03, FR-05, FR-06 | S | Planned | — |
+| NFR-19 | **Withdrawn.** Students can reserve a vehicle easily. | FR-02, FR-03 | Withdrawn | Withdrawn | — |
+| NFR-20 | Operators see critical status at a glance. | FR-08, FR-09 | M | Planned | — |
+| NFR-21 | Rejections are understandable. | FR-03, FR-05, FR-06 | M | Planned | — |
 | NFR-22 | Modules are decoupled. | CONTRIBUTING 9.2 | M | Planned | — |
-| NFR-23 | Code quality is enforced. | CONTRIBUTING 9.10, 9.12 | S | Planned | — |
-| NFR-24 | Business logic is well tested. | CONTRIBUTING 6, 10 | S | Planned | — |
-| NFR-25 | State changes are auditable. | FR-09 | S | Planned | — |
+| NFR-23 | **Withdrawn.** Code quality is enforced. | CONTRIBUTING 9.10, 9.12 | Withdrawn | Withdrawn | — |
+| NFR-24 | Business logic is well tested. | CONTRIBUTING 6, 10 | M | Planned | — |
+| NFR-25 | State changes are auditable. | FR-09 | M | Planned | — |
 | NFR-26 | Requirements are traceable. | CONTRIBUTING 5 | M | Planned | — |
-| NFR-27 | Runs on the team's machines. | NFR-14 | S | Planned | — |
+| NFR-27 | **Withdrawn.** Runs on the team's machines. | NFR-14 | Withdrawn | Withdrawn | — |
 
 ## 3. Business Rules
 
