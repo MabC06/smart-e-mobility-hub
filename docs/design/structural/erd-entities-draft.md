@@ -334,7 +334,7 @@ erDiagram
 | `ChargingPoint.status`: `FAILED` replaced by `OUT_OF_SERVICE` | M3 `BR-M3-01`, M5 `BR-M5-03` |
 | `Hub.status`: `WARNING` / `CRITICAL`; `total_charging_points` limited by parking capacity | M5 `BR-M5-01`, `BR-M5-02`; `D-007` |
 | `CapacityAlert` removed (proposal, to be confirmed with M5) | M5 uses Hub status and incidents `INC-CAP-01`, `INC-CAP-02` |
-| `RedistributionTask` restructured, `RedistributionTaskVehicle` added | M4 tasks have a quantity and many vehicles; states follow `BR-A08` |
+| `RedistributionTask` restructured, `RedistributionTaskVehicle` added | M4 tasks have a quantity and many vehicles; states follow `BR-M4-08` |
 | `Trip.expected_return_at`, `Reservation.planned_duration_minutes` added | M5 `INC-USR-01` needs a due time; M2 proposal |
 | `Vehicle.connector_type`, `ChargingSession.low_battery_override` added; `request_type` adds `FLEET_STUDENT` | M3 `FR-07.M3.1`, `BR-M3-03`, `FR-06.1` |
 
@@ -342,9 +342,9 @@ erDiagram
 
 1. Interval claims for future parking and charging (`ResourceClaim`, `scheduled_end_time`) and a separate record of current occupancy (M2 proposal).
 2. More reservation fields from M2 (`confirmed_at`, `selected_min_soc`, arrival and end times, parking purpose, incident reference on `Trip`).
-3. Command-result record for retries (idempotency) and a durable event record.
-4. State-transition log (`NFR-25`, `BR-A12`, `FR-09.4`).
-5. Allocation settings edited by the operator (`UC-A09`) and shared thresholds (`LOW_BATTERY_THRESHOLD`, near-full limit).
+3. Command-result record for retries (idempotency) and a durable event record. (pending M2 / M1 decision)
+4. State-transition log (`NFR-25`, `FR-09.4`).
+5. Allocation settings edited by the operator (`UC-M4-09`) and shared thresholds (`LOW_BATTERY_THRESHOLD`, near-full limit).
 6. Closeness between Hubs for alternative-Hub ranking (M4 open point 6).
 7. `REBALANCE` handling and whether `PENDING` reservations are stored (M2, M4 open points).
 8. Representation of M5's low-battery lockout (`BR-M5-05`) and a `CANCELLED` state for charging sessions (`FR-06.3`).
