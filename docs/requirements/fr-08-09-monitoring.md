@@ -48,7 +48,7 @@ This document specifies the software requirements for **FR-08 (System Monitoring
   `Trace: FR-09.1, FR-09.3`
 - **BR-M5-04 (Unacknowledged Incident Escalation):** If a High-Severity incident remains unacknowledged by an operator for $> 5$ minutes, the system shall automatically transition the ticket status to `ESCALATED` and notify the duty supervisor.  
   `Trace: FR-09.2, FR-09.4`
-- **BR-M5-05 (Low Battery Lockout):** Any vehicle reporting a battery level $\le \text{LOW\_BATTERY\_THRESHOLD}$ (default: $15\%$, aligned with M3's BR-10) shall be automatically removed from the active rental pool and prioritized for charging.  
+- **BR-M5-05 (Low Battery Lockout):** Any vehicle reporting a battery level $\le \text{LOW\_BATTERY\_THRESHOLD}$ (default: $15\%$, aligned with BR-M3-03) shall be automatically removed from the active rental pool and prioritized for charging.  
   `Trace: FR-09.3`
 
 ---
