@@ -72,14 +72,14 @@
 
 ## 3. Business Rules (BR)
 
-### BR-M3-01: Charging-Point Capacity & Availability Limits
+### BR-M3-01: Charging-Point Availability
 
 - **Trace:** FR-06.1, FR-06.2, FR-07.M3.2
 - A charging request is accepted only if an active charging point at the requested Mobility Hub is available for the requested time window (see BR-M1-02).
 - If all charging ports are fully occupied or reserved during the requested period, the request must be rejected or placed in a waiting queue.
 - Charging ports marked with status `OUT_OF_SERVICE` or undergoing maintenance are strictly excluded from allocation.
 
-### BR-M3-02: Charging Schedule Conflict Resolution & Overlap Prevention
+### BR-M3-02: Charging Schedule Conflict Resolution
 
 - **Trace:** FR-11.M3.3
 - If a charging request overlaps another claim, the system offers another slot, another port in the same Hub, or a cross-Hub lookup (UC-M4-07) (see BR-M1-01).
