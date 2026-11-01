@@ -6,7 +6,7 @@
 
 [Source](allocation-diagrams/t1-dispatch-task-state.puml). BR-M4-08; NFR-08; NFR-25.
 
-A dispatch task has a real life cycle with guards, so a state machine is included (rubric 3.3). Every transition is logged with time, previous and new state, trigger and actor (BR-M4-12).
+A dispatch task has a real life cycle with guards, so a state machine is included (rubric 3.3). Every transition is logged with time, previous and new state, trigger and actor (NFR-25).
 
 | From | Trigger | Guard | To | Effect |
 |---|---|---|---|---|

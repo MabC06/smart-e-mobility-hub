@@ -101,11 +101,11 @@ Closeness (lower is nearer): H05-H08 = 1, H03-H01 = 1, H05-H01 = 2, H03-H08 = 3.
 3. H01: nearest source H03. `q = min(6, 4, 20 - 3, 10) = 4`. Task 2: **H03 to H01, 4 vehicles**. Remaining need 2.
 4. H01: next source H05 (10 surplus left). Task 3: **H05 to H01, 2 vehicles**.
 
-Checks: H05 keeps `26 - 7 = 19 >= 8 + 3 = 11` (BR-M4-05). H03 keeps `27 - 4 = 23 >= 20 + 3 = 23`, exactly at the boundary, which is a good boundary test. Destination spaces after the move stay at or above the buffer (BR-M4-04).
+Checks: H05 keeps `26 - 7 = 19 >= 8 + 3 = 11` (BR-M4-05). H03 keeps `27 - 4 = 23 >= 20 + 3 = 23`, exactly at the boundary, which is a good boundary test. Destination spaces after the move stay at or above the buffer (BR-M4-04, BR-M1-02).
 
 ### 4.4 Approval and commit
 
-The plan can be minutes old, so approval repeats the checks on a fresh snapshot and then holds the vehicles (as a system reservation with purpose `REBALANCE`) and one destination space in one atomic unit of work (NFR-09, BR-M4-04, BR-M4-07). If a competing claim was committed first, nothing is held and the task becomes `Failed` (NFR-06). Timeouts use the injectable clock (D-005).
+The plan can be minutes old, so approval repeats the checks on a fresh snapshot and then holds the vehicles (as a system reservation with purpose `REBALANCE`) and one destination space in one atomic unit of work (NFR-09, BR-M4-04, BR-M1-01). If a competing claim was committed first, nothing is held and the task becomes `Failed` (NFR-06). Timeouts use the injectable clock (D-005).
 
 ### 4.5 Re-planning without duplicates (UC-M4-08, FR-10.7)
 

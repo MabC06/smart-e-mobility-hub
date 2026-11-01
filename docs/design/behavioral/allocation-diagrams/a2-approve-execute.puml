@@ -10,7 +10,7 @@ if (Operator decision?) then (Reject)
 else (Approve, optional lower quantity)
 endif
 :Read a fresh snapshot;
-if (BR-M4-02..07 still valid?) then (no)
+if (BR-M4-02..06 and BR-M1-01 still valid?) then (no)
   :Task Failed (reason); offer to re-plan;
   stop
 endif

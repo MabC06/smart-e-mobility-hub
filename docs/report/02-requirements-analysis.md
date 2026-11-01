@@ -14,7 +14,7 @@ Out of scope for this module: reservations (M2), charging sessions and the handl
 
 ### Functional requirements and use cases
 
-The [M4 requirements file](../requirements/fr-10-11-allocation.md) is authoritative for the requirement text, the 12 business rules (BR-M4-01 to BR-M4-12) and the nine use-case specifications.
+The [M4 requirements file](../requirements/fr-10-11-allocation.md) is authoritative for the requirement text, the eight business rules (BR-M4-01 to BR-M4-06, BR-M4-08 and BR-M4-10; the other numbers are not used) and the nine use-case specifications.
 
 | Requirement | Goal / use cases | Observable outcome |
 |---|---|---|
@@ -32,7 +32,7 @@ The [M4 requirements file](../requirements/fr-10-11-allocation.md) is authoritat
 
 ### Business rules and constraints
 
-The central rule is BR-M4-01, the priority order between classes of requests (operator incident order, confirmed reservation soon, vehicle that must return, charging, rebalancing, walk-in); inside the charging class M3's BR-M3-03 decides. The other rules protect shared resources: a confirmed reservation is never cancelled for a lower class (BR-M4-02), only suitable vehicles are moved (BR-M4-03), the destination space is held first (BR-M4-04), the source keeps a safety stock (BR-M4-05), one vehicle belongs to one active task (BR-M4-07), and a task follows a fixed life cycle (BR-M4-08).
+The central rule is BR-M4-01, the priority order between classes of requests (operator incident order, confirmed reservation soon, vehicle that must return, charging, rebalancing, walk-in); inside the charging class M3's BR-M3-03 decides. The other rules protect shared resources: a confirmed reservation is never cancelled for a lower class (BR-M4-02), only suitable vehicles are moved (BR-M4-03), the destination space is held first (BR-M4-04), the source keeps a safety stock (BR-M4-05), one vehicle cannot be in two overlapping claims (core rule BR-M1-01), and a task follows a fixed life cycle (BR-M4-08).
 
 ### Quality requirements and traceability
 

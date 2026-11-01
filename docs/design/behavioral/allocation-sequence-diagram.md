@@ -25,7 +25,7 @@ Input: the operator's request. Output: a list of `Recommended` tasks (or "no tas
 
 ![S2 approve](allocation-diagrams/s2-approve.svg)
 
-[Source](allocation-diagrams/s2-approve.puml). FR-10.4, FR-10.5, FR-11.M4.3; UC-M4-02; BR-M4-02, BR-M4-04, BR-M4-07, BR-M4-08.
+[Source](allocation-diagrams/s2-approve.puml). FR-10.4, FR-10.5, FR-11.M4.3; UC-M4-02; BR-M4-02, BR-M4-04, BR-M4-08, BR-M1-01.
 
 The task is re-checked against a **fresh** snapshot, because the plan may be minutes old. The hold of the vehicles and of the destination space is one atomic unit of work (NFR-09): either both are held or nothing is. A competing claim that was committed first makes the approval fail with a reason, and the state is unchanged (NFR-08).
 
@@ -33,7 +33,7 @@ The task is re-checked against a **fresh** snapshot, because the plan may be min
 
 ![S3 execute](allocation-diagrams/s3-execute.svg)
 
-[Source](allocation-diagrams/s3-execute.puml). FR-10.5, FR-10.7; UC-M4-03, UC-M4-04; BR-M4-04, BR-M4-07, BR-M4-09.
+[Source](allocation-diagrams/s3-execute.puml). FR-10.5, FR-10.7; UC-M4-03, UC-M4-04; BR-M4-04, BR-M1-01, BR-M1-02.
 
 Pick-up and return are confirmed by the operator (or reported by the simulator). A failure, a missing vehicle or a timeout releases the held vehicle and space and starts a re-plan. A cancel after the vehicle has reached the destination completes the task instead of moving the vehicle back.
 
@@ -49,7 +49,7 @@ Called by Reservation through Core when a request cannot be served at the reques
 
 ![S5 alternative charging](allocation-diagrams/s5-alt-charging.svg)
 
-[Source](allocation-diagrams/s5-alt-charging.puml). FR-11.M4.2; UC-M4-07 (called from UC-M3-08); BR-M4-01, BR-M4-10, BR-M4-11.
+[Source](allocation-diagrams/s5-alt-charging.puml). FR-11.M4.2; UC-M4-07 (called from UC-M3-08); BR-M4-01, BR-M4-10, BR-M3-02.
 
 M3 first looks inside the Hub. Only when no free port exists does it ask M4. M4 orders the displaced requests (class order by BR-M4-01, order inside the charging class by BR-M3-03), offers each free bay to at most one request, and ranks other Hubs. M3 stays responsible for moving or re-queuing the sessions.
 

@@ -13,14 +13,14 @@ alt Operator approves (optional lower quantity)
   UI -> Allocation: approve_task(task_id, qty, command key)
   Allocation -> Allocation: Check task is Recommended (BR-M4-08)
   Allocation -> Core: Begin unit of work on a fresh snapshot (version)
-  Allocation -> Allocation: Re-check BR-M4-02..07 on the fresh snapshot
+  Allocation -> Allocation: Re-check BR-M4-02..06 and BR-M1-01 on the fresh snapshot
   alt Conditions still valid
-    group Atomic Core-coordinated unit of work (BR-M4-04, BR-M4-07)
+    group Atomic Core-coordinated unit of work (BR-M4-04, BR-M1-01)
       Allocation -> Reservation: Create system reservation (purpose REBALANCE):\nvehicle claim + destination space hold
       Reservation -> Core: Apply claims, Vehicle Reserved
     end
     Core --> Allocation: Committed (new version)
-    Allocation -> Allocation: Task Approved; log transition (BR-M4-12)
+    Allocation -> Allocation: Task Approved; log transition (NFR-25)
     Allocation --> UI: Approved
   else Conditions changed or a competing claim won
     Allocation -> Core: Roll back (nothing held)

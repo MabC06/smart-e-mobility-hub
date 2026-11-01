@@ -18,7 +18,7 @@ Core -> Reservation: Confirmed bookings and trips due (public port)
 Core -> Charging: Scheduled charging sessions (public port)
 Core --> Allocation: Demand per Hub (pickups, returns, bays needed)
 Allocation -> Allocation: Load active dispatch tasks (inbound and outbound)
-Allocation -> Allocation: Pure planning on the snapshot:\nneed and surplus per Hub, greedy matching,\nvehicle selection, BR-M4-03..07 checks
+Allocation -> Allocation: Pure planning on the snapshot:\nneed and surplus per Hub, greedy matching,\nvehicle selection, BR-M4-03..06 checks
 alt Every Hub is covered
   Allocation --> UI: Empty plan "no task needed", as_of
 else Tasks found

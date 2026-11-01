@@ -17,6 +17,6 @@ while (More requests?) is (yes)
   :Answer conflict with the reason;
   :Offer an alternative Hub if one exists (UC-M4-05);
 endwhile (no)
-:Log every decision with its reason (BR-M4-12);
+:Log every decision with its reason (NFR-25);
 stop
 @enduml
