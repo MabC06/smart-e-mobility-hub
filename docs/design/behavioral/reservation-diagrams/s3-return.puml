@@ -11,8 +11,10 @@ control "Allocation (M4)" as Allocation
 Student -> UI: Confirm return Hub
 UI -> Reservation: trip ID, Hub, optional parking hold, version
 Reservation -> Core: Authenticated return intent
-Core -> Core: Authenticate; replay lookup; validate Trip ownership
-alt Replay / already completed with same actor and context
+Core -> Core: Authenticate actor
+Core -> Reservation: Read owned Reservation / Trip via M2 port
+Reservation --> Core: Existing business state, destination and timestamps
+alt Completed Trip with same owner and return context
   Core --> Reservation: Original receipt / ALREADY_COMPLETED; no movement
 else Invalid owner, state, destination or stale version
   Core --> Reservation: Error; Trip and location unchanged
@@ -20,7 +22,7 @@ else Owned Active rental and open Trip
   group Atomic return under Core serialization
     Core -> Core: Recheck Hub; consume own valid hold or select\nempty unclaimed space without conflicting future claim
     alt Receiving space exists
-      Core -> Core: Occupy destination and set vehicle location\nTrip Completed; Reservation Completed\nConsume matching return-parking hold\nVehicle Returned (Maintenance if fault); persist result/event
+      Core -> Core: Occupy destination and set vehicle location\nTrip Completed; Reservation Completed\nConsume matching return-parking hold\nVehicle Returned (Maintenance if fault); persist audit event
       Core --> Reservation: Return receipt and actual time / Hub
     else No usable parking / concurrent capacity loss
       Core --> Reservation: NO_PARKING / CONFLICT; no return writes

@@ -10,9 +10,11 @@ control Core
 Student -> UI: Confirm pickup at origin
 UI -> Reservation: reservation ID, origin, version
 Reservation -> Core: Authenticated pickup intent
-Core -> Core: Validate actor; deduplicate command
-alt Exact replay
-  Core --> Reservation: Original result / same Trip ID
+Core -> Core: Validate actor
+Core -> Reservation: Read owned Reservation / Trip via M2 port
+Reservation --> Core: Existing business state and Trip details
+alt Repeated pickup matching an existing Trip
+  Core --> Reservation: Existing M2 Trip details / same Trip ID
 else Fresh command
   group Serialize reservation, vehicle and source occupancy
     Core -> Core: Read current state and authoritative t
@@ -29,7 +31,7 @@ else Fresh command
       Core -> Core: Separate invalidation transition:\nCancelled; release claim; preserve occupancy\nCore keeps vehicle unavailable
       Core --> Reservation: RESOURCE_UNAVAILABLE
     else Confirmed, t < expiry, own Reserved vehicle eligible
-      Core -> Core: Atomic pickup: Reservation Active; create unique Trip\nIN_PROGRESS, expected_return_at = t + planned duration\nVehicle InUse; clear Hub/space; free source occupancy\nPersist command result and event
+      Core -> Core: Atomic pickup: Reservation Active; create unique Trip\nIN_PROGRESS, expected_return_at = t + planned duration\nVehicle InUse; clear Hub/space; free source occupancy\nPersist M2 Reservation / Trip changes and audit event
       Core --> Reservation: Trip ID, pickup time, expected return, Active
     end
   end

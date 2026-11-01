@@ -1,6 +1,6 @@
 # M2 - Reservation state machines
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-02. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 Canonical guards and parameter values: [requirements §§3-5](../../requirements/fr-02-05-07-reservation.md). UC-M2/BR-M2 IDs are stable under CONTRIBUTING section 5. M1's Vehicle state machine is absent; Vehicle names below are mapped to the timeline/M7 draft and need M1 validation. Title case here maps to M7 uppercase values (Active = ACTIVE, InUse = IN_USE), not different states.
 
@@ -21,7 +21,7 @@ The assignment's six states are retained. **Proposed refinement:** Pending is an
 
 ![R1 rental state machine](reservation-diagrams/r1-rental.svg)
 
-[Source](reservation-diagrams/r1-rental.puml). FR-03/04; UC-M2-02..05; BR-M2-02, BR-M2-04, BR-M2-05, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-10, BR-M2-14, BR-M2-15; V-M2-02..07/10/13. Invalid requests and exact replays do not transition; the table is authoritative for detailed guards omitted from short labels.
+[Source](reservation-diagrams/r1-rental.puml). FR-03/04; UC-M2-02..05; BR-M2-02, BR-M2-04, BR-M2-05, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-10, BR-M2-14, BR-M2-15; V-M2-02..07/10/13. Invalid requests and repeated requests resolved from existing M2 records do not transition; the table is authoritative for detailed guards omitted from short labels.
 
 | Current state | Event | Guard | Next state | Vehicle / parking / Trip effects | Invalid-operation result |
 |---|---|---|---|---|---|
@@ -41,7 +41,7 @@ The assignment's six states are retained. **Proposed refinement:** Pending is an
 | Completed | Repeated return | Same actor and completed Trip/context | Completed | Original receipt / ALREADY_COMPLETED; no new location or timestamp | Different requested destination/payload rejected |
 | Cancelled | Repeated cancel | Same owner/context | Cancelled | ALREADY_CANCELLED; no release repeated | Other mutation INVALID_STATE |
 | Expired | Pickup/cancel/repeated expiry | Pickup and owner cancellation no longer allowed | Expired | Report EXPIRED; duplicate expiry no-op | No revival; new booking required |
-| Any terminal | New lifecycle mutation | No valid outgoing business transition | Same terminal | No business effects | INVALID_STATE; exact command replay may return its historic result |
+| Any terminal | New lifecycle mutation | No valid outgoing business transition | Same terminal | No business effects | INVALID_STATE; a repeated request may return the outcome in the existing M2 record |
 | Any | Unauthorized/malformed/unsupported event | Invalid identity, payload, type or transition | Unchanged | None | Explicit error; no data leak; invalid input rejected under NFR-18 |
 
 Incident ordering is precise: if pickup committed first, a subsequent fault belongs to the Active row; if fault committed first, pickup sees Cancelled/unavailable. Return and incident likewise serialize; an incident accepted after completed return may make the parked vehicle unavailable without reopening the completed Trip. `Vehicle Available` is never inferred solely from `Reservation Completed`.
@@ -65,7 +65,7 @@ Incident ordering is precise: if pickup committed first, a subsequent fault belo
 | Active (private) | Charger/vehicle incident | Accepted incident | Active | M3 handles session failure; keep parking occupancy until actual departure/recovery | Never free bay solely because charging is Failed/Completed |
 | Active (private) | Cancel or arrival expiry | Not permitted to represent actual departure | Active | None | INVALID_STATE; use departure |
 | Active / Completed | Duplicate arrival / departure | Same actor/context | Unchanged | Return prior arrival/departure result; no duplicate occupancy/release | Invalid input or state |
-| Terminal | New action | No valid outgoing lifecycle transition | Unchanged | None | INVALID_STATE / EXPIRED; historic replay allowed |
+| Terminal | New action | No valid outgoing lifecycle transition | Unchanged | None | INVALID_STATE / EXPIRED; repeated requests read existing M2 records |
 
 ## Entity distinctions and capacity invariants
 

@@ -1,6 +1,6 @@
 # M2 - Reservation interaction design
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-02. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 ## Contract status and responsibility
 
@@ -40,25 +40,25 @@ NO_PARKING, stale versions or invalid ownership leave the open Trip, Active rent
 
 | Operation | One atomic write set | Failure behavior |
 |---|---|---|
-| Reserve rental | Confirmed booking, exclusive vehicle claim, Vehicle Reserved, user-quota serialization, audit and command result | None committed; original occupancy retained |
-| Pickup | Active booking, unique Trip, due time, Vehicle InUse with cleared location, source occupancy release, result/event | All rolled back; no half-started Trip |
-| Return | Trip completion, rental completion, destination occupancy/location, Vehicle Returned/Maintenance, matching parking-hold completion, result/event | Open trip and in-trip location retained |
-| Cancel/expire | Terminal booking, unconsumed claim release, vehicle readiness reassessment, linked bundle release if appropriate, result/event | No partial resource release; actual occupancy unaffected |
-| Parking arrival/departure | Claim conversion/occupancy, parking state/times; linked M3 changes through public ports; result/event | No partial arrival/departure or phantom free bay |
-| Joint parking/charging confirmation | Parking booking, bay interval, charger interval and M3 schedule record via its port, result/event | Both confirmed or neither; no charger-only promise |
+| Reserve rental | Confirmed booking, exclusive vehicle claim, Vehicle Reserved, user-quota serialization, audit record | None committed; original occupancy retained |
+| Pickup | Active booking, unique Trip, due time, Vehicle InUse with cleared location, source occupancy release, audit event | All rolled back; no half-started Trip |
+| Return | Trip completion, rental completion, destination occupancy/location, Vehicle Returned/Maintenance, matching parking-hold completion, audit event | Open trip and in-trip location retained |
+| Cancel/expire | Terminal booking, unconsumed claim release, vehicle readiness reassessment, linked bundle release if appropriate, audit event | No partial resource release; actual occupancy unaffected |
+| Parking arrival/departure | Claim conversion/occupancy, parking state/times; linked M3 changes through public ports; audit event | No partial arrival/departure or phantom free bay |
+| Joint parking/charging confirmation | Parking booking, bay interval, charger interval and M3 schedule record via its port, audit event | Both confirmed or neither; no charger-only promise |
 
-A repeated request returns the result already recorded, without another Trip or reservation.
+A repeated request reads the existing Reservation / Trip record owned by M2 and returns the recorded business outcome without another Trip or reservation. No separate command-result store or Core outcome-query API is required.
 
-Persistent Pending is not needed: it is request validation before the atomic confirmation commit. A crash before commit leaves no live booking; a crash after commit is recovered by the result already recorded. Durably committed domain events may be retried after publication failure, deduplicated by event ID/version. Consumers must not be needed to complete an already committed capacity invariant.
+Persistent Pending is not needed: it is request validation before the atomic confirmation commit. A crash before commit leaves no live booking; after a crash following commit, M2 reads the existing Reservation / Trip record. Durably committed domain events may be retried after publication failure, deduplicated by event ID/version. Consumers must not be needed to complete an already committed capacity invariant.
 
 Proposed storage implementation (subject to D-002): database transactions plus unique/version constraints and a serialized per-user/admission guard. Vehicle versions alone cannot protect two new interval rows or the same user's quota; Core must serialize/check those predicate conflicts too. SQLite requires a suitable serialized write transaction; do not claim PostgreSQL row-lock semantics exist in SQLite. M1 chooses the mechanism and exposes a single consistent unit-of-work boundary.
 
 ## Outstanding M1/M3/M4/M7 confirmations
 
-1. Public unit-of-work and policy ports for multi-owner atomic writes; read-only candidate and recorded outcome queries.
+1. Public unit-of-work and policy ports for multi-owner atomic writes; read-only candidate queries.
 2. Stable result-code mapping (design codes here are not an HTTP contract), accepted Vehicle transitions and version/time precision.
 3. Calendar claims, current occupancy and coupled bay/charger transaction support; charging stop/cancel semantics.
 4. Core-mediated M4 ranking and admission-priority integration without direct module imports.
-5. Durable result/event replay and isolated simulation namespace. A snapshot must include future claims and due times; otherwise simulation would miss M2 conflicts.
+5. Isolated simulation namespace. A snapshot must include future claims and due times; otherwise simulation would miss M2 conflicts.
 
 No shared API or other owner's file is changed by this proposal. Before adopting a new Core interface, follow CONTRIBUTING's team-notice/DECISIONS protocol; this local draft is not such a published interface change.

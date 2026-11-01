@@ -10,14 +10,16 @@ control Core
 Student -> UI: Confirm selected vehicle
 UI -> Reservation: vehicle, origin, destination, min_soc,\nduration, version
 Reservation -> Core: Authenticate and submit reservation intent
-Core -> Core: Validate actor and input; check recorded result
+Core -> Core: Validate actor and input
+Core -> Reservation: Read existing reservation via M2 port
+Reservation --> Core: Existing business state, if present
 alt Repeated request
-  Core --> Reservation: Result already recorded
+  Core --> Reservation: Outcome in existing M2 Reservation record
 else Fresh valid intent
   group Atomic Core-coordinated unit of work (M2 ports included)
     Core -> Core: Serialize vehicle + user quota; settle expired claims\nRead authoritative time; recheck state, version and battery
     alt Eligible vehicle and user below live rental limit
-      Core -> Core: Create Confirmed reservation + claim\nVehicle Reserved; retain origin occupancy\nexpiry = confirmed_at + 10 min; persist result/event
+      Core -> Core: Create Confirmed reservation + claim\nVehicle Reserved; retain origin occupancy\nexpiry = confirmed_at + 10 min; persist audit event
     else Stale version, competing claim, fault or quota
       Core -> Core: No booking / resource writes\nReturn rejection reason
     end

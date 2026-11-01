@@ -4,7 +4,7 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 start
 :Receive owner cancellation\nor internal expiry event;
-:Core authenticates source and checks\ncommand replay / event duplication;
+:Core authenticates source and checks\nexisting M2 booking state / event duplication;
 if (New authorized event?) then (yes)
 else (no)
   :Return prior result or authorization error;
@@ -32,7 +32,7 @@ else (no)
     stop
   endif
 endif
-:Atomically end booking and release\nunconsumed claims (linked bundle if any);\nrecord result and event;
+:Atomically end booking and release\nunconsumed claims (linked bundle if any);\nrecord booking state and audit event;
 :Keep actual vehicle occupancy;\nCore re-evaluates vehicle eligibility;
 :Publish committed result to UI / subscribers;
 stop

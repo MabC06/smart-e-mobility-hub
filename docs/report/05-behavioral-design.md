@@ -3,7 +3,7 @@
 <!-- BEGIN M2: Reservation & Trip -->
 ## M2 contribution - Reservation & Trip
 
-> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-02. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 ### Design overview
 
@@ -25,7 +25,7 @@ All ten diagrams in this contribution (eight behavioral and two use-case diagram
 
 ### Atomicity, deadlines and retries
 
-Core serializes the reservation/resource and per-user admission guards and coordinates M2's persistence through public ports. The unit of work includes the booking, Trip, claim/occupancy, Vehicle, command result and audit/event record as appropriate. A series of separately committed entity updates would violate NFR-09. The concrete unit-of-work API is still proposed and requires M1's Core v1 review.
+Core serializes the reservation/resource and per-user admission guards and coordinates M2's persistence through public ports. The unit of work includes the booking, Trip, claim/occupancy, Vehicle and audit/event record as appropriate. A series of separately committed entity updates would violate NFR-09. The concrete unit-of-work API is still proposed and requires M1's Core v1 review.
 
 At `t = hold_expires_at`, pickup is expired; it is eligible only while `t < expiry`. Time is read inside the serialization boundary. Cancellation, pickup, expiry and resource failure contend on the same current state/version. Only a valid winner commits; a delayed expiry sweep never grants extra pickup time. Active bookings cannot be ended by pickup-deadline expiry.
 
@@ -35,7 +35,7 @@ A repeated request returns the result already recorded. Pickup and return never 
 
 Pending is proposed as transient validation with no persisted booking until confirmation. This retains the six assigned state names without inventing durable stranded Pending records. Reservation Active maps to an open IN_PROGRESS/OVERDUE Trip; Completed can map to a normal completion or a verified incident recovery. Vehicle readiness is decided separately by Core. In private parking, Active means occupied; the rental-return hold instead completes on drop-off while the fleet vehicle remains parked.
 
-The [requirements parameter register and data proposal](../requirements/fr-02-05-07-reservation.md) are the authoritative source for values and schema obligations: parking end/arrival fields, Trip expected_return_at, command-result persistence and Core ResourceClaim ownership. Default rental duration is 30 minutes with overdue strictly after due+60 minutes. Private parking defaults to 120 minutes and allows start within 24 hours; those intervals do not imply guaranteed departure. Battery thresholds retain their distinct meanings across modules.
+The [requirements parameter register and data proposal](../requirements/fr-02-05-07-reservation.md) are the authoritative source for values and schema obligations: parking end/arrival fields, Trip expected_return_at, Core ResourceClaim ownership. Default rental duration is 30 minutes with overdue strictly after due+60 minutes. Private parking defaults to 120 minutes and allows start within 24 hours; those intervals do not imply guaranteed departure. Battery thresholds retain their distinct meanings across modules.
 
 ### Trade-offs and cross-module risks
 

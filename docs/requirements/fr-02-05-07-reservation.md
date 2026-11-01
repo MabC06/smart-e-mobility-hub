@@ -1,6 +1,6 @@
 # M2 - Reservation & Trip: requirements and design baseline
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-11-01 (ICT).
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-11-02 (ICT).
 > Status: **Proposed for team review**. M2 policies and interaction designs remain Proposed. Do not code against the design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 ## 1. Scope
@@ -42,7 +42,7 @@ M3 owns charging failure recovery and M4 supplies cross-Hub alternatives. M4 cla
 
 Interval overlap is `a.start < b.end AND b.start < a.end`; equal endpoints do not overlap. There is no early-arrival buffer. A return-parking hold blocks its space from confirmation until arrival/expiry; after return, real occupancy has no assumed end. Therefore, confirm a rental return-space hold only on a space with no other future commitment, and do not place a future booking behind that live return hold. If it expires unused, the space can be offered again; if consumed, verified departure is required. An occupied space with no verified departure is not offered for a new future booking. Multiple non-overlapping private-stay claims on an empty space may be planned, but admission always checks actual occupancy; an overstay triggers reassignment or explicit failure, never overcapacity. This is a capacity plan, not a guarantee against incidents or overstays.
 
-Processing timeouts are separate from all business deadlines. Propose a 5-second UI wait before displaying “outcome unknown; checking status”, not “booking failed”. Retrying uses the same request. No timeout frees a hold or completes a trip. The transaction/deduplication result, not the HTTP response, determines success. This operational proposal requires M1/M7 review and does not replace NFR-03's 1-second p95 target.
+Processing timeouts are separate from all business deadlines. Propose a 5-second UI wait before displaying “outcome unknown; checking status”, not “booking failed”. Retrying uses the same request. No timeout frees a hold or completes a trip. The committed Reservation / Trip state, not receipt of the HTTP response, determines success. This operational proposal requires M1/M7 review and does not replace NFR-03's 1-second p95 target.
 
 ## 4. Functional requirements and acceptance criteria
 
@@ -96,7 +96,7 @@ UC-M2 IDs follow the stable module-scoped convention (section 8). Shared precond
 - **Actor / goal:** Student; secure immediate pickup.
 - **Trigger:** Confirm selected vehicle, planned duration and optional destination.
 - **Preconditions:** Shared preconditions; valid selected fleet vehicle; no live rental for the student.
-- **Main flow:** 1. UI sends vehicle/origin, filters, duration and observed version. 2. Validate and check replay. 3. At Core serialization boundary read fresh eligibility/time/quota. 4. Atomically create Confirmed reservation and claim, set Vehicle Reserved and retain origin occupancy. 5. Show ten-minute deadline, ID and explicit absence of an automatic return-space hold.
+- **Main flow:** 1. UI sends vehicle/origin, filters, duration and observed version. 2. Validate and check the existing M2 Reservation record. 3. At Core serialization boundary read fresh eligibility/time/quota. 4. Atomically create Confirmed reservation and claim, set Vehicle Reserved and retain origin occupancy. 5. Show ten-minute deadline, ID and explicit absence of an automatic return-space hold.
 - **Alternatives/exceptions:** Stale version/concurrent booking yields CONFLICT; low battery, fault, dispatch or charging yields RESOURCE_UNAVAILABLE; quota yields LIMIT_REACHED; future rental start rejected. Failed attempt holds nothing. Exact retry returns its original result; timeout triggers status lookup using the same request.
 - **Postconditions:** One exclusive vehicle hold or none; no Trip yet; no destination claim.
 - **Trace:** FR-03; NFR-16, NFR-18, BR-M2-02, BR-M2-03, BR-M2-04, BR-M1-01, NFR-06, NFR-09, BR-M4-02.
