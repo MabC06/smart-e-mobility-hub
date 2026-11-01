@@ -41,9 +41,9 @@ This document specifies the software requirements for **FR-08 (System Monitoring
 ## 4. Draft Escalation Business Rules (BRs)
 
 - **BR-M5-01 (Capacity Warning Threshold):** When a Hub's parking occupancy reaches $\ge 90\%$, the system shall mark the Hub as "WARNING" and send a notification to the operator console.  
-  `Trace: FR-08.1`
+  `Trace: FR-08.3`
 - **BR-M5-02 (Critical Capacity Overflow):** When a Hub reaches $100\%$ capacity (`INC-CAP-01`), the system shall mark the Hub as "CRITICAL", temporarily block new parking reservations for that location, and suggest nearby alternative Hubs to users.  
-  `Trace: FR-08.2`
+  `Trace: FR-08.3, FR-09.1`
 - **BR-M5-03 (Charger Fault Isolation):** Upon detecting a charger failure (`INC-HW-01`), the system must automatically cut power to the socket, set the port state to `OUT_OF_SERVICE`, notify the user, and generate an urgent incident ticket.  
   `Trace: FR-09.1, FR-09.3`
 - **BR-M5-04 (Unacknowledged Incident Escalation):** If a High-Severity incident remains unacknowledged by an operator for $> 5$ minutes, the system shall automatically transition the ticket status to `ESCALATED` and notify the duty supervisor.  
