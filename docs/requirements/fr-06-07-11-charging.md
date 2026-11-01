@@ -75,18 +75,14 @@
 ### BR-M3-01: Charging-Point Capacity & Availability Limits
 
 - **Trace:** FR-06.1, FR-06.2, FR-07.M3.2
-- **Rule Statement:** A Mobility Hub can only allocate active charging points up to its physical maximum capacity.
-- **Validation & Constraints:**
-  1. A charging request must be rejected or placed in a waiting queue if all charging ports at the requested Mobility Hub are fully occupied or reserved for the requested time window (see `BR-M1-02`).
-  2. Charging ports marked with status `OUT_OF_SERVICE` or under maintenance are strictly excluded from allocation.
+- A charging request is accepted only if an active charging point at the requested Mobility Hub is available for the requested time window (see BR-M1-02).
+- If all charging ports are fully occupied or reserved during the requested period, the request must be rejected or placed in a waiting queue.
+- Charging ports marked with status `OUT_OF_SERVICE` or undergoing maintenance are strictly excluded from allocation.
 
 ### BR-M3-02: Charging Schedule Conflict Resolution & Overlap Prevention
 
 - **Trace:** FR-11.M3.3
-- **Rule Statement:** A single charging port cannot be assigned to multiple vehicles simultaneously during overlapping time intervals.
-- **Validation & Constraints:**
-  1. A proposed charging schedule for a vehicle at a specific port must not overlap with any existing confirmed reservation or active charging session on that port (see `BR-M1-01`).
-  2. If a time overlap or resource conflict occurs, the system shall prompt the user to select an alternative time slot or reassign the charging session to another available port within the same Hub or delegate to cross-Hub lookup (`UC-M4-07`).
+- If a charging request overlaps another claim, the system offers another slot, another port in the same Hub, or a cross-Hub lookup (UC-M4-07) (see BR-M1-01).
 
 ### BR-M3-03: Smart Charging Priority Scoring & Dynamic Scheduling
 
