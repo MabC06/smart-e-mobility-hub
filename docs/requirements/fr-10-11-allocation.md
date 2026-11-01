@@ -44,7 +44,7 @@ This module decides "where limited resources go":
 
 | ID | Rule | Trace |
 |---|---|---|
-| BR-M4-01 | **Priority when requests compete** (highest first): 1) operator order for an incident, 2) confirmed reservation starting soon, 3) vehicle in use that needs a space to return, 4) charging for a vehicle with a reservation soon, 5) charging for a low-battery rental vehicle, 6) charging for a private vehicle, 7) rebalancing move, 8) walk-in. Same level: the earlier request wins; then the lower ID. Between charging requests of the same level (4 to 6), BR-M3-03 decides (D-012). | FR-11.M4.1; BR-M3-03 |
+| BR-M4-01 | **Priority when requests compete** (highest first): 1) operator order for an incident, 2) confirmed reservation starting soon, 3) vehicle in use that needs a space to return, 4) charging for a vehicle with a reservation soon, 5) charging for a low-battery rental vehicle, 6) charging for a private vehicle, 7) rebalancing move, 8) walk-in. Same level: the earlier request wins; then the lower ID. Between charging requests of the same level (4 to 6), BR-M3-03 decides (D-012). | FR-11.M4.1 |
 | BR-M4-02 | Never cancel a confirmed or active reservation to serve a lower priority. | FR-10.4, FR-11.M4.1 |
 | BR-M4-03 | Only move a vehicle that is `Available`, has no reservation soon, and has enough battery. | FR-10.1, FR-10.3 |
 | BR-M4-04 | Hold a free space at the destination before the move starts. The capacity limit itself is BR-M1-02. | FR-10.4, FR-10.5, FR-11.M4.3 |
@@ -53,7 +53,7 @@ This module decides "where limited resources go":
 | BR-M4-08 | A task changes state only in this order: `Recommended → Approved → InProgress → Completed`. It can also end as `Rejected`, `Cancelled` or `Failed`. A wrong change gives an error and changes nothing. | FR-10.4 |
 | BR-M4-10 | If nothing is available, refuse with a reason (`NO_VEHICLE`, `NO_PARKING`, `NO_CHARGER`, `ALL_HUBS_FULL`) and suggest other Hubs if any. | FR-10.6 |
 
-Numbers BR-M4-07, BR-M4-09, BR-M4-11 and BR-M4-12 are not used. Their content is covered by BR-M1-01 (one claim per vehicle), BR-M1-02 (capacity and one space per charging vehicle), BR-M3-02 (failed charging point) and NFR-25 (logging). Numbers are not reused.
+Numbers BR-M4-07, BR-M4-09, BR-M4-11 and BR-M4-12 are not used. Their content is covered by BR-M1-01 (one claim per vehicle), BR-M1-02 (capacity and one space per charging vehicle), BR-M3-02 (charging schedule conflicts, which use the cross-Hub lookup UC-M4-07) and NFR-25 (logging). Numbers are not reused.
 
 Thresholds (minimum stock, minimum battery, time window, task limit) are settings, not fixed numbers in code.
 
@@ -162,7 +162,7 @@ Each diagram has about 6 use cases or fewer and an editable `.puml` source (nami
   3. The system returns the best alternative for each request.
   4. M3 moves or re-queues the sessions. M3 owns the failure handling (UC-M3-08).
 - **If not normal:** No free charging point anywhere → return `NO_CHARGER`. M3 puts the requests back in its queue.
-- **After:** Nothing changes in the allocation module. No vehicle is left without a space (BR-M3-02).
+- **After:** Nothing changes in the allocation module.
 - Trace: FR-11.M4.2; BR-M3-02
 
 #### UC-M4-08 — Re-plan after an event
