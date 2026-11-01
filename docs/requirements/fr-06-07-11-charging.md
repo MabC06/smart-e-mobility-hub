@@ -8,7 +8,7 @@
 
 ### FR-06: Charging Request & Scheduling (Student Rental Fleet)
 
-- **FR-06.1 – Immediate Charging Request:** The system shall allow students to submit an immediate charging request for a rental electric vehicle currently in use or returned at a Mobility Hub, initiating an instant check for available charging ports.
+- **FR-06.1 – Immediate Charging Request:** The system shall allow students to submit an immediate charging request for a rental electric vehicle returned at a Mobility Hub, initiating an instant check for available charging ports.
 - **FR-06.2 – Future Charging Session Scheduling:** The system shall enable students to schedule a future charging session by selecting a target Mobility Hub, specific time slot, and estimated duration based on upcoming travel needs.
 - **FR-06.3 – Charging Reservation Modification & Cancellation:** The system shall allow students to modify or cancel their active charging reservations or scheduled sessions up to a defined time threshold before the slot starts.
 
@@ -75,9 +75,9 @@
 ### BR-M3-01: Charging-Point Capacity & Availability Limits
 
 - **Trace:** FR-06.1, FR-06.2, FR-07.M3.2
-- **Rule Statement:** A Mobility Hub can only allocate active charging points up to its physical maximum capacity (`max_charging_ports`).
+- **Rule Statement:** A Mobility Hub can only allocate active charging points up to its physical maximum capacity.
 - **Validation & Constraints:**
-  1. A charging request must be rejected or placed in a waiting queue if all charging ports at the requested Mobility Hub are fully occupied or reserved for the requested time window.
+  1. A charging request must be rejected or placed in a waiting queue if all charging ports at the requested Mobility Hub are fully occupied or reserved for the requested time window (see `BR-M1-02`).
   2. Charging ports marked with status `OUT_OF_SERVICE` or under maintenance are strictly excluded from allocation.
 
 ### BR-M3-02: Charging Schedule Conflict Resolution & Overlap Prevention
@@ -85,12 +85,12 @@
 - **Trace:** FR-11.M3.3
 - **Rule Statement:** A single charging port cannot be assigned to multiple vehicles simultaneously during overlapping time intervals.
 - **Validation & Constraints:**
-  1. A proposed charging schedule for a vehicle at a specific port must not overlap with any existing confirmed reservation or active charging session on that port.
+  1. A proposed charging schedule for a vehicle at a specific port must not overlap with any existing confirmed reservation or active charging session on that port (see `BR-M1-01`).
   2. If a time overlap or resource conflict occurs, the system shall prompt the user to select an alternative time slot or reassign the charging session to another available port within the same Hub or delegate to cross-Hub lookup (`UC-M4-07`).
 
 ### BR-M3-03: Smart Charging Priority Scoring & Dynamic Scheduling
 
-- **Trace:** FR-11.M3.1, FR-11.M3.2; BR-M4-01
+- **Trace:** FR-11.M3.1, FR-11.M3.2
 - **Rule Statement:** Charging priority within the charging class is dynamically calculated based on a combination of the vehicle's remaining battery level and its proximity to upcoming usage requirements or trip reservations. The order between groups (reservation, charging, rebalancing) is decided by BR-M4-01, and BR-M4-01 uses this rule for its charging levels (4–6).
 - **Priority Logic & Conditions:**
   - **Battery Urgency Factor:** Vehicles with lower current state of charge percentages receive higher priority weights to ensure depleted vehicles get serviced promptly.
