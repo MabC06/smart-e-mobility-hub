@@ -3,7 +3,7 @@
 > **Status:** Draft v1.1 · **Owner:** M7 (Nguyễn Trung Kiên) · **Date:** 2026-10-15 · **Reviewer:** M5 (Đỗ Hoàng Việt)
 > This document specifies the operator-side use cases across the system to support M2 in building the overview use-case diagram (Phase 1) and laying the groundwork for the Phase 1 Operator Dashboard wireframes.
 > Terminology, actor names, objective IDs (`O-x`), and assumptions (`A-xx`, `D-xxx`) follow `docs/report/01-introduction.md` and `docs/design/architecture/tech-stack-proposal.md`.
-> Most operator screens are UI views of use cases owned by other modules (CONTRIBUTING section 5, `D-011`). Rows that are views state which use case they view and keep only what is specific to the UI. IDs of other modules are quoted as in their current files; `UC-M4-0x` assumes M4 renumbers `UC-A0x` (`D-012` already cites `UC-M4-07`), and M6's former UC-12 is now UC-M6-01.
+> Most operator screens are UI views of use cases owned by other modules (CONTRIBUTING section 5, `D-011`). Rows that are views state which use case they view and keep only what is specific to the UI. IDs of other modules are quoted as in their current files; M4 has renumbers the old `UC-A0x` to UC-M4-0x (`D-012` already cites `UC-M4-07`), and M6's former UC-12 is now UC-M6-01.
 > The `Related FR / Obj` column carries the FR part of `Trace:`; BRs are added as `BR-M<n>-##` where the owner's IDs are final.
 
 ---
