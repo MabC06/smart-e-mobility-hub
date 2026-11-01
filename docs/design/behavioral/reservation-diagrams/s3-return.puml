@@ -9,7 +9,7 @@ control Reservation
 control Core
 control "Allocation (M4)" as Allocation
 Student -> UI: Confirm return Hub
-UI -> Reservation: trip ID, Hub, optional parking hold, version, key
+UI -> Reservation: trip ID, Hub, optional parking hold, version
 Reservation -> Core: Authenticated return intent
 Core -> Core: Authenticate; replay lookup; validate Trip ownership
 alt Replay / already completed with same actor and context

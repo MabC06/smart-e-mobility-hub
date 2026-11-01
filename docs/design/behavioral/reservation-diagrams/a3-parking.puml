@@ -10,7 +10,7 @@ else (rental return)
   :Validate owned Active Trip;\nimmediate 10-minute hold;
 endif
 :Core checks quota, input, replay,\noccupancy and calendar under serialization;
-if (Valid capacity and claims?) then (yes)
+if (Hub not CRITICAL; valid capacity and claims?) then (yes)
   if (Charging requested?) then (yes)
     :Core / M3 validate compatible bay + charger;\nprepare one joint interval claim;
   else (no)
@@ -23,7 +23,7 @@ if (Valid capacity and claims?) then (yes)
     stop
   endif
 else (no)
-  :Show validation / quota / capacity conflict;\nalternatives hold nothing;
+  :Show HUB_CRITICAL or validation / capacity error;\nalternatives hold nothing;
   stop
 endif
 :Wait for arrival, cancellation or deadline;
@@ -57,7 +57,7 @@ if (Private stay?) then (yes)
   :On actual departure coordinate charging stop;\nCore completes stay and frees occupancy atomically;
   note right
     If stop / commit fails, remain Active
-    and occupied; retry same command key.
+    and occupied; retry same request.
   end note
 else (rental return)
   :Run S3 atomic return;\ncomplete return-parking booking;\nkeep returned vehicle occupying its space;

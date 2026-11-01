@@ -23,14 +23,14 @@ partition Reservation {
 }
 partition Student_UI {
   if (Student confirms a vehicle?) then (yes)
-    :Send command key, version,\nfilters and planned duration;
+    :Send version,\nfilters and planned duration;
   else (no)
     :End without a hold;
     stop
   endif
 }
 partition Core_coordinated_transaction {
-  :Authenticate; replay exact prior command\nor reject changed key payload;
+  :Authenticate; a repeated request returns\nthe result already recorded;
   if (Fresh valid command?) then (yes)
   else (no)
     :Return recorded result or error;

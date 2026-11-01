@@ -1,10 +1,10 @@
 # M2 - Reservation interaction design
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-10-11. **Proposed for team review**.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 ## Contract status and responsibility
 
-All messages below form a **proposed interaction contract**, not existing API names or routes. No Core API spec was found in fetched refs; reconcile with M1 v1 due 2026-10-19. The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) records exact source revisions, parameters, UC/BR definitions and missing data.
+All messages below form a **proposed interaction contract**, not existing API names or routes. Do not implement against these messages until the Core API spec, class diagram and Vehicle state machine are on develop. The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines parameters, UC/BR definitions and required data.
 
 Student is the human actor. UI validates for convenience and sends commands; it cannot decide ownership, battery or success. Reservation owns rental/parking workflow and policy. Core owns shared resource state and coordinates an atomic unit of work with public M2 policy/persistence ports. They are logical components of the proposed modular monolith, not separate network services. Core's internal transaction box includes M2 Reservation/Trip writes via those ports; it does not transfer their business ownership to M1.
 
@@ -14,29 +14,29 @@ No database, scheduler or payment participant is invented. M4 appears only as an
 
 ![S1 reserve sequence](reservation-diagrams/s1-reserve.svg)
 
-[Source](reservation-diagrams/s1-reserve.puml). FR-03; UC-M2-02; BR-M2-01..08/13; V-M2-02/03/05/11/13.
+[Source](reservation-diagrams/s1-reserve.puml). FR-03; UC-M2-02; NFR-16, NFR-18, BR-M2-02, BR-M2-03, BR-M2-04, BR-M2-05, BR-M1-01, NFR-06, NFR-09, BR-M4-02; V-M2-02/03/05/11/13.
 
-Inputs: authenticated actor, vehicle/origin/destination IDs, requested minimum battery, planned duration, observed vehicle version and command key. Output: stable result code, reservation ID/state, confirmed_at/hold_expires_at, server time and current resource version. The per-user quota guard must serialize independently of vehicle version so one user cannot reserve two different vehicles concurrently. The atomic commit retains origin occupancy and creates no Trip or destination hold. A deferred charging/dispatch request cannot take a committed student claim.
+Inputs: authenticated actor, vehicle/origin/destination IDs, requested minimum battery, planned duration, observed vehicle version. Output: stable result code, reservation ID/state, confirmed_at/hold_expires_at, server time and current resource version. The per-user quota guard must serialize independently of vehicle version so one user cannot reserve two different vehicles concurrently. The atomic commit retains origin occupancy and creates no Trip or destination hold. A deferred charging/dispatch request cannot take a committed student claim.
 
 ## S2 - Pick up
 
 ![S2 pickup sequence](reservation-diagrams/s2-pickup.svg)
 
-[Source](reservation-diagrams/s2-pickup.puml). FR-04; UC-M2-04; BR-M2-01/02/04/06..09/14/15; V-M2-02/04/05/07/11/13.
+[Source](reservation-diagrams/s2-pickup.puml). FR-04; UC-M2-04; NFR-16, NFR-18, BR-M2-02, BR-M2-04, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-14, BR-M2-15; V-M2-02/04/05/07/11/13.
 
-Inputs: reservation ID, origin Hub, expected version, command key and trusted actor. Core permits this reservation's own Vehicle Reserved state/claim, but rejects any competing claim or fault. At exactly expiry, pickup is rejected; a separately logged valid expiry transition releases the claim and retains actual parked occupancy. Owner rejection never discloses another booking. An accepted fault or newly insufficient battery cancels the unconsumed booking as a separate invalidation transition; it cannot create a Trip or free the source space. Failure after any pickup write rolls back every pickup write, including the Trip and command-result row.
+Inputs: reservation ID, origin Hub, expected version and trusted actor. Core permits this reservation's own Vehicle Reserved state/claim, but rejects any competing claim or fault. At exactly expiry, pickup is rejected; a separately logged valid expiry transition releases the claim and retains actual parked occupancy. Owner rejection never discloses another booking. An accepted fault or newly insufficient battery cancels the unconsumed booking as a separate invalidation transition; it cannot create a Trip or free the source space. Failure after any pickup write rolls back every pickup write, including the Trip.
 
 ## S3 - Return
 
 ![S3 return sequence](reservation-diagrams/s3-return.svg)
 
-[Source](reservation-diagrams/s3-return.puml). FR-04/05; UC-M2-05; BR-M2-01/06..11/13..15; V-M2-02/05/06/07/10/13.
+[Source](reservation-diagrams/s3-return.puml). FR-04/05; UC-M2-05; NFR-16, NFR-18, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-10, BR-M2-11, BR-M4-02, BR-M2-14, BR-M2-15; V-M2-02/05/06/07/10/13.
 
-Inputs: trip/destination IDs, optional parking booking ID, expected version, command key and trusted actor. A valid own hold is consumable even if the count of unclaimed spaces is zero. Without a hold, choose a currently empty serviceable space with no future claim that indefinite fleet occupancy would violate. A faulty in-use vehicle may return to a Hub that can safely accept it; returning a vehicle is not authorizing another rental.
+Inputs: trip/destination IDs, optional parking booking ID, expected version and trusted actor. A valid own hold is consumable even if the count of unclaimed spaces is zero. Without a hold, choose a currently empty serviceable space with no future claim that indefinite fleet occupancy would violate. A faulty in-use vehicle may return to a Hub that can safely accept it; returning a vehicle is not authorizing another rental.
 
 NO_PARKING, stale versions or invalid ownership leave the open Trip, Active rental and current location unchanged. Suggested Hubs are read-only query results with `as_of`; M4 failure does not undo the return error or create a hold. Student confirms another Hub in a fresh command. An expired hold is settled separately, and a fresh unheld-space check is allowed; it is never revived. A hold at a different destination is not consumed by accident: keep it until explicit cancellation/expiry and show a reminder.
 
-## Atomic boundary and retry protocol
+## Atomic boundary and repeated requests
 
 | Operation | One atomic write set | Failure behavior |
 |---|---|---|
@@ -47,15 +47,15 @@ NO_PARKING, stale versions or invalid ownership leave the open Trip, Active rent
 | Parking arrival/departure | Claim conversion/occupancy, parking state/times; linked M3 changes through public ports; result/event | No partial arrival/departure or phantom free bay |
 | Joint parking/charging confirmation | Parking booking, bay interval, charger interval and M3 schedule record via its port, result/event | Both confirmed or neither; no charger-only promise |
 
-Core authenticates before replay lookup. Same `(actor,operation,key)` and payload hash returns the original result without reapplying guards against newer versions. Same key with a different payload fails KEY_REUSE. Same-key response loss does not justify a new booking. A natural uniqueness constraint on Trip.reservation_id also prevents repeated pickup with a new key. New-key repeated return yields ALREADY_COMPLETED without changing the historic destination. Entity status should be refreshed after replay.
+A repeated request returns the result already recorded, without another Trip or reservation.
 
-Persistent Pending is not needed: it is request validation before the atomic confirmation commit. A crash before commit leaves no live booking; a crash after commit is recovered by command-result lookup. Durably committed domain events may be retried after publication failure, deduplicated by event ID/version. Consumers must not be needed to complete an already committed capacity invariant.
+Persistent Pending is not needed: it is request validation before the atomic confirmation commit. A crash before commit leaves no live booking; a crash after commit is recovered by the result already recorded. Durably committed domain events may be retried after publication failure, deduplicated by event ID/version. Consumers must not be needed to complete an already committed capacity invariant.
 
 Proposed storage implementation (subject to D-002): database transactions plus unique/version constraints and a serialized per-user/admission guard. Vehicle versions alone cannot protect two new interval rows or the same user's quota; Core must serialize/check those predicate conflicts too. SQLite requires a suitable serialized write transaction; do not claim PostgreSQL row-lock semantics exist in SQLite. M1 chooses the mechanism and exposes a single consistent unit-of-work boundary.
 
 ## Outstanding M1/M3/M4/M7 confirmations
 
-1. Public unit-of-work and policy ports for multi-owner atomic writes; read-only candidate and command-result queries.
+1. Public unit-of-work and policy ports for multi-owner atomic writes; read-only candidate and recorded outcome queries.
 2. Stable result-code mapping (design codes here are not an HTTP contract), accepted Vehicle transitions and version/time precision.
 3. Calendar claims, current occupancy and coupled bay/charger transaction support; charging stop/cancel semantics.
 4. Core-mediated M4 ranking and admission-priority integration without direct module imports.

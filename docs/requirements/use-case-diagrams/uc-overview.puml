@@ -1,5 +1,5 @@
 @startuml
-title Smart E-Mobility Hub - draft use-case overview (2026-10-22)
+title Smart E-Mobility Hub - draft use-case overview (2026-11-01)
 left to right direction
 skinparam shadowing false
 actor Student
@@ -32,7 +32,5 @@ Sensor -- Parking : occupancy evidence
 legend bottom
   Goal groups, not additional use-case IDs. Detailed participation: stakeholder-actor-analysis.md.
   M7 UI views reuse M3-M6 goals. Core/scheduler are internal collaborators.
-  Sources: M2 diagrams, M4 diagram sources, M3/M5/M6 tables.
-  Final M3/M5/M6 diagrams and M4 SVG exports still awaited; reconcile by Oct 25.
 endlegend
 @enduml

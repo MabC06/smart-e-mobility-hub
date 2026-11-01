@@ -1,6 +1,6 @@
 # M2 - Reservation state machines
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-10-11. **Proposed for team review**.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 Canonical guards and parameter values: [requirements §§3-5](../../requirements/fr-02-05-07-reservation.md). UC-M2/BR-M2 IDs are stable under CONTRIBUTING section 5. M1's Vehicle state machine is absent; Vehicle names below are mapped to the timeline/M7 draft and need M1 validation. Title case here maps to M7 uppercase values (Active = ACTIVE, InUse = IN_USE), not different states.
 
@@ -21,12 +21,12 @@ The assignment's six states are retained. **Proposed refinement:** Pending is an
 
 ![R1 rental state machine](reservation-diagrams/r1-rental.svg)
 
-[Source](reservation-diagrams/r1-rental.puml). FR-03/04; UC-M2-02..05; BR-M2-02/04..10/14/15; V-M2-02..07/10/13. Invalid requests and exact replays do not transition; the table is authoritative for detailed guards omitted from short labels.
+[Source](reservation-diagrams/r1-rental.puml). FR-03/04; UC-M2-02..05; BR-M2-02, BR-M2-04, BR-M2-05, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-10, BR-M2-14, BR-M2-15; V-M2-02..07/10/13. Invalid requests and exact replays do not transition; the table is authoritative for detailed guards omitted from short labels.
 
 | Current state | Event | Guard | Next state | Vehicle / parking / Trip effects | Invalid-operation result |
 |---|---|---|---|---|---|
 | No record | Submit | Valid session and request envelope | Pending (transient) | None | INVALID_INPUT / unauthorized; no record |
-| Pending | Confirm | BR-M2-01/02/03/06 valid at Core commit | Confirmed | Create vehicle claim; Vehicle Reserved; keep origin occupancy; no Trip; expiry = t+10 min | Validation/conflict/quota failure discards request; nothing held |
+| Pending | Confirm | NFR-16, NFR-18, BR-M2-02, BR-M2-03, BR-M1-01, NFR-06 valid at Core commit | Confirmed | Create vehicle claim; Vehicle Reserved; keep origin occupancy; no Trip; expiry = t+10 min | Validation/conflict/quota failure discards request; nothing held |
 | Pending | Reject / transaction fails | Any admission or commit failure | No record (request ends) | No durable business changes | Error; status lookup if response outcome unknown |
 | Confirmed | Owner cancels | Owner, t < expiry, expected version wins | Cancelled | Release vehicle claim; keep origin occupancy; Core reassesses eligibility | Wrong owner rejected; race loser returns current state; do not undo pickup |
 | Confirmed | Clock expiry | t >= expiry, still Confirmed at serialization | Expired | Release vehicle claim, retain origin occupancy, Core reassesses readiness | Early expiry no-op; Active is not expired |
@@ -42,7 +42,7 @@ The assignment's six states are retained. **Proposed refinement:** Pending is an
 | Cancelled | Repeated cancel | Same owner/context | Cancelled | ALREADY_CANCELLED; no release repeated | Other mutation INVALID_STATE |
 | Expired | Pickup/cancel/repeated expiry | Pickup and owner cancellation no longer allowed | Expired | Report EXPIRED; duplicate expiry no-op | No revival; new booking required |
 | Any terminal | New lifecycle mutation | No valid outgoing business transition | Same terminal | No business effects | INVALID_STATE; exact command replay may return its historic result |
-| Any | Unauthorized/malformed/unsupported event | Invalid identity, payload, type or transition | Unchanged | None | Explicit error; no data leak; same-key altered payload KEY_REUSE |
+| Any | Unauthorized/malformed/unsupported event | Invalid identity, payload, type or transition | Unchanged | None | Explicit error; no data leak; invalid input rejected under NFR-18 |
 
 Incident ordering is precise: if pickup committed first, a subsequent fault belongs to the Active row; if fault committed first, pickup sees Cancelled/unavailable. Return and incident likewise serialize; an incident accepted after completed return may make the parked vehicle unavailable without reopening the completed Trip. `Vehicle Available` is never inferred solely from `Reservation Completed`.
 
@@ -50,7 +50,7 @@ Incident ordering is precise: if pickup committed first, a subsequent fault belo
 
 ![R2 parking state machine](reservation-diagrams/r2-parking.svg)
 
-[Source](reservation-diagrams/r2-parking.puml). FR-05/07 parking, FR-04 return hold; UC-M2-05..08; BR-M2-03..08/10..12/14/15; V-M2-06/08/09/10/13.
+[Source](reservation-diagrams/r2-parking.puml). FR-05/07 parking, FR-04 return hold; UC-M2-05..08; BR-M2-03, BR-M2-04, BR-M2-05, BR-M1-01, NFR-06, NFR-09, BR-M2-10, BR-M2-11, BR-M2-12, BR-M2-14, BR-M2-15; V-M2-06/08/09/10/13.
 
 | Current state | Event | Guard | Next state | Space / charging effects | Invalid-operation result |
 |---|---|---|---|---|---|
@@ -64,7 +64,7 @@ Incident ordering is precise: if pickup committed first, a subsequent fault belo
 | Active (private) | Owner departure | Matching occupancy, authorized evidence, active charging stopped through Core/M3 | Completed | Record actual ended_at; remove occupancy and remaining claim once; release charger as appropriate atomically | Charging-stop failure or conflict keeps Active/occupied |
 | Active (private) | Charger/vehicle incident | Accepted incident | Active | M3 handles session failure; keep parking occupancy until actual departure/recovery | Never free bay solely because charging is Failed/Completed |
 | Active (private) | Cancel or arrival expiry | Not permitted to represent actual departure | Active | None | INVALID_STATE; use departure |
-| Active / Completed | Duplicate arrival / departure | Same actor/context | Unchanged | Return prior arrival/departure result; no duplicate occupancy/release | Changed payload KEY_REUSE or invalid state |
+| Active / Completed | Duplicate arrival / departure | Same actor/context | Unchanged | Return prior arrival/departure result; no duplicate occupancy/release | Invalid input or state |
 | Terminal | New action | No valid outgoing lifecycle transition | Unchanged | None | INVALID_STATE / EXPIRED; historic replay allowed |
 
 ## Entity distinctions and capacity invariants
@@ -86,6 +86,6 @@ Incident ordering is precise: if pickup committed first, a subsequent fault belo
 | Two parking intervals [09:00,10:00) / [10:00,11:00) | No calendar overlap; second actual admission still requires first occupant's departure |
 | One remaining bay: parking vs charging vs redistribution | Shared Core admission; one owner; no priority may double-allocate or evict a confirmed student claim |
 | Fault during trip, then full-Hub return | Reservation stays Active; incident and open Trip retained; operator recovery still requires actual receiving capacity |
-| Response lost after pickup/return commit | Same-key replay returns same Trip/receipt; no duplicate entity or repeated occupancy change |
+| Response lost after pickup/return commit | Repeated request returns same Trip/receipt; no duplicate entity or repeated occupancy change |
 
 These are reviewed design outcomes, not implementation test results. Core/API and M7 schema reconciliation remain prerequisites to implementing them.

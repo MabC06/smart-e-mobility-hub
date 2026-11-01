@@ -8,7 +8,7 @@ boundary UI
 control Reservation
 control Core
 Student -> UI: Confirm pickup at origin
-UI -> Reservation: reservation ID, origin, version, key
+UI -> Reservation: reservation ID, origin, version
 Reservation -> Core: Authenticated pickup intent
 Core -> Core: Validate actor; deduplicate command
 alt Exact replay

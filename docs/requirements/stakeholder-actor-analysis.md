@@ -1,6 +1,6 @@
 # Stakeholder and actor analysis
 
-> Consolidation owner: M2 - 2452620. Updated 2026-10-22. Draft for module-owner review; identifiers follow CONTRIBUTING section 5.
+> Consolidation owner: M2 - 2452620. Updated 2026-11-01. Draft for module-owner review; identifiers follow CONTRIBUTING section 5.
 
 ## Boundary and stakeholders
 
@@ -49,25 +49,12 @@ Student reports may trigger incident handling, but the inspected M5 table names 
 | UC-M7-06 | View of UC-M4-02 and UC-M4-03 |
 | UC-M7-07 | Views of UC-M5-01 and UC-M5-02 |
 | UC-M7-08 | View of UC-M5-02 |
-| UC-M7-09, UC-M7-10 | Views of UC-M6-01; M7 source still says UC-12, which is a stale reference to flag for M7 |
+| UC-M7-09, UC-M7-10 | Views of UC-M6-01 |
 
 M7 describes applying recommendations in its UI. M6 simulation execution never mutates operational state: application is a separately authorized operational command with fresh checks, owned by the relevant module. M4's `REBALANCE` reservation proposal differs from M2's typed task-owned ResourceClaim proposal; see the [M2 reconciliation](fr-02-05-07-reservation.md). Neither is silently treated as an agreed interface.
 
-## Source register and diagram coverage
+## Overview and module ownership
 
-All dependency PRs below were open on 2026-10-22. A source citation establishes provenance, not approval. M2 was synced with develop `57c064d`; the other branches were read without merging their files.
+![System use-case overview](use-case-diagrams/uc-overview.svg)
 
-| Module / source | Inspected revision | Use-case diagram status |
-|---|---|---|
-| M2 [requirements](fr-02-05-07-reservation.md) | This PR #11 | [Rental](use-case-diagrams/uc-m2-rental.svg), [parking](use-case-diagrams/uc-m2-parking.svg), editable sources alongside |
-| M3 [requirements](https://github.com/MabC06/smart-e-mobility-hub/blob/fab7b5f6486a02ca7fafbd66090e26b09df584a4/docs/requirements/fr-06-07-11-charging.md) | PR #7, `fab7b5f6486a02ca7fafbd66090e26b09df584a4` | No module use-case `.puml`/`.svg` in inspected tree; table used |
-| M4 [requirements](https://github.com/MabC06/smart-e-mobility-hub/blob/8bb41136532518f7557ec85cd9ad4276e85246e3/docs/requirements/fr-10-11-allocation.md) and Phase 1 design | PR #16, `8bb41136532518f7557ec85cd9ad4276e85246e3`; requirements PR #1 head `966513b7d779eedfbef49f5838e351c4893ebfe8` | [Allocation source](https://github.com/MabC06/smart-e-mobility-hub/blob/8bb41136532518f7557ec85cd9ad4276e85246e3/docs/requirements/use-case-diagrams/uc-m4-allocation.puml), [dispatch source](https://github.com/MabC06/smart-e-mobility-hub/blob/8bb41136532518f7557ec85cd9ad4276e85246e3/docs/requirements/use-case-diagrams/uc-m4-dispatch.puml); SVG exports absent in inspected tree |
-| M5 [requirements](https://github.com/MabC06/smart-e-mobility-hub/blob/d52fcddc273bf65f550524dec44e45943d73cadb/docs/requirements/fr-08-09-monitoring.md) | PR #10, `d52fcddc273bf65f550524dec44e45943d73cadb` | No module use-case diagram; table used |
-| M6 [requirements](https://github.com/MabC06/smart-e-mobility-hub/blob/12e0c817ccbf32f542b00310576a8dc97439ae65/docs/requirements/fr-12-simulation.md) | PR #9, `12e0c817ccbf32f542b00310576a8dc97439ae65` | No module use-case diagram; table used |
-| M7 [operator views](https://github.com/MabC06/smart-e-mobility-hub/blob/465edbeb140bfcaaf38a771a62c3b2ff714a4b48/docs/requirements/use-case-operator-support.md) | PR #8, `465edbeb140bfcaaf38a771a62c3b2ff714a4b48` | View mapping used; no duplicate business diagram claimed |
-| M8 traceability/test plan | PR #5, `d96e48a73c0c21ced71880c737f09daef145c465` | Test IDs/execution remain M8/module-owner work |
-| M1 [timeline proposal](https://github.com/MabC06/smart-e-mobility-hub/blob/c3c31d26f54dafa6ec271c40d9f815b5a574a77c/docs/task-assignment-timeline.md) | Open PR #15, `c3c31d26f54dafa6ec271c40d9f815b5a574a77c` | Own M2 design Oct 23; final overview/actor update Oct 25 |
-
-![Draft system use-case overview](use-case-diagrams/uc-overview.svg)
-
-[Editable overview source](use-case-diagrams/uc-overview.puml). The seven ellipses group goals for readability; the actor table and linked module diagrams carry individual IDs. No new UC identifiers are allocated to groups. Once M3/M5/M6 final diagrams and M4 exports arrive, compare actor associations, reconcile M7's stale simulation ID and update this index/overview before the Oct 25 review. Until then this is a reviewable draft, not a claim that final cross-module consolidation is complete.
+[Editable source](use-case-diagrams/uc-overview.puml). Goal groups do not allocate additional use-case IDs. M2 owns rental/parking, M3 charging, M4 allocation/dispatch, M5 monitoring/incidents, M6 simulation and M7 operator views. Detailed M2 use cases appear in the [requirements](fr-02-05-07-reservation.md), with [rental](use-case-diagrams/uc-m2-rental.svg) and [parking](use-case-diagrams/uc-m2-parking.svg) diagrams.
