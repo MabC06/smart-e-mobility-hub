@@ -333,7 +333,7 @@ The failure and recovery behavior must follow the agreed simulation model. A fai
 |---|---|---|
 | `surplus_hub_ids` | List of strings | Required; all hubs must exist. |
 | `deficit_hub_ids` | List of strings | Required; all hubs must exist. |
-| `batch_size` | Integer | Proposed range 5–20 vehicles per trip. |
+| `batch_size` | Integer | Proposed range 5–20 vehicles per dispatch task (aligned with UC-M4-03). |
 | `transit_delay_minutes` | Integer | Proposed range 10–60 minutes. |
 
 The surplus and deficit hub lists must not contain the same hub.
