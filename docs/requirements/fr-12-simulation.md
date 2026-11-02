@@ -75,7 +75,7 @@
 - **Configurable Inputs:**
   - `source_hub_ids` (List[String]): Hubs with excess idle vehicles.
   - `destination_hub_ids` (List[String]): Hubs facing severe shortages.
-  - `dispatch_truck_capacity` (Integer): Max capacity per relocation batch.
+  - `batch_size` (Integer): Proposed range 5-20 vehicles per dispatch task (aligned with UC-M4-03).
   - `dispatch_transit_delay_minutes` (Integer): Lead time required for vehicle relocation.
 
 ---
@@ -94,4 +94,4 @@
 | **Main Flow** | 1. Operator navigates to the **What-if Simulation** dashboard.<br>2. System clones a point-in-time snapshot from Core domain into sandbox memory.<br>3. Operator selects one of the 5 standard scenarios (or compound scenario).<br>4. Operator customizes the scenario parameters (duration, multiplier, target hubs).<br>5. Operator clicks **Run Simulation**.<br>6. Simulation engine executes state transitions over discrete time steps.<br>7. System evaluates performance indicators (shortage rate, overflow rate, queue times).<br>8. Engine synthesizes coordination recommendations (dispatching, rerouting, charging shift).<br>9. System displays comparative dashboard (Baseline vs. Mitigated).<br>10. Operator reviews and exports or saves the simulation session. |
 | **Alternative Flows** | **3a. Custom Scenario:** Operator combines multiple scenarios (e.g., Demand Surge + Station Failure).<br>**10a. Dispatch Trigger:** Operator approves recommendations; system formats and forwards orders to M4 (Dispatch) / M5 (Incident). |
 | **Exception Flows** | **2a. Snapshot Unavailable:** Core domain unreachable; system alerts operator and aborts session.<br>**4a. Invalid Input Parameter:** Input outside bounds (e.g., multiplier $\le 0$); system displays inline validation error and prevents execution.<br>**6a. Simulation Timeout:** Computation exceeds configured threshold ($> 60$s by default, configurable for larger datasets); system safely terminates job and reports execution error. |
-| **Business Rules** | • **BR-M6-01 (Strict Isolation):** Read-only snapshot access; zero write-back to production database. (Trace: FR-12.1, NFR-12)<br>• **BR-M6-02 (Determinism):** Identical seeds and parameters must yield reproducible outcomes. (Trace: FR-12.3, NFR-13)<br>• **BR-M6-03 (Feasibility Check):** Generated dispatch recommendations must respect truck capacities and physical transit delays. (Trace: FR-12.5, NFR-05) |
+| **Business Rules** | • **BR-M6-01 (Strict Isolation):** Read-only snapshot access; zero write-back to production database. (Trace: FR-12.1, NFR-12)<br>• **BR-M6-02 (Determinism):** Identical seeds and parameters must yield reproducible outcomes. (Trace: FR-12.3, NFR-13)<br>• **BR-M6-03 (Feasibility Check):** Generated dispatch recommendations must respect batch sizes and physical transit delays. (Trace: FR-12.5, NFR-05) |
