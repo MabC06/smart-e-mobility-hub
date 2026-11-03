@@ -189,7 +189,7 @@ GitHub won't block a violation of these for us (see `docs/DECISIONS.md` D-001), 
 
 ## 9. Code rules
 
-> The tech stack is not final. These rules are language-neutral; once the stack is chosen, add the formatter/linter here and in `docs/DECISIONS.md`.
+> The stack is decided (D-002): Python 3.12. The formatter, linter and type checker are **ruff** (`ruff check .` and `ruff format --check .`) and **mypy**, configured in `pyproject.toml`; CI runs them on every PR (D-019). The rules below stay language-neutral.
 
 1. One clear responsibility per function/class; business logic lives in its module, not in one big file.
 2. Modules communicate through the `core` interface/API contract, not by reaching into each other's internals.
