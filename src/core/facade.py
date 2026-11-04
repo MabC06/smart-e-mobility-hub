@@ -1,11 +1,12 @@
 """CoreFacade: the one object other modules use (docs/design/structural/class-diagram-core.md)."""
 
 from collections.abc import Callable
+from typing import cast
 
 from core.auth import AuthConfig, AuthService
 from core.clock import Clock, SystemClock
 from core.config import CoreConfig
-from core.domain.entities import Entity
+from core.domain.entities import CORE_TYPES, Entity, entity_id
 from core.domain.invariants import InvariantChecker, Violation
 from core.events import EventBus
 from core.ids import IdGenerator, SequentialIdGenerator
@@ -29,10 +30,22 @@ class CoreFacade:
         ids: IdGenerator | None = None,
         bus: EventBus | None = None,
     ) -> None:
+        repo = repository if repository is not None else InMemoryRepository()
+        # Restarted stores already contain claim, vehicle, audit and event IDs.
+        # Preserve deterministic sequences without reusing committed identifiers.
+        default_ids = (
+            SequentialIdGenerator(
+                entity_id(row)
+                for entity_type in CORE_TYPES
+                for row in repo.query(cast(type[Entity], entity_type))
+            )
+            if ids is None
+            else ids
+        )
         self._runtime = Runtime(
-            repository if repository is not None else InMemoryRepository(),
+            repo,
             clock if clock is not None else SystemClock(),
-            ids if ids is not None else SequentialIdGenerator(),
+            default_ids,
             config if config is not None else CoreConfig(),
             bus if bus is not None else EventBus(),
         )
