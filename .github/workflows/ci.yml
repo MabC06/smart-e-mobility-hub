@@ -1,0 +1,46 @@
+# Checks that every PR must pass before the reviewer approves it (CONTRIBUTING section 8).
+# GitHub Free + private repo cannot block the merge button (D-001), so the reviewer looks at this
+# result by hand. The same commands run on a developer machine; see "Getting Started" in README.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest   # NFR-27: CI on Linux
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install pinned dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format (ruff)
+        run: ruff format --check .
+
+      - name: Types (mypy, strict on core)
+        run: mypy
+
+      # Includes the import-boundary check of NFR-22 (tests/core/test_import_boundaries.py) and,
+      # once M8 adds them, tests/integration. Core coverage must stay at or above NFR-24 (70 %).
+      - name: Tests
+        run: python -m pytest -q --cov=core --cov-fail-under=70
