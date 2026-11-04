@@ -1,7 +1,7 @@
 # Core API Specification
 
 **Owner:** M1 — Đoàn Nhật Minh (2452738)
-**Version:** v1.0 · 2026-11-04 — first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
+**Version:** v1.1 · 2026-11-04 — D-020 splits the port `DemandSource` into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by their owners (§6.1, §10 point 10). v1.0 (2026-11-04) was the first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
 **Related:** `class-diagram-core.md`, `vehicle-state-machine.md`, `docs/requirements/fr-01-core.md`, D-003, D-005, D-006
 
 ## 1. Purpose
@@ -163,11 +163,12 @@ Subscribers use `events.subscribe(type, handler)`; they do not import the publis
 
 ### 6.1 Provider ports
 
-Interfaces defined in `core`, implemented by other modules and registered through `core.register_provider(port, impl)`. They are read-only and return `Result[T]`. If no provider is registered or it fails, the caller gets `RESOURCE_UNAVAILABLE` and must not assume an answer.
+Interfaces defined in `core`, implemented by other modules and registered through `core.register_provider(port, impl)`. They are read-only and return `Result[T]`. One module implements one port (D-020); the argument and result types of a port are defined in `core.providers`, written by its owner and reviewed by its callers. If no provider is registered or it fails, the caller gets `RESOURCE_UNAVAILABLE` and must not assume an answer.
 
 | Port | Operation | Implemented by | Used in |
 |---|---|---|---|
-| `DemandSource` | `upcoming_bookings(hub_id, horizon)`, `open_trips(hub_id)` (with `expected_return_at`), `scheduled_sessions(hub_id, horizon)` | M2 (bookings, trips), M3 (sessions) | M4 `s1-plan`; M6, which needs the due times that are not in the snapshot (§7) |
+| `ReservationDemand` | `upcoming_bookings(hub_id, horizon)`, `open_trips(hub_id)` (with `expected_return_at`) | M2 | M4 `s1-plan`; M6, which needs the due times that are not in the snapshot (§7) |
+| `ChargingDemand` | `scheduled_sessions(hub_id, horizon)` | M3 | M4 `s1-plan`; M6 (§7) |
 | `AlternativeHubProvider` | `suggest_alternative_hubs(request) -> (candidates, as_of)` | M4 (`UC-M4-05`) | M2 `s3-return`, `s4-alt-hubs` |
 | `AlternativeChargingProvider` | `find_alternative_charging(requests, hub_id)` | M4 (`UC-M4-07`) | M3 `s5-alt-charging` (`UC-M3-08`, D-012) |
 | `HoldConsumer` | `consume_hold(holder_ref)`, called inside the unit of work | M2 | M4 `s3-execute` |
@@ -185,7 +186,7 @@ Interfaces defined in `core`, implemented by other modules and registered throug
 - `OperationalSnapshot.to_dict()` gives plain JSON data. `OperationalSnapshot.to_repository()` loads it into a new `InMemoryRepository`; `CoreFacade.check_invariants()` (or `InvariantChecker.check(repo)`) lists what is wrong in any store, including a loaded one.
 - A plan made on a snapshot opens `core.unit_of_work(snapshot_version=snapshot.version)`; `commit()` returns `VERSION_CONFLICT` if anything the unit wrote was committed by someone else after that version.
 - Names: M6's illustrative contract (`m6-simulation-design.md` §7.3) uses other names and says the final ones follow M1's model. Mapping: `total_capacity` → `parking_capacity`; `occupied_spaces` → derived `occupied`; `type` → `vehicle_type`; `soc` (fraction 0–1) → `battery_pct` (0–100); `point_id` → `charging_point_id`; `power_kw` → `power_rate_kw`; vehicles and charging points nested in a hub → flat lists with `hub_id`.
-- Not in the snapshot: reservations, trips, charging sessions and tasks belong to M2–M4. The snapshot has their claims (resource, holder, interval) but not due times such as `expected_return_at`. M6 reads those through `DemandSource` (§6.1); M2 asked for them ("a snapshot must include future claims and due times").
+- Not in the snapshot: reservations, trips, charging sessions and tasks belong to M2–M4. The snapshot has their claims (resource, holder, interval) but not due times such as `expected_return_at`. M6 reads those through `ReservationDemand` and `ChargingDemand` (§6.1); M2 asked for them ("a snapshot must include future claims and due times").
 - M6 validates the snapshot before use (M6 design §7.4). `core` guarantees unique IDs, referential consistency and `occupied ≤ parking_capacity` (`BR-M1-02`).
 
 ## 8. REST endpoints for the UI (read-only, plus the simulator's intake)
@@ -248,3 +249,4 @@ State-changing endpoints are provided by the module that owns the workflow (rese
 7. **Private EV vehicle states.** Draft decision: a private EV away from every Hub is `IN_USE`; `arrive` and `depart` move it in and out (`vehicle-state-machine.md` §7, point 1; D-016).
 8. **Operator override (M7 `UC-M7-02`).** Settled in the draft: `repair` goes on to `mark_ready` by itself when the readiness check passes, so the operator presses once and M7's example `Maintenance → Available` works (`vehicle-state-machine.md` §7, point 5). If the battery is at or below the threshold the vehicle stays `Returned`.
 9. **Names in the ERD.** The differences listed in `class-diagram-core.md` §2.1 are for M7 to apply in the final ERD.
+10. **Provider ports have one implementer each.** `DemandSource` had two implementers (M2 and M3), but the registry accepts one provider per port. It is split into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by the port owners (D-020). The code follows in M1's Phase 3 work; no module uses a port before that.

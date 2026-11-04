@@ -132,7 +132,7 @@ sequenceDiagram
 - The snapshot is a read-only copy taken in one read transaction. It has no references to live objects or connections and carries a `version`.
 - `simulation` never holds a connection to the operational store. Its output is a report; applying a recommendation is a separate operator action that goes through the responsible module and `core` (NFR-12, M6 design §7.5).
 - Same state, same seed, same scenario give the same output (NFR-13); `core` sorts all snapshot content by ID.
-- The snapshot holds `core` entities and claims. Due times of trips and the contents of sessions and tasks come from `DemandSource` (`core-api-spec.md` §6.1 and §7).
+- The snapshot holds `core` entities and claims. Due times of trips and the contents of sessions and tasks come from `ReservationDemand` and `ChargingDemand` (`core-api-spec.md` §6.1 and §7, D-020).
 
 ## 8. Two more runtime flows
 
