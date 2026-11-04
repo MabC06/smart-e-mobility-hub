@@ -21,10 +21,11 @@ logger = logging.getLogger("core.providers")
 
 
 class ProviderPort(StrEnum):
-    """DemandSource (M2, M3), AlternativeHubProvider and AlternativeChargingProvider (M4),
-    HoldConsumer (M2)."""
+    """One port per implementing module (D-020): ReservationDemand and HoldConsumer (M2),
+    ChargingDemand (M3), AlternativeHubProvider and AlternativeChargingProvider (M4)."""
 
-    DEMAND_SOURCE = "DemandSource"
+    RESERVATION_DEMAND = "ReservationDemand"
+    CHARGING_DEMAND = "ChargingDemand"
     ALTERNATIVE_HUB = "AlternativeHubProvider"
     ALTERNATIVE_CHARGING = "AlternativeChargingProvider"
     HOLD_CONSUMER = "HoldConsumer"

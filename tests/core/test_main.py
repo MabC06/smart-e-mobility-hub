@@ -317,7 +317,7 @@ def test_modules_install_in_the_fixed_order_and_can_use_the_whole_core(monkeypat
 
     def reservation_install(core, app):
         order.append("reservation")
-        core.register_provider(ProviderPort.DEMAND_SOURCE, "reservation-impl")
+        core.register_provider(ProviderPort.RESERVATION_DEMAND, "reservation-impl")
         router = APIRouter()
 
         @router.get("/reservations/ping")
@@ -346,7 +346,7 @@ def test_modules_install_in_the_fixed_order_and_can_use_the_whole_core(monkeypat
     with TestClient(app) as client:
         assert client.get("/reservations/ping").json() == {"pong": True}
     core = app.state.core
-    assert core.providers.is_registered(ProviderPort.DEMAND_SOURCE)
+    assert core.providers.is_registered(ProviderPort.RESERVATION_DEMAND)
     assert received == []  # subscribed, nothing happened yet
 
 
