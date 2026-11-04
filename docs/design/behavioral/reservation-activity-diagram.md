@@ -1,10 +1,10 @@
 # M2 - Reservation activity diagrams
 
-> Owner: 2452620 Đặng Tuấn Kiệt (M2). 2026-11-01. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Owner: 2452620 Đặng Tuấn Kiệt (M2). 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 These are UML activity diagrams authored in PlantUML, not flowcharts relabelled as UML. Initial/final nodes, actions, decisions with guards and responsibility partitions describe control flow. Concurrent requests are separate activity executions serialized at Core admission; a fork is deliberately not used to imply that a single Student makes two bookings.
 
-The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines all parameters (§3), stable UC/BR IDs (§8) and verification scenarios (§9). Core interactions are proposed; no existing API is asserted. Editable sources and SVG exports live beside this file under `reservation-diagrams/`.
+The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines all parameters (§3), stable UC/BR IDs (§8) and verification scenarios (§9). Core interactions use the released Core API v1.1; M2 policy and UI messages remain design-level contracts. Editable sources and SVG exports live beside this file under `reservation-diagrams/`.
 
 ## A1 - Find and reserve a rental vehicle
 

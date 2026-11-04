@@ -1,14 +1,14 @@
 # M2 - Reservation interaction design
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-02. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 ## Contract status and responsibility
 
-All messages below form a **proposed interaction contract**, not existing API names or routes. Do not implement against these messages until the Core API spec, class diagram and Vehicle state machine are on develop. The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines parameters, UC/BR definitions and required data.
+The diagrams bind shared operations to the released [Core API v1.1](../architecture/core-api-spec.md). UI messages and M2 policy choices remain proposed; they do not define HTTP routes. The [requirements baseline](../../requirements/fr-02-05-07-reservation.md) defines parameters, UC/BR definitions and required data.
 
-Student is the human actor. UI validates for convenience and sends commands; it cannot decide ownership, battery or success. Reservation owns rental/parking workflow and policy. Core owns shared resource state and coordinates an atomic unit of work with public M2 policy/persistence ports. They are logical components of the proposed modular monolith, not separate network services. Core's internal transaction box includes M2 Reservation/Trip writes via those ports; it does not transfer their business ownership to M1.
+Student is the human actor. UI validates for convenience and sends commands; it cannot decide ownership, battery or success. Reservation owns rental/parking workflow and policy. Core owns shared resource state and provides the unit of work. M2 registers its tables at `install(core, app)`, reads its own records first, then orchestrates Core commands and M2 repository writes inside that unit of work (D-013/D-015/D-018). Core never calls an M2 reservation-read port. These are in-process components, not separate network services.
 
-No database, scheduler or payment participant is invented. M4 appears only as an internal ranking provider reached through the proposed Core facade, supported by UC-M4-05. M3/M5 receive post-commit domain events through Core. Direct access to another module's repository is forbidden (CONTRIBUTING §9).
+No database, scheduler or payment participant is invented. M4 appears only as an internal ranking provider reached through the Core provider registry, supported by UC-M4-05. M3/M5 receive post-commit domain events through Core. Direct access to another module's repository is forbidden (CONTRIBUTING §9).
 
 ## S1 - Reserve
 
@@ -51,14 +51,16 @@ A repeated request reads the existing Reservation / Trip record owned by M2 and 
 
 Persistent Pending is not needed: it is request validation before the atomic confirmation commit. A crash before commit leaves no live booking; after a crash following commit, M2 reads the existing Reservation / Trip record. Durably committed domain events may be retried after publication failure, deduplicated by event ID/version. Consumers must not be needed to complete an already committed capacity invariant.
 
-Proposed storage implementation (subject to D-002): database transactions plus unique/version constraints and a serialized per-user/admission guard. Vehicle versions alone cannot protect two new interval rows or the same user's quota; Core must serialize/check those predicate conflicts too. SQLite requires a suitable serialized write transaction; do not claim PostgreSQL row-lock semantics exist in SQLite. M1 chooses the mechanism and exposes a single consistent unit-of-work boundary.
+The released Core uses a process-wide reentrant lock around each unit of work and one repository transaction. M2 repeats its own-record/quota checks inside that lock, obtains authoritative time from `core.queries.get_config().as_of`, and uses observed vehicle versions in commands. SQLite and the in-memory repository share this contract; this is not a multi-process locking guarantee. If a competing identical request returns VERSION_CONFLICT or INVALID_TRANSITION, reread M2 records before reporting failure (D-015). Retry identity is the reservation resource ID and its immutable booking fields, not a separate command key or result store.
 
-## Outstanding M1/M3/M4/M7 confirmations
+## Concrete Core mapping and remaining integration contracts
 
-1. Public unit-of-work and policy ports for multi-owner atomic writes; read-only candidate queries.
-2. Stable result-code mapping (design codes here are not an HTTP contract), accepted Vehicle transitions and version/time precision.
-3. Calendar claims, current occupancy and coupled bay/charger transaction support; charging stop/cancel semantics.
-4. Core-mediated M4 ranking and admission-priority integration without direct module imports.
-5. Isolated simulation namespace. A snapshot must include future claims and due times; otherwise simulation would miss M2 conflicts.
+- Reserve: `place_claim(VEHICLE, ..., RESERVATION, reservation_id, now, expiry, actor)` then `transition_vehicle(..., RESERVE, version, actor, TransitionCtx(claim_id=..., min_battery=...))`; add M2 Reservation through `uow.repository` and commit.
+- Pickup: M2 checks owner, origin, deadline and booking state first; `PICKUP` requires its vehicle claim ID. Core validates the claim and frees origin occupancy; M2 calls `release_claim`, creates the unique Trip and marks the booking Active in the same unit of work.
+- Return: `RETURN` (or `RETURN_FAULTY` for an accepted fault) with destination Hub / optional space claim. Core selects a safe space, including checking future claims; M2 completes Trip/Reservation in the same unit of work. Core, not M2, later decides readiness.
+- Expiry belongs to M2 (D-017): mark only its booking Expired, release its RESERVATION claim and request `RELEASE_RESERVATION` where applicable. Core has no automatic claim-expiry sweep. An expired interval alone does not restore vehicle availability.
+- Error mapping: VERSION_CONFLICT/CLAIM_CONFLICT -> CONFLICT; HUB_FULL/SPACE_NOT_FREE -> NO_PARKING; BATTERY_TOO_LOW -> RESOURCE_UNAVAILABLE; INVALID_TRANSITION -> INVALID_STATE; NOT_FOUND -> NOT_FOUND_OR_NOT_OWNED. M2 owns its quota/deadline errors. These are service outcomes, not an HTTP specification.
+- D-020 assigns M2 the `ReservationDemand` and `HoldConsumer` Protocol/result types in `core.providers`. Callers M4/M6 review them; implementations follow in the integration phase. `HoldConsumer.consume_hold(holder_ref)` participates in an existing unit of work and must not commit independently.
+- Core snapshots contain Core entities/claims, not M2 bookings or trip due times (D-018). Simulation must obtain these through `ReservationDemand` and copy them into its isolated module store; do not infer them from the vehicle snapshot alone.
 
-No shared API or other owner's file is changed by this proposal. Before adopting a new Core interface, follow CONTRIBUTING's team-notice/DECISIONS protocol; this local draft is not such a published interface change.
+M3 bundle cancellation/start/stop and M4 ranking/hold-consumption semantics still require their owners' integration review. The released unit-of-work, claim, time and Vehicle transition contracts are sufficient to implement the rental happy path. This design does not claim team approval of policy values or completion of those integrations.

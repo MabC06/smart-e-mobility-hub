@@ -1,5 +1,4 @@
 @startuml
-title S3 - Return: proposed interaction contract
 skinparam shadowing false
 skinparam defaultFontName Arial
 hide footbox
@@ -7,39 +6,43 @@ actor Student
 boundary UI
 control Reservation
 control Core
-control "Allocation (M4)" as Allocation
+title S3 - Return (Core API v1.1, D-015/D-018)
+control "Allocation (M4 provider)" as Allocation
 Student -> UI: Confirm return Hub
-UI -> Reservation: trip ID, Hub, optional parking hold, version
-Reservation -> Core: Authenticated return intent
-Core -> Core: Authenticate actor
-Core -> Reservation: Read owned Reservation / Trip via M2 port
-Reservation --> Core: Existing business state, destination and timestamps
-alt Completed Trip with same owner and return context
-  Core --> Reservation: Original receipt / ALREADY_COMPLETED; no movement
-else Invalid owner, state, destination or stale version
-  Core --> Reservation: Error; Trip and location unchanged
-else Owned Active rental and open Trip
-  group Atomic return under Core serialization
-    Core -> Core: Recheck Hub; consume own valid hold or select\nempty unclaimed space without conflicting future claim
-    alt Receiving space exists
-      Core -> Core: Occupy destination and set vehicle location\nTrip Completed; Reservation Completed\nConsume matching return-parking hold\nVehicle Returned (Maintenance if fault); persist audit event
-      Core --> Reservation: Return receipt and actual time / Hub
-    else No usable parking / concurrent capacity loss
-      Core --> Reservation: NO_PARKING / CONFLICT; no return writes
+UI -> Reservation: Trip ID, Hub, optional parking hold, vehicle version
+Reservation -> Reservation: Validate actor; read owned Trip / Reservation first
+alt Completed Trip with matching destination
+  Reservation --> UI: Recorded receipt; no relocation or second completion
+else Owned open Trip
+  Reservation -> Core: Enter core.unit_of_work()
+  group One repository transaction under Core lock
+    Reservation -> Reservation: Reread Trip / Reservation; check owner and state
+    Reservation -> Core: get_vehicle(); get_config().as_of
+    Core --> Reservation: Current vehicle and authoritative time
+    Reservation -> Core: transition_vehicle(RETURN or RETURN_FAULTY, version,\nTransitionCtx(hub_id, optional own claim_id))
+    Core -> Core: Validate destination; select safe unclaimed space\nor consume valid own space hold; check future claims
+    alt Safe receiving space
+      Core -> Core: Occupy destination; update vehicle location\nVehicle Returned / Maintenance; record audit events
+      Core --> Reservation: Vehicle result
+      Reservation -> Reservation: Complete Trip / Reservation via uow.repository\nComplete matching M2 return-parking booking if used
+      Reservation -> Core: uow.commit()
+      Core --> Reservation: Commit result
+    else No space or conflict
+      Core --> Reservation: Err; exit without commit (full rollback)
     end
   end
-  opt Return rejected for capacity
-    Reservation -> Core: Query alternative Hubs (no mutation)
-    Core -> Allocation: Rank currently feasible Hubs per UC-M4-05
-    Allocation --> Core: Candidates + as_of, or none / unavailable
-    Core --> Reservation: Advisory alternatives; zero holds
+  opt Capacity rejection
+    Reservation -> Core: providers.call(ALTERNATIVE_HUB, read-only query)
+    Core -> Allocation: Rank alternatives
+    Allocation --> Core: Candidates with as_of / unavailable
+    Core --> Reservation: Advisory result; no holds
   end
+  Reservation --> UI: Receipt or mapped error / alternatives
 end
-Reservation --> UI: Receipt or error + advisory alternatives
-UI --> Student: Complete, or select and confirm another Hub
+UI --> Student: Completed, or select another Hub
 note over Reservation,Core
-  No space means rental remains Active and Trip remains open.
-  Post-commit Core / M3 readiness is separate from ending the Trip.
-  A failed notification never undoes a committed return.
+  No parking: Trip stays open and Reservation stays Active.
+  Matching retry reads M2 receipt before checking stale vehicle version.
+  M3 readiness after return is separate from completion.
 end note
 @enduml

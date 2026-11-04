@@ -3,7 +3,7 @@
 <!-- BEGIN M2: Reservation & Trip -->
 ## M2 contribution - Reservation & Trip
 
-> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-02. **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 ### Design overview
 
@@ -25,7 +25,7 @@ All ten diagrams in this contribution (eight behavioral and two use-case diagram
 
 ### Atomicity, deadlines and retries
 
-Core serializes the reservation/resource and per-user admission guards and coordinates M2's persistence through public ports. The unit of work includes the booking, Trip, claim/occupancy, Vehicle and audit/event record as appropriate. A series of separately committed entity updates would violate NFR-09. The concrete unit-of-work API is still proposed and requires M1's Core v1 review.
+M2 orchestrates `core.unit_of_work()`, checks its own booking/Trip and quota under the Core lock, and writes registered M2 entities through `uow.repository` (D-018). Core commands alone change shared claims, vehicles and spaces. Every `Err` exits without commit; a successful explicit commit persists the complete write set. This is the released Core API v1.1 contract, not a callback from Core into M2 (D-015).
 
 At `t = hold_expires_at`, pickup is expired; it is eligible only while `t < expiry`. Time is read inside the serialization boundary. Cancellation, pickup, expiry and resource failure contend on the same current state/version. Only a valid winner commits; a delayed expiry sweep never grants extra pickup time. Active bookings cannot be ended by pickup-deadline expiry.
 
@@ -45,7 +45,7 @@ The [requirements parameter register and data proposal](../requirements/fr-02-05
 - Existing student claims are protected from rebalancing/charging priority. Operator safety isolation remains a separate incident action with accountable custody/occupancy.
 - Snapshot simulation must clone claims/bookings/trips and use the same rules with a separate clock/result namespace. Recommendations never write back directly; application is a newly authorized operational command.
 
-All shared choices are **Proposed for team review**. Do not code against this design until the Core API spec, class diagram and Vehicle state machine are on develop. Core API/state validation, M3 bundle semantics, M4 dispatch claims/priority, M5 due-time/incident recovery and M7 schema/UI remain explicit handoffs. Source branches are recorded in the baseline, not merged into this contribution.
+All shared choices are **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review. Core API/state validation, M3 bundle semantics, M4 dispatch claims/priority, M5 due-time/incident recovery and M7 schema/UI remain explicit handoffs.
 
 ### Verification evidence and reproducibility
 

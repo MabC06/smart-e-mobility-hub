@@ -1,6 +1,6 @@
 # M2 - Reservation & Trip: requirements and design baseline
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-11-02 (ICT).
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-11-04 (ICT).
 > Status: **Proposed for team review**. M2 policies and interaction designs remain Proposed. Do not code against the design until the Core API spec, class diagram and Vehicle state machine are on develop.
 
 ## 1. Scope
@@ -73,7 +73,7 @@ All operations require an authenticated active Student account (NFR-16); derive 
 
 Repeated pickup or return requests return the result already recorded without creating a second Trip or reservation. A Cancelled/Expired reservation cannot be revived.
 
-For deadlines, Core checks time **after acquiring the serialization boundary**. Pickup and cancel/expire race on the same reservation version. Exactly one valid transition commits. A sweep delay cannot extend eligibility. An expired-reservation maintenance transition may commit before a rejected pickup; it is separately logged, not a partial pickup. Safety-event ordering also uses Core's accepted sequence, not client event timestamps.
+For deadlines, M2 reads Core time **after acquiring the serialization boundary**. Pickup and cancel/expire race on the same reservation version. Exactly one valid transition commits. A sweep delay cannot extend eligibility. An expired-reservation maintenance transition may commit before a rejected pickup; it is separately logged, not a partial pickup. Safety-event ordering also uses Core's accepted sequence, not client event timestamps.
 
 ## 6. Use-case specifications
 
@@ -116,7 +116,7 @@ UC-M2 IDs follow the stable module-scoped convention (section 8). Shared precond
 - **Actor / goal:** Student; start the reserved trip.
 - **Trigger:** Student confirms pickup at origin Hub in UI.
 - **Preconditions:** Shared preconditions; own Confirmed rental, correct origin, t < expiry, vehicle still eligible except for own reservation claim.
-- **Main flow:** 1. Submit booking/origin/version. 2. Core checks owner, deadline, resource and competing events. 3. Commit Active reservation, unique IN_PROGRESS Trip and expected_return_at; set Vehicle InUse, clear current Hub/space and free the source occupancy. 4. Return trip ID, pickup time and expected return time.
+- **Main flow:** 1. Submit booking/origin/version. 2. M2 checks its booking owner and deadline, then Core validates the resource and competing events. 3. Commit Active reservation, unique IN_PROGRESS Trip and expected_return_at; set Vehicle InUse, clear current Hub/space and free the source occupancy. 4. Return trip ID, pickup time and expected return time.
 - **Alternatives/exceptions:** t = expiry is expired; wrong owner/Hub fails; current fault cancels via separate incident transition, not pickup; low battery makes vehicle ineligible and cancels with reason. Cancel/expiry winning the race prevents Trip creation. Retry returns existing Trip once.
 - **Postconditions:** One open trip and no source occupancy, or no pickup effects.
 - **Trace:** FR-04; NFR-16, NFR-18, BR-M2-02, BR-M2-04, BR-M1-01, NFR-06, NFR-09, BR-M2-09, BR-M2-14, BR-M2-15.
@@ -126,7 +126,7 @@ UC-M2 IDs follow the stable module-scoped convention (section 8). Shared precond
 - **Actor / goal:** Student; finish trip at an accepting Hub.
 - **Trigger:** Student selects destination and confirms return.
 - **Preconditions:** Shared preconditions; own Active rental and IN_PROGRESS/OVERDUE Trip (including incident flag); vehicle is in student's custody.
-- **Main flow:** 1. Send trip/destination, optional matching parking hold. 2. Core checks owner/open trip and destination serviceability. 3. Select own valid held space or an unclaimed available space with no future commitment that indefinite fleet occupancy would violate. 4. Atomically occupy destination, record actual Hub/time/battery, complete Trip/reservation, consume matching parking hold and set Vehicle Returned (Maintenance if fault). 5. Show receipt; Core/M3 separately determine charging/readiness.
+- **Main flow:** 1. Send trip/destination, optional matching parking hold. 2. M2 checks owner/open trip; Core checks destination serviceability. 3. Select own valid held space or an unclaimed available space with no future commitment that indefinite fleet occupancy would violate. 4. Atomically occupy destination, record actual Hub/time/battery, complete Trip/reservation, consume matching parking hold and set Vehicle Returned (Maintenance if fault). 5. Show receipt; Core/M3 separately determine charging/readiness.
 - **Alternatives/exceptions:** Full/blocked Hub returns NO_PARKING and advisory alternatives through Core/M4; choosing one requires a new confirmation. Expired destination hold offers a new unheld capacity check without reviving the hold. Changed resources cause CONFLICT and rollback. Fault does not invent physical recovery: normal return can still park safely if Hub accepts it; operator recovery is separately authorized under BR-M2-14. Duplicate return never moves a completed vehicle again.
 - **Postconditions:** Trip ends once with one destination occupancy; or rental remains Active and current in-trip location unchanged.
 - **Trace:** FR-04, FR-05; NFR-16, NFR-18, BR-M1-01, NFR-06, NFR-09, BR-M2-10, BR-M2-11, BR-M4-02, BR-M2-14, BR-M2-15, BR-M1-02.
@@ -163,21 +163,21 @@ UC-M2 IDs follow the stable module-scoped convention (section 8). Shared precond
 
 ## 7. Proposed data and interaction obligations
 
-These are **proposed interaction contract** requirements for M1/M7, not existing methods, endpoints or schema migrations. The sequence document expands transaction boundaries.
+M2 entity fields below are proposed policy data; Core infrastructure follows the released Core API v1.1 and D-015 through D-020. The sequence document maps these obligations to concrete Core commands.
 
 | Item | Required information / invariant | Difference from M7 draft |
 |---|---|---|
 | Rental Reservation | confirmed_at, selected_min_soc, planned_duration_minutes, hold_expires_at, version; scheduled_start_time = confirmed_at | Add confirmation/filter/duration fields; duration is not the hold |
 | Trip | unique reservation_id; expected_return_at, actual pickup/return, incident reference/flag; origin/destination and occupant association | Add due time and incident association; OVERDUE/INCIDENT_ABORTED already listed by M7 |
 | Private parking | scheduled_start_time, scheduled_end_time, hold_expires_at, actual arrived_at/ended_at, vehicle_id, parking purpose, linked charging ID | Add end/arrival/purpose/link fields. Use PARKING_ONLY plus purpose PRIVATE_STAY or RENTAL_RETURN; private charging bundle uses existing PRIVATE_EV_PARKING_CHARGING |
-| ResourceClaim | resource ID, owner kind and ID, interval, status/version; exactly one reservation or dispatch-task owner | New proposed Core concept; no fake user for dispatch; ownership mapping requires M1/M4/M7 agreement |
+| ResourceClaim | resource ID, holder_kind, holder_ref, half-open interval and status; exactly one typed holder | Released Core ResourceClaim (D-017); RESERVATION belongs to M2, DISPATCH_TASK to M4, CHARGING_SESSION to M3; no fake user for dispatch |
 | Current occupancy | space, vehicle, arrival, optional actual departure; unique current occupant per space and per vehicle | Distinct from future claim/status; existing Vehicle location fields must agree atomically |
-| Atomic boundary | Core coordinator invokes registered module policy/persistence ports within one unit of work | Infrastructure belongs to M1; M2 owns Reservation/Trip rules; no cross-module repository access |
+| Atomic boundary | M2 orchestrates Core commands and its registered entity writes within `core.unit_of_work()` | Infrastructure belongs to M1; M2 owns Reservation/Trip rules; no cross-module repository access |
 | Events | event ID, entity/version, previous/next state, source/actor, UTC time, correlation and simulation context | Durable event record in transaction; publish after commit with deduplication/retry to M3/M4/M5/M7; a notification cannot control correctness |
 
-M1 must provide snapshot queries, atomic admission/release/pickup/return/bay-bundle operations, expiry/incident serialization, lookup by Core-mediated M4 alternatives, and isolated simulation contexts. If Core v1 exposes only separate “update vehicle” calls, this design is **not implementable safely as-is**: agree a unit-of-work contract before coding, rather than patching with sequential commits.
+Core v1.1 provides the required atomic boundary, shared-state commands and read queries. M2 registers Reservation/Trip tables through `core.register_entity` and never writes Core entities directly. Repeated requests read the owned M2 record first, then recheck under the unit-of-work lock (D-015). M2 releases its own expired claims (D-017). Provider types live in `core.providers` (D-020); M3 bundle and M4 alternatives remain integration contracts. Core snapshots omit M2 records: M6 obtains booking/trip due-time data through `ReservationDemand`.
 
-## 8. ID inventory, proposed mapping and handoff
+## 8. ID inventory and handoff
 
 
 UC-M2-01..08 and the retained BR-M2 IDs are stable module-scoped IDs under CONTRIBUTING section 5. No flat-number conversion is planned. FR-07 remains one M2 parking row; if it is split, use FR-07.M2.1, FR-07.M2.2, etc., distinct from M3. Verification labels V-M2 below are local design scenarios, **not TC IDs**.

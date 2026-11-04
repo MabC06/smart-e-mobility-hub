@@ -1,5 +1,4 @@
 @startuml
-title S1 - Reserve rental: proposed interaction contract
 skinparam shadowing false
 skinparam defaultFontName Arial
 hide footbox
@@ -7,30 +6,34 @@ actor Student
 boundary UI
 control Reservation
 control Core
+title S1 - Reserve rental (Core API v1.1, D-015/D-018)
 Student -> UI: Confirm selected vehicle
-UI -> Reservation: vehicle, origin, destination, min_soc,\nduration, version
-Reservation -> Core: Authenticate and submit reservation intent
-Core -> Core: Validate actor and input
-Core -> Reservation: Read existing reservation via M2 port
-Reservation --> Core: Existing business state, if present
-alt Repeated request
-  Core --> Reservation: Outcome in existing M2 Reservation record
-else Fresh valid intent
-  group Atomic Core-coordinated unit of work (M2 ports included)
-    Core -> Core: Serialize vehicle + user quota; settle expired claims\nRead authoritative time; recheck state, version and battery
-    alt Eligible vehicle and user below live rental limit
-      Core -> Core: Create Confirmed reservation + claim\nVehicle Reserved; retain origin occupancy\nexpiry = confirmed_at + 10 min; persist audit event
-    else Stale version, competing claim, fault or quota
-      Core -> Core: No booking / resource writes\nReturn rejection reason
-    end
+UI -> Reservation: Reservation resource ID, vehicle, origin,\noptional destination, minimum, duration, version
+Reservation -> Reservation: Validate trusted actor and fields\nRead own existing Reservation first
+alt Same owned booking and immutable intent
+  Reservation --> UI: Existing recorded booking; no writes
+else New intent
+  Reservation -> Core: Enter core.unit_of_work()
+  group One repository transaction under Core lock
+    Reservation -> Reservation: Recheck own record and live user quota
+    Reservation -> Core: get_config().as_of; get_vehicle()
+    Core --> Reservation: Authoritative time and current vehicle
+    Reservation -> Reservation: Check origin, eligibility and requested version
+    Reservation -> Core: place_claim(VEHICLE, RESERVATION, booking ID, now, expiry)
+    Core --> Reservation: Claim or Err
+    Reservation -> Core: transition_vehicle(RESERVE, version, claim_id, min_battery)
+    Core --> Reservation: Reserved vehicle or Err
+    Reservation -> Reservation: uow.repository.add(Confirmed Reservation)
+    Reservation -> Core: uow.commit() only if every operation succeeded
+    Core --> Reservation: Commit result; publish Core events after commit
   end
-  Core --> Reservation: Confirmation or explicit rejection
+  Reservation --> UI: Booking / explicit error
 end
-Reservation --> UI: Result, IDs, expiry, server time / reason
-UI --> Student: Confirmation deadline or refresh guidance
+UI --> Student: Reservation ID and ten-minute deadline
 note over Reservation,Core
-  No destination hold. No Trip before pickup.
-  Commit failure rolls back the full write set.
-  UI timeout means unknown outcome: lookup / retry same request.
+  Any Err exits without commit: all writes roll back.
+  No Trip or destination hold. Origin remains occupied.
+  Race conflict: reread M2 record for identical winning request.
+  No Core-to-M2 reservation-read callback or result store.
 end note
 @enduml
