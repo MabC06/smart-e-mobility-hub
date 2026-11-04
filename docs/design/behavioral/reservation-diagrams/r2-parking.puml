@@ -1,0 +1,26 @@
+@startuml
+title R2 - Parking reservation specializations (proposed)
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide empty description
+[*] --> Pending : submit
+Pending --> Confirmed : confirm [valid interval + atomic claim]
+Pending --> [*] : reject / no record persisted
+Confirmed --> Active : private arrival [start <= t < expiry]\n/ occupy bay once
+Confirmed --> Completed : rental return [t < expiry + valid S3]\n/ consume hold; keep fleet occupancy
+Confirmed --> Cancelled : owner cancel [t < expiry]\nor unusable resource / release claim only
+Confirmed --> Expired : no arrival [t >= expiry]\n/ release claim only
+Active --> Active : planned end or incident\n/ keep occupancy; flag for M5
+Active --> Completed : private departure [charging stopped]\n/ release actual occupancy
+Completed --> [*]
+Cancelled --> [*]
+Expired --> [*]
+note right of Confirmed
+  Future calendar claim is not occupancy.
+  Joint charger and bay use one parking space.
+end note
+note right of Completed
+  Rental hold completes at drop-off.
+  Fleet vehicle remains physically parked.
+end note
+@enduml

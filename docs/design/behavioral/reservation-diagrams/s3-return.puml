@@ -1,0 +1,48 @@
+@startuml
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+title S3 - Return (Core API v1.1, D-015/D-018)
+control "Allocation (M4 provider)" as Allocation
+Student -> UI: Confirm return Hub
+UI -> Reservation: Trip ID, Hub, optional parking hold, vehicle version
+Reservation -> Reservation: Validate actor; read owned Trip / Reservation first
+alt Completed Trip with matching destination
+  Reservation --> UI: Recorded receipt; no relocation or second completion
+else Owned open Trip
+  Reservation -> Core: Enter core.unit_of_work()
+  group One repository transaction under Core lock
+    Reservation -> Reservation: Reread Trip / Reservation; check owner and state
+    Reservation -> Core: get_vehicle(); get_config().as_of
+    Core --> Reservation: Current vehicle and authoritative time
+    Reservation -> Core: transition_vehicle(RETURN or RETURN_FAULTY, version,\nTransitionCtx(hub_id, optional own claim_id))
+    Core -> Core: Validate destination; select safe unclaimed space\nor consume valid own space hold; check future claims
+    alt Safe receiving space
+      Core -> Core: Occupy destination; update vehicle location\nVehicle Returned / Maintenance; record audit events
+      Core --> Reservation: Vehicle result
+      Reservation -> Reservation: Complete Trip / Reservation via uow.repository\nComplete matching M2 return-parking booking if used
+      Reservation -> Core: uow.commit()
+      Core --> Reservation: Commit result
+    else No space or conflict
+      Core --> Reservation: Err; exit without commit (full rollback)
+    end
+  end
+  opt Capacity rejection
+    Reservation -> Core: providers.call(ALTERNATIVE_HUB, read-only query)
+    Core -> Allocation: Rank alternatives
+    Allocation --> Core: Candidates with as_of / unavailable
+    Core --> Reservation: Advisory result; no holds
+  end
+  Reservation --> UI: Receipt or mapped error / alternatives
+end
+UI --> Student: Completed, or select another Hub
+note over Reservation,Core
+  No parking: Trip stays open and Reservation stays Active.
+  Matching retry reads M2 receipt before checking stale vehicle version.
+  M3 readiness after return is separate from completion.
+end note
+@enduml
