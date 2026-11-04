@@ -11,7 +11,7 @@ Run it:
 A module takes part by exposing, in its package ``__init__``:
 
     def install(core: CoreFacade, app: FastAPI) -> None:
-        # register providers:  core.register_provider(ProviderPort.DEMAND_SOURCE, impl)
+        # register providers:  core.register_provider(ProviderPort.RESERVATION_DEMAND, impl)
         # register its tables: core.register_entity(TableSpec(...))  (joins core's transactions)
         # subscribe to events: core.events.subscribe(EventType.HUB_STATUS_CHANGED, handler)
         # mount its routers:   app.include_router(router)
