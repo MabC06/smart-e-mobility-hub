@@ -1,4 +1,5 @@
 """Configuration for the deterministic IoT simulator (M8)."""
+
 from dataclasses import dataclass
 
 

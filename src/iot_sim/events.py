@@ -1,4 +1,5 @@
 """Deterministic minimal sensor-event feed: battery drain and private parking occupancy."""
+
 from __future__ import annotations
 
 import random
@@ -28,9 +29,7 @@ def iter_minimal_events(
     sequence = 0
 
     for vehicle in fleet:
-        drain = rng.uniform(
-            config.battery_drain_min_pct, config.battery_drain_max_pct
-        )
+        drain = rng.uniform(config.battery_drain_min_pct, config.battery_drain_max_pct)
         value = round(max(0.0, vehicle.battery_pct - drain), 1)
         sequence += 1
         yield SensorEvent(
@@ -46,9 +45,7 @@ def iter_minimal_events(
     available_spaces = [
         space_id(hub.hub_id, number)
         for hub in spec.hubs
-        for number in range(
-            hub.charging_point_count + len(hub.vehicles) + 1, hub.space_count + 1
-        )
+        for number in range(hub.charging_point_count + len(hub.vehicles) + 1, hub.space_count + 1)
     ]
     count = min(config.private_arrival_count, len(private), len(available_spaces))
     for index in range(count):

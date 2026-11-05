@@ -1,4 +1,5 @@
 """DS-STD generation tests — TC-M8-001 to TC-M8-006."""
+
 from collections import Counter
 
 from core.domain.enums import VehicleType

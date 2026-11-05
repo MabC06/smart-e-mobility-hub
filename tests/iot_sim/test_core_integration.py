@@ -1,4 +1,5 @@
 """Core-boundary tests — TC-M8-012 to TC-M8-015."""
+
 from datetime import UTC, datetime
 
 from core.domain.entities import Hub, ParkingSpace, Vehicle

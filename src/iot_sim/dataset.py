@@ -1,4 +1,5 @@
 """Deterministic DS-STD network specification builder."""
+
 from __future__ import annotations
 
 import random
@@ -42,9 +43,9 @@ def build_network_spec(seed: int = 0) -> NetworkSpec:
     fleet_count = sum(row[5] for row in HUBS)
     fleet_batteries = iter(_battery_levels(rng, fleet_count))
     private_batteries = iter(_battery_levels(rng, 100))
-    fleet_types = [VehicleType.E_BIKE] * 125 + [VehicleType.E_SCOOTER] * 75 + [
-        VehicleType.E_MOTORCYCLE
-    ] * 50
+    fleet_types = (
+        [VehicleType.E_BIKE] * 125 + [VehicleType.E_SCOOTER] * 75 + [VehicleType.E_MOTORCYCLE] * 50
+    )
     rng.shuffle(fleet_types)
     type_iter = iter(fleet_types)
 
@@ -65,15 +66,11 @@ def build_network_spec(seed: int = 0) -> NetworkSpec:
         hubs.append(HubSpec(hub_id, name, zone, spaces, chargers, 11.0, vehicles))
 
     users = tuple(
-        UserSpec(f"U-{i:04d}", f"STU-{i:04d}", Role.STUDENT)
-        for i in range(1, 1001)
-    ) + tuple(
-        UserSpec(f"OP-{i:02d}", f"OPS-{i:02d}", Role.OPERATOR)
-        for i in range(1, 6)
+        UserSpec(f"U-{i:04d}", f"STU-{i:04d}", Role.STUDENT) for i in range(1, 1001)
+    ) + tuple(UserSpec(f"OP-{i:02d}", f"OPS-{i:02d}", Role.OPERATOR) for i in range(1, 6))
+    private_types = (
+        [VehicleType.E_BIKE] * 50 + [VehicleType.E_SCOOTER] * 30 + [VehicleType.E_MOTORCYCLE] * 20
     )
-    private_types = [VehicleType.E_BIKE] * 50 + [VehicleType.E_SCOOTER] * 30 + [
-        VehicleType.E_MOTORCYCLE
-    ] * 20
     rng.shuffle(private_types)
     private_vehicles = tuple(
         VehicleSpec(

@@ -1,4 +1,5 @@
 """Deterministic event generation tests — TC-M8-007 to TC-M8-011."""
+
 from datetime import UTC, datetime
 
 import pytest

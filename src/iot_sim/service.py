@@ -1,4 +1,5 @@
 """Application-facing operations for the IoT simulator."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -22,9 +23,7 @@ def seed_core(core: CoreFacade, seed: int = 0) -> Result[NetworkSummary]:
     return core.commands.load_network(build_network_spec(seed), SIMULATOR_ACTOR)
 
 
-def apply_events(
-    core: CoreFacade, events: Iterable[SensorEvent]
-) -> list[Result[SensorResult]]:
+def apply_events(core: CoreFacade, events: Iterable[SensorEvent]) -> list[Result[SensorResult]]:
     """Apply events sequentially through Core and preserve each result for reporting."""
     return [core.commands.apply_sensor_event(event, SIMULATOR_ACTOR) for event in events]
 
