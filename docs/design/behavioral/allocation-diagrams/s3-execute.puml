@@ -1,0 +1,43 @@
+@startuml
+title S3 - Carry out or cancel a dispatch task (UC-M4-03, UC-M4-04): proposed interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Operator
+participant "Sensor / iot_sim" as Sensor
+boundary UI
+control Allocation
+control Core
+control Reservation
+Operator -> UI: Confirm pick-up at source Hub
+UI -> Allocation: start_task(task_id)
+Allocation -> Allocation: Check task is Approved
+Allocation -> Core: Pick up the reserved vehicle (Reservation port)
+Core --> Allocation: Vehicle InUse, source space released
+Allocation -> Allocation: Task InProgress; log
+Operator -> UI: Confirm return at destination Hub
+UI -> Allocation: complete_task(task_id)
+group Atomic unit of work (NFR-09)
+  Allocation -> Core: Return vehicle to the held destination space
+  Core -> Reservation: Consume the hold, complete the system reservation
+end
+Core --> Allocation: Vehicle Returned; Available after the normal readiness step
+Allocation -> Allocation: Task Completed; log
+Allocation --> UI: Completed
+== Alternative paths (instead of the normal flow above) ==
+alt Vehicle missing, faulty, or task timed out
+  Sensor -> Core: Fault event (or clock tick past the timeout)
+  Core -> Allocation: Domain event
+  Allocation -> Core: Release held vehicle and space
+  Allocation -> Allocation: Task Failed; start re-plan (UC-M4-08)
+else Operator cancels (task Approved or InProgress)
+  Operator -> UI: Cancel with reason
+  UI -> Allocation: cancel_task(task_id, reason)
+  alt Vehicle already at the destination
+    Allocation -> Allocation: Complete the task for that vehicle (no move back)
+  else Vehicle not yet delivered
+    Allocation -> Core: Release held vehicle and space
+    Allocation -> Allocation: Task Cancelled; log
+  end
+end
+@enduml

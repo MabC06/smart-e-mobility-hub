@@ -71,7 +71,21 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 | UC-M4-08 | Re-plan after an event | System, Sensor |
 | UC-M4-09 | Change allocation settings | Operator |
 
-### UC-M4-01 — View redistribution recommendations
+### Use-case diagrams
+
+Each diagram has about 6 use cases or fewer and an editable `.puml` source (naming rule `uc-m<n>-<topic>`).
+
+![Redistribution of rental vehicles](use-case-diagrams/uc-m4-dispatch.svg)
+
+[Source](use-case-diagrams/uc-m4-dispatch.puml). UC-M4-01, 02, 03, 04, 08, 09 (FR-10).
+
+![Alternatives and competing requests](use-case-diagrams/uc-m4-allocation.svg)
+
+[Source](use-case-diagrams/uc-m4-allocation.puml). UC-M4-05, 06, 07 (FR-10.6, FR-11.M4.1, FR-11.M4.2).
+
+### Use-case specifications
+
+#### UC-M4-01 — View redistribution recommendations
 - **Actor:** Operator
 - **Before:** The operator is logged in.
 - **Steps:**
@@ -82,7 +96,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Tasks are saved as `Recommended`. Nothing else changes.
 - Trace: FR-10.1, FR-10.2, FR-10.3; BR-M4-03, BR-M4-05, BR-M4-06
 
-### UC-M4-02 — Approve, reject or adjust a task
+#### UC-M4-02 — Approve, reject or adjust a task
 - **Actor:** Operator
 - **Before:** The task is `Recommended`.
 - **Steps:**
@@ -94,7 +108,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Resources are held, or nothing changed.
 - Trace: FR-10.4, FR-10.5, FR-11.M4.3; BR-M4-02, BR-M4-04, BR-M4-08, BR-M1-01, BR-M1-02
 
-### UC-M4-03 — Carry out a dispatch task
+#### UC-M4-03 — Carry out a dispatch task
 - **Actor:** Operator (confirms), Sensor (reports, simulated)
 - **Before:** The task is `Approved`.
 - **Steps:**
@@ -105,7 +119,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Capacity limits still hold (BR-M1-02). Every change is logged (NFR-25).
 - Trace: FR-10.5, FR-11.M4.3; BR-M4-04, BR-M1-01, BR-M1-02
 
-### UC-M4-04 — Cancel a dispatch task
+#### UC-M4-04 — Cancel a dispatch task
 - **Actor:** Operator
 - **Before:** The task is `Approved` or `InProgress`.
 - **Steps:**
@@ -116,7 +130,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Nothing stays held.
 - Trace: FR-10.5; BR-M4-04, BR-M1-01, BR-M1-02
 
-### UC-M4-05 — Suggest alternative Hubs
+#### UC-M4-05 — Suggest alternative Hubs
 - **Actor:** Student (through the reservation module), System
 - **Before:** The reservation module cannot serve a request at the requested Hub.
 - **Steps:**
@@ -128,7 +142,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Nothing changes. Holding a resource is done later by the reservation module.
 - Trace: FR-10.6; BR-M4-10
 
-### UC-M4-06 — Settle competing requests
+#### UC-M4-06 — Settle competing requests
 - **Actor:** System
 - **Before:** Two or more requests want the same vehicle, space or charging bay.
 - **Steps:**
@@ -139,7 +153,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** No resource is given twice.
 - Trace: FR-11.M4.1; BR-M4-01, BR-M4-02
 
-### UC-M4-07 — Find an alternative charging point for displaced requests
+#### UC-M4-07 — Find an alternative charging point for displaced requests
 - **Actor:** M3 (charging module) calls it from UC-M3-08; System
 - **Before:** In UC-M3-08, M3 has charging requests that lost their charging point and finds no free charging point at the current Hub.
 - **Steps:**
@@ -151,7 +165,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** Nothing changes in the allocation module.
 - Trace: FR-11.M4.2; BR-M3-02
 
-### UC-M4-08 — Re-plan after an event
+#### UC-M4-08 — Re-plan after an event
 - **Actor:** System, Sensor
 - **Before:** A Hub became full, a task failed, or an incident affects a Hub.
 - **Steps:**
@@ -161,7 +175,7 @@ Thresholds (minimum stock, minimum battery, time window, task limit) are setting
 - **After:** The task list matches the current state.
 - Trace: FR-10.7; BR-M4-06
 
-### UC-M4-09 — Change allocation settings
+#### UC-M4-09 — Change allocation settings
 - **Actor:** Operator
 - **Before:** The operator is logged in.
 - **Steps:**
@@ -179,8 +193,17 @@ Each question has an assumption used in this version, so the document is valid n
 | # | Question | Assumed now | Parts to change if different | Ask |
 |---|---|---|---|---|
 | 1 | Is the FR-11 split with M3 acceptable? | **Decided:** D-012 (Accepted) gives failed-charging-point handling to M3 and the cross-Hub lookup to M4 | Only if M3 or M4 objects in Phase 1: FR-11.M4.1 to FR-11.M4.3, BR-M4-01, UC-M4-06, UC-M4-07 | M3 |
-| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
-| 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | A public interface from M2 and M3, defined in Core API spec v1 | Design phase only | M1 |
+| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes (used in the design, sequences S2 and S3; claim kind `DISPATCH_TASK`, D-017) | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
+| 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | **Decided:** D-020 provider ports (`ReservationDemand` and `ChargingDemand` in `core.providers`) | Design and implementation | M1, M2, M3 |
 | 4 | Do low-battery and near-full limits use the same values as M3 and M5? | Yes | Settings list | M3, M5 |
 | 5 | Does the operator approve every task, or is there an automatic mode for demos? | Operator approves every task | UC-M4-02 | M5, M7 |
 | 6 | Is a fixed "closeness between Hubs" table acceptable (no route planning)? | Yes | Design phase only | M1, M6 |
+
+## 7. Design documents
+
+| Document | Content |
+|---|---|
+| [Sequence diagrams S1 to S5](../design/behavioral/allocation-sequence-diagram.md) | Interaction of allocation with Core, Reservation (M2) and Charging (M3) |
+| [Activity diagrams A1 to A3](../design/behavioral/allocation-activity-diagram.md) | Planning, approval and execution, arbitration |
+| [DispatchTask state machine](../design/behavioral/allocation-state-machine.md) | Life cycle behind BR-M4-08 |
+| [Algorithm design](../design/architecture/allocation-algorithm-design.md) | Compared approaches, chosen trade-off, worked example |

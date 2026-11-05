@@ -1,0 +1,35 @@
+# 3.3 Behavioral and Interaction Design
+
+<!-- BEGIN M4: Resource Allocation & Dispatching -->
+## M4 contribution - Resource Allocation & Dispatching
+
+> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+
+### Design overview
+
+The allocation module works in two steps. First it **plans** on a read-only snapshot: it finds Hubs that will run short of vehicles and Hubs with surplus, and proposes dispatch tasks. Planning is a pure function, so M6 can reuse it on a copy of the state. Then, after the operator approves a task, it **commits** through Core in one atomic unit of work: the vehicles and one destination space are held together as a system reservation (purpose `REBALANCE`) owned by M2, or nothing is held. Pick-up, return, cancel and failure each release or complete what was held.
+
+Two further flows are read-only lookups called through Core: alternative Hubs for a reservation request (M2) and an alternative charging point for requests displaced when a Hub has no free port (M3, UC-M3-08, D-012). Competing requests are ordered by class level, then time, then ID (BR-M4-01), and the winner claims the resource atomically.
+
+### UML diagram index
+
+| Artifact | IDs and intent | Detailed source and discussion |
+|---|---|---|
+| Sequence | S1 plan; S2 approve or reject; S3 carry out or cancel; S4 alternative Hubs for M2; S5 alternative charging for M3 | [Sequence document](../design/behavioral/allocation-sequence-diagram.md) |
+| Activity | A1 plan redistribution; A2 approve and execute; A3 settle competing requests | [Activity document](../design/behavioral/allocation-activity-diagram.md) |
+| State machine | T1 DispatchTask life cycle with a complete transition table | [State document](../design/behavioral/allocation-state-machine.md) |
+
+All eleven diagrams of this contribution (nine behavioral and two use-case diagrams) have editable `.puml` sources and generated `.svg` previews.
+
+### Key design decisions
+
+The algorithm was chosen among four approaches (threshold rules with greedy matching, min-cost flow, integer programming, reactive only). Threshold rules with greedy matching were chosen because they are fast, repeatable and explainable to an operator; the price is a plan that may not be globally optimal. The comparison, the formulas and a worked example on DS-STD Hubs are in the [algorithm design](../design/architecture/allocation-algorithm-design.md).
+
+Allocation never writes state directly and never calls another module directly; every write and every read of another module's data goes through Core (D-003, NFR-22).
+
+### Interface alignment and integration
+
+1. **Core & Provider Ports:** Settled by Core API spec v1.0 and D-020. M4 calls `ProviderPort.RESERVATION_DEMAND` and `ProviderPort.CHARGING_DEMAND` for planning inputs, and implements `ProviderPort.ALTERNATIVE_HUB` and `ProviderPort.ALTERNATIVE_CHARGING` for M2 and M3.
+2. **Dispatch Lifecycle:** Settled by D-016 and D-017. Tasks place `HolderKind.DISPATCH_TASK` claims atomically; vehicles transition through `pickup`, `return`, and `mark_ready`.
+3. **Simulation:** The pure planning function `plan(snapshot, demand, tasks, config)` operates on state snapshots and can be run by M6 on isolated simulation state without side effects.
+<!-- END M4: Resource Allocation & Dispatching -->

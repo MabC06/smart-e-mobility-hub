@@ -1,0 +1,27 @@
+@startuml
+title Allocation: redistribution of rental vehicles (FR-10)
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+actor Operator
+actor "System / Scheduler" as Sys
+actor "Sensor / event source" as Sensor
+rectangle "Allocation and dispatching (M4)" {
+  usecase "UC-M4-01\nView redistribution\nrecommendations" as UC01
+  usecase "UC-M4-02\nApprove, reject or\nadjust a task" as UC02
+  usecase "UC-M4-03\nCarry out a\ndispatch task" as UC03
+  usecase "UC-M4-04\nCancel a\ndispatch task" as UC04
+  usecase "UC-M4-08\nRe-plan after\nan event" as UC08
+  usecase "UC-M4-09\nChange allocation\nsettings" as UC09
+}
+Operator --> UC01
+Operator --> UC02
+Operator --> UC03
+Operator --> UC04
+Operator --> UC09
+Sensor --> UC03
+Sensor --> UC08
+Sys --> UC08
+UC04 .> UC03 : <<extend>>
+UC08 .> UC03 : <<extend>>
+@enduml
