@@ -186,15 +186,15 @@ Each diagram has about 6 use cases or fewer and an editable `.puml` source (nami
 - **After:** New plans use the new value. Approved tasks keep their quantities.
 - Trace: (no FR, supporting use case); BR-M4-03, BR-M4-05, BR-M4-06
 
-## 6. Not decided yet
+## 6. Open points
 
 Each question has an assumption used in this version, so the document is valid now. If the answer is different, only the listed parts change.
 
 | # | Question | Assumed now | Parts to change if different | Ask |
 |---|---|---|---|---|
 | 1 | Is the FR-11 split with M3 acceptable? | **Decided:** D-012 (Accepted) gives failed-charging-point handling to M3 and the cross-Hub lookup to M4 | Only if M3 or M4 objects in Phase 1: FR-11.M4.1 to FR-11.M4.3, BR-M4-01, UC-M4-06, UC-M4-07 | M3 |
-| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes (used in the design, sequences S2 and S3) | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
-| 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | A public interface from M2 and M3, defined in Core API spec v1 | Design phase only | M1 |
+| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes (used in the design, sequences S2 and S3; claim kind `DISPATCH_TASK`, D-017) | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
+| 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | **Decided:** D-020 provider ports (`ReservationDemand` and `ChargingDemand` in `core.providers`) | Design and implementation | M1, M2, M3 |
 | 4 | Do low-battery and near-full limits use the same values as M3 and M5? | Yes | Settings list | M3, M5 |
 | 5 | Does the operator approve every task, or is there an automatic mode for demos? | Operator approves every task | UC-M4-02 | M5, M7 |
 | 6 | Is a fixed "closeness between Hubs" table acceptable (no route planning)? | Yes | Design phase only | M1, M6 |
