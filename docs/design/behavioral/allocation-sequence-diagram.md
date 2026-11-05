@@ -64,14 +64,14 @@ M3 first looks inside the Hub. Only when no free port exists does it ask M4. M4 
 
 Commands carry a command key so that a retry does not apply twice (same approach as M2).
 
-## Not decided yet
+## Alignment with latest project decisions
 
-Everything above is designed. The items below are **not decided** and are waiting for other owners.
+The items below have been settled with the release of Core API spec v1.0 and decisions D-016 to D-020:
 
-| # | Item | Waiting for |
-|---|---|---|
-| 1 | Message names, parameters and result codes. Those used in the diagrams are placeholders, not existing API names; no Core API spec v1 exists in the repository yet. | M1 (Core API spec v1) |
-| 2 | Public ports to read the snapshot and the demand of M2 and M3, and the unit-of-work port for atomic writes. | M1 |
-| 3 | Whether a system reservation with purpose `REBALANCE` may use the normal pick-up and return of M2 without creating a student trip. | M2 |
-| 4 | Shape of the request and answer of UC-M4-07 (displaced requests, free bays, order inside the charging class). | M3 |
-| 5 | Reuse of the pure planning function on a copy of the state. | M6 |
+| # | Item | Status / Decision | Reference |
+|---|---|---|---|
+| 1 | Message names, parameters and result codes | **Decided:** Core API spec v1.0 defines command names, UoW interface, and error codes (`ErrorCode`, `Result[T]`) | `docs/design/architecture/core-api-spec.md` |
+| 2 | Public ports to read snapshot, demand, and atomic writes | **Decided:** `core.snapshots.take_snapshot()`, `core.unit_of_work()`, and D-020 provider ports (`ProviderPort.RESERVATION_DEMAND`, `ProviderPort.CHARGING_DEMAND`) | D-020, Core API spec §5, §6 |
+| 3 | Dispatch vehicle lifecycle and claims | **Decided:** Holds use `HolderKind.DISPATCH_TASK` claims (D-017); vehicle moves to `IN_USE` on dispatch pickup, `RETURNED` on return, and `mark_ready` returns to `AVAILABLE` (D-016, `vehicle-state-machine.md`) | D-016, D-017, `vehicle-state-machine.md` |
+| 4 | Shape of UC-M4-07 and UC-M4-05 provider calls | **Decided:** Implemented as `ProviderPort.ALTERNATIVE_HUB` and `ProviderPort.ALTERNATIVE_CHARGING` | D-020, Core API spec §6.1 |
+| 5 | Reuse of pure planning function on state copy | **Decided:** Planner is pure `plan(snapshot, demand, tasks, config)` and can run on any snapshot copy | D-003, `src/allocation/planner.py` |

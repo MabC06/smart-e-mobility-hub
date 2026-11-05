@@ -27,10 +27,9 @@ The algorithm was chosen among four approaches (threshold rules with greedy matc
 
 Allocation never writes state directly and never calls another module directly; every write and every read of another module's data goes through Core (D-003, NFR-22).
 
-### Not decided yet
+### Interface alignment and integration
 
-1. M1: public ports for the snapshot and for the demand of M2 and M3 (Core API spec v1).
-2. M2: use of normal pick-up and return for a system reservation with purpose `REBALANCE`.
-3. M3: request and answer shape of UC-M4-07.
-4. M6: reuse of the pure planning function on a state copy.
+1. **Core & Provider Ports:** Settled by Core API spec v1.0 and D-020. M4 calls `ProviderPort.RESERVATION_DEMAND` and `ProviderPort.CHARGING_DEMAND` for planning inputs, and implements `ProviderPort.ALTERNATIVE_HUB` and `ProviderPort.ALTERNATIVE_CHARGING` for M2 and M3.
+2. **Dispatch Lifecycle:** Settled by D-016 and D-017. Tasks place `HolderKind.DISPATCH_TASK` claims atomically; vehicles transition through `pickup`, `return`, and `mark_ready`.
+3. **Simulation:** The pure planning function `plan(snapshot, demand, tasks, config)` operates on state snapshots and can be run by M6 on isolated simulation state without side effects.
 <!-- END M4: Resource Allocation & Dispatching -->

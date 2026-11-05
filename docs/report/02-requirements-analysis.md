@@ -40,5 +40,5 @@ Relevant quality requirements are NFR-04 (network plan within 5 s), NFR-06 (no d
 
 ### Evidence, uncertainties and review ownership
 
-Items that are not decided yet are listed in section 6 of the requirements file. The main ones are the public interface to M2 and M3 (Core API spec v1, M1) and whether a rebalance move can be a system reservation of M2. Rule IDs and use-case IDs follow D-011.
+Rule IDs and use-case IDs follow D-011. Key interface and architectural uncertainties were settled with the release of Core API spec v1.0 and decisions D-016, D-017 and D-020: provider ports (`ReservationDemand`, `ChargingDemand`, `AlternativeHubProvider`, `AlternativeChargingProvider`), dispatch claims (`HolderKind.DISPATCH_TASK`), and the vehicle transition lifecycle. Full traceability between requirements, business rules and test cases is maintained in `docs/requirements/fr-10-11-allocation.md`.
 <!-- END M4: Resource Allocation & Dispatching -->

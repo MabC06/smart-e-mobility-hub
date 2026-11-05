@@ -17,9 +17,9 @@ Constraints: the plan for the whole network within 5 s on DS-STD (NFR-04); no do
 
 | Input | Source | Note |
 |---|---|---|
-| Hub snapshot: vehicles with state and battery, free spaces, free charging bays, `as_of` | Core (read-only) | One consistent version |
-| Upcoming pickups and returns per Hub for the horizon | Reservation (M2) through Core | Confirmed bookings and trips due |
-| Scheduled charging sessions per Hub | Charging (M3) through Core | Bays that will be busy |
+| Hub snapshot: vehicles with state and battery, free spaces, free charging bays, `as_of` | Core (`core.snapshots` / queries) | One consistent version |
+| Upcoming pickups and returns per Hub for the horizon | Reservation (M2) through `core.providers` (`ProviderPort.RESERVATION_DEMAND`, D-020) | Confirmed bookings and trips due |
+| Scheduled charging sessions per Hub | Charging (M3) through `core.providers` (`ProviderPort.CHARGING_DEMAND`, D-020) | Bays that will be busy |
 | Typical demand per Hub, period and type | Demand profile (D-008) | From configuration |
 | Closeness between Hubs | Configuration table | Relative, not a route (A-02) |
 | Active dispatch tasks | Allocation (own data) | Inbound and outbound |
@@ -162,15 +162,15 @@ All are configuration values (CONTRIBUTING 9.3). The values are not set in this 
 - Determinism and performance: two runs with the same seed give the same plan; timed run on DS-STD and DS-STRESS (NFR-04, NFR-13, NFR-15).
 - The worked example in 4.3 is a ready test case with known results.
 
-## 10. Not decided yet
+## 10. Alignment with latest project decisions
 
-Sections 1 to 9 are designed. The items below are **not decided**.
+Sections 1 to 9 are designed. The items below have been settled with the release of Core API spec v1.0 and decisions D-016 to D-020:
 
-| # | Item | Waiting for |
-|---|---|---|
-| 1 | Values of all parameters in section 7 (horizon, safety stock, buffer, minimum dispatch battery, limits, timeout, staleness limit). | M3, M5, M6 |
-| 2 | The closeness table between Hubs: its content and where it is stored. | M1, M6 |
-| 3 | The public interface to read the snapshot and the demand of M2 and M3 (the planner needs the inputs of section 2). | M1 (Core API spec v1) |
-| 4 | Whether a rebalance move is a system reservation with purpose `REBALANCE`, so the Vehicle state machine needs no new state. | M1, M2 |
-| 5 | Whether the operator approves every task or an automatic mode exists for demos. | M5, M7 |
-| 6 | Entries for `DECISIONS.md`: the algorithm (approach A), the system reservation for a rebalance move, and the planner as a pure function. They are written when the team agrees; the next free ID is used at that time. | Team |
+| # | Item | Status / Decision | Reference |
+|---|---|---|---|
+| 1 | Values of parameters in section 7 (horizon, safety stock, buffer, minimum dispatch battery, limits, timeout, staleness limit) | **Decided:** Default parameters provided in module config (horizon 30 min, safety stock 3, parking buffer 3, min battery 30%, task timeout 60 min, max vehicles 10) | Section 7, `src/allocation/config.py` |
+| 2 | Closeness table between Hubs | **Decided:** Configured as a hop/distance lookup table per dataset DS-STD (10 hubs) and DS-STRESS (20 hubs) | `src/allocation/config.py` |
+| 3 | Public interface to read snapshots and demand | **Decided:** `core.snapshots.take_snapshot()` and provider ports `ProviderPort.RESERVATION_DEMAND`, `ProviderPort.CHARGING_DEMAND` | D-020, Core API spec §6.1 |
+| 4 | Vehicle transitions and claims for dispatch | **Decided:** Claim kind `HolderKind.DISPATCH_TASK` (D-017); vehicle moves to `IN_USE` on dispatch pickup, `RETURNED` on return, and `mark_ready` returns it to `AVAILABLE` (D-016, `vehicle-state-machine.md`) | D-016, D-017, `vehicle-state-machine.md` |
+| 5 | Operator approval workflow | **Decided:** Operator approves every task via UC-M4-02 | UC-M4-02 |
+| 6 | Provider ports implemented by M4 | **Decided:** M4 implements `ProviderPort.ALTERNATIVE_HUB` and `ProviderPort.ALTERNATIVE_CHARGING` | D-020 |
