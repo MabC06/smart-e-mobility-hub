@@ -86,7 +86,21 @@ Standardized test cases will be created in `docs/testing/test-cases/` after the 
 
 | TC ID | Test Case | Technique | Linked IDs | Status |
 |---|---|---|---|---|
-| TC-M<n>-### | Pending test-case set | TBD | TBD | Planned |
+| TC-M8-001 | Build DS-STD totals | Data sanity / BVA | FR-01, NFR-07 | Planned |
+| TC-M8-002 | Verify rental battery bands | EP / data sanity | NFR-13 | Planned |
+| TC-M8-003 | Verify rental vehicle types | EP / data sanity | NFR-13 | Planned |
+| TC-M8-004 | Repeat dataset generation with same seed | Determinism | NFR-13 | Planned |
+| TC-M8-005 | Different seed preserves shape but changes values | Metamorphic | NFR-13 | Planned |
+| TC-M8-006 | Reject negative seed | EP | NFR-18 | Planned |
+| TC-M8-007 | Repeat event generation with same inputs | Determinism | NFR-13 | Planned |
+| TC-M8-008 | Ensure event IDs are unique and timestamps ordered | Structural / BVA | NFR-13 | Planned |
+| TC-M8-009 | Generate battery drain for every fleet vehicle | EP | FR-01, NFR-07 | Planned |
+| TC-M8-010 | Generate paired private-EV occupancy events | State transition | FR-01, NFR-07 | Planned |
+| TC-M8-011 | Reject naive event start time | EP | NFR-18 | Planned |
+| TC-M8-012 | Seed Core from DS-STD | Integration | FR-01, NFR-07 | Planned |
+| TC-M8-013 | Apply minimal feed | Integration / state transition | FR-01, FR-09, NFR-10 | Planned |
+| TC-M8-014 | Check Core invariants after feed | Invariant check | NFR-07 | Planned |
+| TC-M8-015 | Refuse to seed a non-empty store | Negative / boundary | NFR-10, NFR-18 | Planned |
 
 ## 6. Coverage / Orphan Check
 
