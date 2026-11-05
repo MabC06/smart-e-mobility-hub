@@ -6,7 +6,7 @@ from allocation.config import AllocationConfig
 from allocation.models import DISPATCH_TASK_SPEC, DispatchTask, DispatchTaskStatus
 from allocation.service import AllocationService
 from core.actor import Actor
-from core.domain.entities import ResourceClaim
+from core.domain.entities import ResourceClaim, Vehicle
 from core.domain.enums import ClaimStatus, HolderKind, Role, VehicleState, VehicleType
 from core.facade import CoreFacade
 from core.repository.memory import InMemoryRepository
@@ -225,3 +225,36 @@ def test_invalid_lifecycle_transitions(allocation_world):
     # Cannot return RECOMMENDED task
     return_err = service.carry_out_return(task.task_id, operator)
     assert return_err.is_err
+
+
+def test_pickup_validates_vehicle_location(allocation_world):
+    """Verify pickup fails if vehicle is not at source hub."""
+    core, service, operator = allocation_world
+
+    task = DispatchTask(
+        task_id="TASK-LOC-001",
+        source_hub_id="H01",
+        target_hub_id="H02",
+        vehicle_type=VehicleType.E_BIKE,
+        quantity=1,
+        vehicle_ids="V000",
+        status=DispatchTaskStatus.RECOMMENDED,
+        priority=1,
+    )
+    with core.unit_of_work() as uow:
+        uow.repository.add(task)
+        uow.commit()
+
+    service.approve_task(task.task_id, operator)
+
+    # Force vehicle to different hub (simulate unexpected location)
+    with core.unit_of_work() as uow:
+        v = uow.repository.get(Vehicle, "V000")
+        if v:
+            v.hub_id = "H02"
+            uow.repository.update(v, expected_version=v.version)
+            uow.commit()
+
+    pickup_err = service.carry_out_pickup(task.task_id, operator)
+    assert pickup_err.is_err
+    assert "not at source hub" in pickup_err.message

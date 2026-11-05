@@ -16,6 +16,7 @@ from core.result import Ok, Result
 
 from .alternatives import AlternativeChargingService, AlternativeHubService
 from .arbitration import ContenderRequest, RequestClass, settle_competing_requests
+from .config import AllocationConfig
 from .models import DispatchTaskStatus
 from .service import AllocationService
 
@@ -57,6 +58,18 @@ class ContenderIn(BaseModel):
 
 class ArbitrateIn(BaseModel):
     requests: list[ContenderIn]
+
+
+class ConfigUpdateIn(BaseModel):
+    horizon_minutes: int | None = Field(default=None, ge=1)
+    safety_stock: int | None = Field(default=None, ge=0)
+    parking_buffer: int | None = Field(default=None, ge=0)
+    min_dispatch_battery: float | None = Field(default=None, ge=0.0, le=100.0)
+    max_tasks_per_hub: int | None = Field(default=None, ge=1)
+    max_vehicles_per_task: int | None = Field(default=None, ge=1)
+    task_timeout_minutes: int | None = Field(default=None, ge=1)
+    staleness_limit_minutes: int | None = Field(default=None, ge=1)
+    reservation_lookahead_minutes: int | None = Field(default=None, ge=1)
 
 
 def _handle_result[T](result: Result[T]) -> T:
@@ -210,6 +223,70 @@ def create_allocation_router(
             "winner_request_id": outcome.winner.request_id,
             "displaced_request_ids": [d.request_id for d in outcome.displaced],
             "reason": outcome.reason,
+        }
+
+    @router.get("/config")
+    def get_config() -> dict[str, Any]:
+        """Get current allocation configuration (UC-M4-09)."""
+        cfg = service.get_config()
+        return {
+            "horizon_minutes": cfg.horizon_minutes,
+            "safety_stock": cfg.safety_stock,
+            "parking_buffer": cfg.parking_buffer,
+            "min_dispatch_battery": cfg.min_dispatch_battery,
+            "max_tasks_per_hub": cfg.max_tasks_per_hub,
+            "max_vehicles_per_task": cfg.max_vehicles_per_task,
+            "task_timeout_minutes": cfg.task_timeout_minutes,
+            "staleness_limit_minutes": cfg.staleness_limit_minutes,
+            "reservation_lookahead_minutes": cfg.reservation_lookahead_minutes,
+        }
+
+    @router.put("/config")
+    def update_config(body: ConfigUpdateIn) -> dict[str, Any]:
+        """Update allocation configuration settings (UC-M4-09)."""
+        cur = service.get_config()
+        new_cfg = AllocationConfig(
+            horizon_minutes=body.horizon_minutes
+            if body.horizon_minutes is not None
+            else cur.horizon_minutes,
+            safety_stock=body.safety_stock if body.safety_stock is not None else cur.safety_stock,
+            parking_buffer=body.parking_buffer
+            if body.parking_buffer is not None
+            else cur.parking_buffer,
+            min_dispatch_battery=body.min_dispatch_battery
+            if body.min_dispatch_battery is not None
+            else cur.min_dispatch_battery,
+            max_tasks_per_hub=body.max_tasks_per_hub
+            if body.max_tasks_per_hub is not None
+            else cur.max_tasks_per_hub,
+            max_vehicles_per_task=body.max_vehicles_per_task
+            if body.max_vehicles_per_task is not None
+            else cur.max_vehicles_per_task,
+            task_timeout_minutes=body.task_timeout_minutes
+            if body.task_timeout_minutes is not None
+            else cur.task_timeout_minutes,
+            staleness_limit_minutes=body.staleness_limit_minutes
+            if body.staleness_limit_minutes is not None
+            else cur.staleness_limit_minutes,
+            reservation_lookahead_minutes=body.reservation_lookahead_minutes
+            if body.reservation_lookahead_minutes is not None
+            else cur.reservation_lookahead_minutes,
+            closeness_matrix=cur.closeness_matrix,
+        )
+        service.set_config(new_cfg)
+        return {
+            "status": "updated",
+            "config": {
+                "horizon_minutes": new_cfg.horizon_minutes,
+                "safety_stock": new_cfg.safety_stock,
+                "parking_buffer": new_cfg.parking_buffer,
+                "min_dispatch_battery": new_cfg.min_dispatch_battery,
+                "max_tasks_per_hub": new_cfg.max_tasks_per_hub,
+                "max_vehicles_per_task": new_cfg.max_vehicles_per_task,
+                "task_timeout_minutes": new_cfg.task_timeout_minutes,
+                "staleness_limit_minutes": new_cfg.staleness_limit_minutes,
+                "reservation_lookahead_minutes": new_cfg.reservation_lookahead_minutes,
+            },
         }
 
     return router

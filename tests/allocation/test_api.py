@@ -139,3 +139,29 @@ def test_suggest_alternative_charging_api(client):
     res = client.post("/allocation/alternatives/charging", json=body)
     assert res.status_code == 200
     assert isinstance(res.json(), list)
+
+
+def test_config_endpoints(client):
+    # GET config
+    get_res = client.get("/allocation/config")
+    assert get_res.status_code == 200
+    cfg = get_res.json()
+    assert cfg["horizon_minutes"] == 30
+    assert cfg["safety_stock"] == 3
+    assert cfg["min_dispatch_battery"] == 30.0
+
+    # PUT config
+    put_res = client.put(
+        "/allocation/config",
+        json={"safety_stock": 5, "min_dispatch_battery": 45.0},
+    )
+    assert put_res.status_code == 200
+    updated = put_res.json()
+    assert updated["status"] == "updated"
+    assert updated["config"]["safety_stock"] == 5
+    assert updated["config"]["min_dispatch_battery"] == 45.0
+
+    # Re-GET config to verify persistence
+    get_res2 = client.get("/allocation/config")
+    assert get_res2.status_code == 200
+    assert get_res2.json()["safety_stock"] == 5

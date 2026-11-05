@@ -7,7 +7,16 @@ Read-only queries against Core, returning ranked candidates with as_of timestamp
 from dataclasses import dataclass
 from typing import Any
 
-from core.domain.enums import ChargingPointStatus, HubStatus, SpaceStatus, VehicleState, VehicleType
+from core.domain.entities import ResourceClaim
+from core.domain.enums import (
+    ChargingPointStatus,
+    ClaimStatus,
+    HubStatus,
+    ResourceType,
+    SpaceStatus,
+    VehicleState,
+    VehicleType,
+)
 from core.facade import CoreFacade
 from core.result import Ok, Result
 from core.views import VehicleFilter
@@ -79,6 +88,17 @@ class AlternativeHubService:
                 min_battery=self._config.min_dispatch_battery if require_vehicle else None,
             )
             available_vehicles = self._core.queries.find_vehicles(v_filter)
+            if available_vehicles:
+                active_claims = self._core.query_entities(
+                    ResourceClaim,
+                    lambda c: (
+                        c.resource_type == ResourceType.VEHICLE and c.status == ClaimStatus.ACTIVE
+                    ),
+                )
+                claimed_vids = {c.resource_id for c in active_claims}
+                available_vehicles = [
+                    v for v in available_vehicles if v.vehicle_id not in claimed_vids
+                ]
 
             if require_vehicle and not available_vehicles:
                 continue

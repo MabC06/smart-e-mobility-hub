@@ -56,7 +56,7 @@ def settle_competing_requests(requests: list[ContenderRequest]) -> ArbitrationRe
 
     sorted_requests = sorted(
         requests,
-        key=lambda r: (int(r.request_class), r.requested_at, r.request_id),
+        key=lambda r: (r.request_class, r.requested_at, r.request_id),
     )
     winner = sorted_requests[0]
     displaced = sorted_requests[1:]
