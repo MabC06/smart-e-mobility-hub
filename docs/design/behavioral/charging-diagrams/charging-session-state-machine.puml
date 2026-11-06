@@ -1,0 +1,43 @@
+@startuml
+skinparam DefaultTextAlignment center
+skinparam StateBackgroundColor #f4f6f8
+skinparam StateBorderColor #333333
+
+title M3 - Charging Session State Machine
+
+[*] --> AVAILABLE : Port Initialized & Ready
+
+state AVAILABLE {
+  [*] --> WaitingForConnection
+  WaitingForConnection --> PluggedIn : Cable Connected & Verified
+}
+
+AVAILABLE --> PREPARING : Validate Slot & User Authorization (BR-M3-01)
+
+state PREPARING {
+  [*] --> CheckingHardware
+  CheckingHardware --> LockingPort : Hardware Ready
+}
+
+PREPARING --> CHARGING : Power Relay Closed\n(Session Active)
+
+state CHARGING {
+  [*] --> EnergyTransfer
+  EnergyTransfer --> MonitoringSafety : Check Current/Voltage Limits
+  MonitoringSafety --> EnergyTransfer : Normal
+}
+
+CHARGING --> COMPLETED : Target SoC Reached / User Stop
+CHARGING --> FAULTED : Overcurrent / Hardware Fault / Emergency Stop
+CHARGING --> CANCELLED : User Aborts Session
+
+state FAULTED {
+  [*] --> TripRelay
+  TripRelay --> AlertOperator : Trigger Maintenance Log
+}
+
+COMPLETED --> [*]
+CANCELLED --> [*]
+FAULTED --> [*]
+
+@enduml
