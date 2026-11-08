@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, UTC
 from src.charging.models import ChargingRequest, LOW_BATTERY_THRESHOLD
 from src.charging.service import ChargingQueueService
 
@@ -26,7 +26,11 @@ def test_battery_boundary_above_threshold():
 
 
 def test_priority_queue_sorting_order():
-    """Verify the priority sorting order in the queue (prioritizing emergencies and lower battery levels)."""
+    """
+    Verify the priority sorting order in the queue
+    (prioritizing emergencies and lower battery levels).
+    """
+
     service = ChargingQueueService()
 
     # High battery vehicle (80%)
@@ -73,10 +77,14 @@ def test_duplicate_request_id_raises_error():
 
 
 def test_priority_queue_fifo_tie_breaker():
-    """Verify the FIFO (First-In, First-Out) tie-breaker mechanism when vehicles share the same SoC level."""
+    """
+    Verify the FIFO (First-In, First-Out) tie-breaker
+    mechanism when vehicles share the same SoC level.
+    """
+
     service = ChargingQueueService()
 
-    t1 = datetime.now(timezone.utc)
+    t1 = datetime.now(UTC)
     t2 = t1 + timedelta(seconds=10)
 
     # Early request
