@@ -1,10 +1,11 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from src.charging.models import ChargingRequest
 
 
 class ChargingQueueService:
     def __init__(self) -> None:
-        self._queue: List[ChargingRequest] = []
+        self._queue: list[ChargingRequest] = []
 
     def add_request(self, request: ChargingRequest) -> None:
         """Add a charging request to the queue."""
@@ -31,13 +32,13 @@ class ChargingQueueService:
             )
         )
 
-    def pop_next_request(self) -> Optional[ChargingRequest]:
+    def pop_next_request(self) -> ChargingRequest | None:
         """Retrieve and remove the highest priority request from the queue."""
         if not self._queue:
             return None
         return self._queue.pop(0)
 
-    def get_pending_requests(self) -> List[Dict[str, Any]]:
+    def get_pending_requests(self) -> list[dict[str, Any]]:
         """Retrieve a list of pending requests (used for the Provider Port)."""
         return [
             {

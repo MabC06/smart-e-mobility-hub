@@ -1,6 +1,7 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timezone, timedelta, UTC
-from src.charging.models import ChargingRequest, LOW_BATTERY_THRESHOLD
+from src.charging.models import ChargingRequest
 from src.charging.service import ChargingQueueService
 
 
@@ -88,13 +89,9 @@ def test_priority_queue_fifo_tie_breaker():
     t2 = t1 + timedelta(seconds=10)
 
     # Early request
-    req_early = ChargingRequest(
-        "REQ-1", "EV-1", "ST-1", current_soc=40.0, requested_at=t1
-    )
+    req_early = ChargingRequest("REQ-1", "EV-1", "ST-1", current_soc=40.0, requested_at=t1)
     # Late request with the same 40% battery level
-    req_late = ChargingRequest(
-        "REQ-2", "EV-2", "ST-1", current_soc=40.0, requested_at=t2
-    )
+    req_late = ChargingRequest("REQ-2", "EV-2", "ST-1", current_soc=40.0, requested_at=t2)
 
     # Add the later request first to test sorting order
     service.add_request(req_late)

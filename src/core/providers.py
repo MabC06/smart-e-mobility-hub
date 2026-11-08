@@ -12,13 +12,12 @@ must not assume an answer.
 import logging
 from collections.abc import Callable
 from enum import StrEnum
-from typing import Any
+
+# Add protocol for type checking
+from typing import Any, Protocol
 
 from core.errors import ErrorCode
 from core.result import Err, Result
-
-# Add protocol for type checking
-from typing import Any, Protocol, List, Dict
 
 logger = logging.getLogger("core.providers")
 
@@ -72,4 +71,4 @@ class ProviderRegistry:
 class ChargingDemandProtocol(Protocol):
     """Protocol defining the method signature and Result type for Module M3's ChargingDemand port."""
 
-    def get_pending_demand(self) -> Result[List[Dict[str, Any]]]: ...
+    def get_pending_demand(self) -> Result[list[dict[str, Any]]]: ...

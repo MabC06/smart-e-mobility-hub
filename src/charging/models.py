@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone  # <--- Thêm timezone
 
-# Business Rule: Low battery emergency threshold (BR-M3-01)
+# Business Rule: Ngưỡng pin thấp khẩn cấp (BR-M3-01)
 LOW_BATTERY_THRESHOLD: float = 15.0
 
 
@@ -10,9 +10,9 @@ class ChargingRequest:
     request_id: str
     vehicle_id: str
     station_id: str
-    current_soc: float  # State of Charge (0.0 to 100.0)
+    current_soc: float  # State of Charge (0.0 đến 100.0)
     target_soc: float = 100.0
-    # Use lambda with datetime.now(timezone.utc) instead of utcnow() to avoid deprecation warnings
+    # Dùng lambda với datetime.now(timezone.utc) thay cho utcnow() để tránh warning
     requested_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_emergency: bool = False
 
