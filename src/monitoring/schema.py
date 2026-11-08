@@ -75,4 +75,3 @@ AUDIT_SPEC = TableSpec(
     },
     versioned=False,
 )
-
