@@ -4,10 +4,14 @@ Traces: FR-12.2, FR-12.4, FR-12.5, NFR-12, NFR-13, UC-M6-01
 """
 
 import unittest
-from src.simulation.models import DemandSurgeParams, ScenarioType, SimulationConfig
-from src.simulation.snapshot import IsolatedSandboxState, SimulatedHub, SimulatedVehicle
-from src.simulation.engine import SimulationEngine
 
+from src.simulation.engine import SimulationEngine
+from src.simulation.models import DemandSurgeParams, ScenarioType, SimulationConfig
+from src.simulation.snapshot import (
+    IsolatedSandboxState,
+    SimulatedHub,
+    SimulatedVehicle,
+)
 
 class TestSimulationEngine(unittest.TestCase):
 
