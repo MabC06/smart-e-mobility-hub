@@ -148,7 +148,7 @@ classDiagram
 
 ### 3.2.2 Data model (ERD)
 
-The system keeps its data in one SQLite database (D-002). `core` creates the tables of the shared state, and each module registers its own tables in the same database (D-018). Table and column names are the names used in the code. The tables of M2 and M4 follow their code as of 7 November 2026, the tables of M5 follow its published data model, and all of them may change. M3 has no data model yet, and M6 stores nothing.
+The system keeps its data in one SQLite database (D-002). `core` creates the tables of the shared state, and each module registers its own tables in the same database (D-018). Table and column names are the names used in the code. The tables of the reservation, allocation and monitoring modules follow their code and may still change. The charging and simulation modules keep their data in memory and have no tables.
 
 How to read the diagrams: `PK` is a primary key, `FK` a foreign key, `UK` a unique column. A solid line is a foreign key, a dashed line is a reference with no foreign key. `||` means exactly one, `|o` or `o|` zero or one, `|{` one or more, `o{` zero or more. The symbol next to a table says how many rows of that table relate to one row of the other. Enumerated values are listed in `docs/design/structural/erd.md`.
 
@@ -288,7 +288,7 @@ erDiagram
 
 *Figure 3.5 — Tables of the reservation module (M2).*
 
-- A reservation holds exactly one claim (`claim_id`, not null, unique). M2 releases the claim at pick-up.
+- A reservation holds exactly one claim (`claim_id`, not null, unique). The reservation module releases the claim at pick-up.
 - `PENDING` is not stored. It is a short state of the request with no record. The code stores five statuses.
 - Parking reservations (FR-05, FR-07 parking side) are planned and not in the tables yet.
 
@@ -315,7 +315,7 @@ erDiagram
 *Figure 3.6 — Table of the allocation module (M4).*
 
 - `vehicle_ids` is one text column with vehicle IDs separated by commas. Normally a task and its vehicles would be a separate table with two foreign keys. The code does not do this, so the database cannot check the IDs. This is recorded as a deviation (Section 4.4).
-- On approval M4 places claims on the vehicles and one destination space (`holder_kind = DISPATCH_TASK`, `holder_ref = task_id`).
+- On approval the allocation module places claims on the vehicles and one destination space (`holder_kind = DISPATCH_TASK`, `holder_ref = task_id`).
 
 ```mermaid
 erDiagram
@@ -354,10 +354,10 @@ erDiagram
     }
 ```
 
-*Figure 3.7 — Tables of the monitoring module (M5), from its data model; not yet implemented.*
+*Figure 3.7 — Tables of the monitoring module (M5).*
 
 - Each ticket belongs to one Hub and has an audit log with one row for each change of status.
-- `entity_type` and `entity_id` name the failed component and have no foreign key. `assigned_operator_id` is drawn without a foreign key because M5's model does not give one.
+- `entity_type` and `entity_id` name the failed component and have no foreign key. `assigned_operator_id` has no foreign key either.
 - Lifecycle: `OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`, and `ESCALATED` when a `HIGH` or `CRITICAL` ticket stays `OPEN` for more than 5 minutes (`BR-M5-04`).
 
 **Design choices**
@@ -374,12 +374,12 @@ erDiagram
 
 | Rule | Checked by |
 |---|---|
-| Foreign keys; one plate per vehicle; one vehicle per space; one charging point per space (D-007); battery from 0 to 100; location columns both set or both null | The database |
+| Foreign keys; one plate per vehicle; one label per space in a Hub; one vehicle per space; one charging point per space (D-007); battery from 0 to 100; location columns both set or both null | The database |
 | A vehicle is at a Hub exactly when it is not `IN_USE`; capacity equals the number of spaces; a charging point's bay is in its own Hub | `core` (`InvariantChecker`) |
 | Occupied spaces do not exceed capacity; two active claims on one resource never overlap | `core` (`InvariantChecker`) |
 | Vehicle state changes follow the transition table | `core` (`VehicleStateMachine`) |
 
-The eight entities of the class diagram (`Hub`, `ParkingSpace`, `ChargingPoint`, `Vehicle`, `ResourceClaim`, `StateChangeRecord`, `DomainEvent`, `UserAccount`) have the same attributes in the code. Seven are tables in Figure 3.4, and `DomainEvent` is a class only. M2 and M4 were compared with their code. M5 was compared with its document only.
+The eight entities of the class diagram (`Hub`, `ParkingSpace`, `ChargingPoint`, `Vehicle`, `ResourceClaim`, `StateChangeRecord`, `DomainEvent`, `UserAccount`) have the same attributes in the code. Seven are tables in Figure 3.4, and `DomainEvent` is a class only. The module tables were compared with their code.
 
 *Figure numbers are provisional and are renumbered when the report is assembled.*
 

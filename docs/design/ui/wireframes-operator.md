@@ -1,16 +1,16 @@
 # Wireframes: Operator Dashboard
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-07 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. Student screens: `wireframes-student.md`.
-> Sources: operator use cases `UC-M7-01` to `UC-M7-10` (`use-case-operator-support.md`); M4's code (`router.py`, `service.py`, `config.py`) on `origin/feat/allocation-phase2`; M5's `fr-08-09-monitoring.md` (Final v1.1), `incident-data-model.md` and `monitoring-sequence-diagram.md` on `origin/docs/monitoring-phase1`; M6's `m6-simulation-design.md` and code on `origin/feat/m6-simulation-impl`; M3's `fr-06-07-11-charging.md` (version on `develop`); `core` (facade, `permissions.py`, `vehicle-state-machine.md`). Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
+> Sources: operator use cases `UC-M7-01` to `UC-M7-10` (`use-case-operator-support.md`); M4's code (`router.py`, `service.py`, `config.py`) on `origin/feat/allocation-phase2`; M5's `fr-08-09-monitoring.md` (Final v1.1), `incident-data-model.md` and `monitoring-sequence-diagram.md` on `origin/docs/monitoring-phase1`, and its code (`router.py`, `service.py`, `schema.py`) on `origin/feat/monitoring-incident`; M6's `m6-simulation-design.md` and code on `origin/feat/m6-simulation-impl`; M3's `fr-06-07-11-charging.md` (version on `develop`); `core` (facade, `permissions.py`, `vehicle-state-machine.md`). Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
 
 Each screen is marked **Implemented** (the backend function exists in the code I read) or **Planned** (only in the requirements; no code yet). Wording of labels and messages is my own choice.
 
 ## 1. Rules for all screens
 
 1. **Layout.** Every screen has a header (`user_id`, Logout), a tab bar (Overview, Charging, Dispatch, Incidents, Simulation Lab), the alert strip, and a footer with the time of the data and Refresh.
-2. **Alert strip (NFR-20).** It lists the Hubs whose status is `WARNING` or `CRITICAL`, and the number of active incidents. M5 sets the Hub status (Planned). Until it does, the strip compares `occupied / parking_capacity` with `near_capacity_threshold` (default 90%) from `core.queries.get_config()` (Implemented). Until M5 provides incidents, the strip shows "Incidents: not available", never "0".
-3. **Refresh (NFR-01).** A change must appear within 5 seconds. Pages re-read by polling every 3 seconds, the interval in M5's sequence diagram. That diagram polls `GET /api/v1/hubs/overview`, which does not exist in `core`; the `ui` module defines its own route.
+2. **Alert strip (NFR-20).** It lists the Hubs whose status is `WARNING` or `CRITICAL`, and the number of active incidents. M5 sets the Hub status (M5's code, not yet merged). Until it does, the strip compares `occupied / parking_capacity` with `near_capacity_threshold` (default 90%) from `core.queries.get_config()` (Implemented). Until M5 provides incidents, the strip shows "Incidents: not available", never "0".
+3. **Refresh (NFR-01).** A change must appear within 5 seconds. Pages re-read by polling every 3 seconds, the interval in M5's sequence diagram. That diagram polls `GET /api/v1/hubs/overview`, which does not exist in `core`; M5's code offers `GET /api/v1/monitoring/metrics/hubs` and `/metrics/hubs/{hub_id}` instead.
 4. **Stale data (Planned).** M5: telemetry delayed more than 30 seconds gives the Hub a "STALE DATA" icon and creates an `INC-COMM-01` ticket. The screen keeps showing the last numbers.
 5. **Time.** Stored in UTC, shown in Asia/Ho_Chi_Minh (D-005).
 6. **Version conflicts.** An action sends the `version` it read. `VERSION_CONFLICT` shows "Changed by someone else. Refreshed." and reloads the item.
@@ -49,7 +49,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Data: `core.queries.list_hubs()` (REST `GET /hubs`): name, `zone_code`, `status`, `occupied`, `parking_capacity`, `available_vehicles`, `charging_in_use`, `charging_points`, `as_of`.
 - Severity is shown by a symbol and a word, not only by colour (`■ CRITICAL`, `▲ WARNING`, `● ACTIVE`, `✖ MAINTENANCE`). M5 also asks for an amber badge for `WARNING` and a red one for `CRITICAL`.
 - A card for a `WARNING` or `CRITICAL` Hub has Dispatch (to O4) and Simulate (to O6) buttons. Open Hub goes to O2.
-- Recent alerts: `core` does not store events, so past alerts must come from M5's tickets (Planned). Until then the page only lists status changes it saw in this session.
+- Recent alerts: `core` does not store events, so past alerts must come from M5's tickets (M5's code, not yet merged). Until then the page only lists status changes it saw in this session.
 - Why: the operator sees at once which Hubs need attention (NFR-20).
 
 ### O2. Hub detail and resource control (reads Implemented, actions Planned) · `UC-M7-02`
@@ -98,7 +98,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M3 has no code. Data from M3's sessions: vehicle, owner kind, battery and target, priority score (`BR-M3-03`), status, point. Counts and points come from `core`.
+- M3's code (`origin/feat/charging-phase2`) only keeps an in-memory queue (vehicle, `station_id`, battery, target, low-battery flag), with no status and no route. Data from M3's sessions: vehicle, owner kind, battery and target, priority score (`BR-M3-03`), status, point. Counts and points come from `core`.
 - The status words are provisional (M3's documents disagree, see `erd.md`, Section 5).
 - `UC-M3-06` and `UC-M3-07` name the operator as an actor, but M3 does not say what the operator can change. Buttons such as Move to another slot or Recalculate are shown only if M3 offers them. Otherwise the screen is read-only.
 - The last block shows the result of `UC-M3-08` (session moved to another point, or put back in the queue). The screen decides nothing there.
@@ -134,7 +134,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - **Allocation settings (`UC-M4-09`):** `GET` and `PUT /config` with nine numbers: horizon, safety stock, parking buffer, minimum dispatch battery, maximum tasks per Hub, maximum vehicles per task, task timeout, staleness limit, reservation lookahead. The server checks the limits and the screen shows its message.
 - Why: a failed task keeps its reason on the card, so the operator does not have to ask why.
 
-### O5. Incident management (Planned) · `UC-M7-08`
+### O5. Incident management (Implemented in M5's code, remote reset Planned) · `UC-M7-08`
 
 ```
 +--------------------------------------------------------------------------+
@@ -150,15 +150,15 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 |  Component {Hub H03} · error code {-} · reported by {SYSTEM_IOT_INTAKE}  |
 |  History  {10:30} created · {10:35} escalated by the system              |
 |  Notes  [__________________________________________________________]     |
-|  [ Acknowledge ]                                [ Resolve and close ]    |
+|  [ Acknowledge ]                          [ Resolve ]   [ Close ]        |
 +--------------------------------------------------------------------------+
 ```
 
-- M5 has no code. Its use cases (`fr-08-09-monitoring.md`, Final v1.1) and data model (`incident-data-model.md`) are published, and the screen follows them.
+- M5's code is on `origin/feat/monitoring-incident`, not yet merged. Routes under `/api/v1/monitoring/incidents`: list (filters Hub, status, severity), detail, `logs`, `acknowledge`, `escalate`, `resolve`, `close`.
 - Data (table `monitoring_incidents`): type with its code, severity, status, Hub, component (`entity_type` and `entity_id`), `error_code`, `description`, `reported_by`, `assigned_operator_id`, `resolution_notes` and the time stamps. History comes from `monitoring_incident_audit_logs`.
 - Types: `INC-HW-01` charging-point fault, `INC-HW-02` parking sensor, `INC-CAP-01` Hub full, `INC-CAP-02` vehicle deficit, `INC-BAT-01` low battery, `INC-COMM-01` telemetry loss, `INC-USR-01` overdue rental.
-- Lifecycle: `OPEN` to `IN_PROGRESS` to `RESOLVED` to `CLOSED`, and `OPEN` to `ESCALATED` to `IN_PROGRESS`. A `HIGH` or `CRITICAL` ticket that stays `OPEN` for 5 minutes becomes `ESCALATED` by the system, which also notifies the duty supervisor (`BR-M5-04`). The screen never sets `ESCALATED`.
-- **Acknowledge:** on an `OPEN` or `ESCALATED` ticket, gives `IN_PROGRESS`. **Resolve and close:** the operator writes resolution notes (required), the system sets `RESOLVED` and then `CLOSED` (`UC-M5-02`, step 9).
+- Lifecycle: `OPEN` to `IN_PROGRESS` to `RESOLVED` to `CLOSED`, and `OPEN` to `ESCALATED` to `IN_PROGRESS` or `RESOLVED`. A `HIGH` or `CRITICAL` ticket that stays `OPEN` for 5 minutes becomes `ESCALATED` by the system, which also notifies the duty supervisor (`BR-M5-04`). The screen never sets `ESCALATED`. M5's code has an `escalate` route (from `OPEN` only) but no 5-minute timer yet.
+- **Acknowledge:** on an `OPEN` or `ESCALATED` ticket, gives `IN_PROGRESS`. **Resolve:** on an `IN_PROGRESS` or `ESCALATED` ticket, with resolution notes (required), gives `RESOLVED`. **Close:** on a `RESOLVED` ticket, gives `CLOSED` (`UC-M5-02`, step 9). Each action sends the operator's `operator_id`.
 - In M5's flow the system restores the resource in `core` when the device is healthy again (`UC-M5-02`, step 8). The operator does not need to restore it; the override in O2 stays available.
 - A remote reset (`UC-M5-02`, step 6) is shown only if M5 provides a command for it. If it fails, the operator hands the ticket to a field technician. The ticket has no field for the technician, so this goes in the notes. The technician and the duty supervisor are outside the system and have no screen.
 - Default view: active tickets, most severe first, then oldest.
@@ -232,5 +232,5 @@ M4's router answers `BATTERY_TOO_LOW` and `CLAIM_CONFLICT` with HTTP 500. The co
 1. How a page reaches the services of M3, M4, M5 and M6: `architecture-diagram.md` says `ui` "talks HTTP" (Section 4) and also "may call `core` in-process" (Section 11, point 2). To settle with M1.
 2. M3: what the operator may change in the queue, and the session states.
 3. M4: a reject endpoint; how a recommendation from M6 becomes a task; the router uses a fixed operator `OP01` with no token check; the HTTP 500 mapping above.
-4. M5: the remote-reset command, the foreign key on `assigned_operator_id`, how stale data is reported, alert records, and the polled route in its sequence.
+4. M5: the remote-reset command, how stale data is reported, alert records, the polled route in its sequence, the 5-minute escalation timer, and `operator_id` taken from the request body instead of the token.
 5. M6: routes, final input ranges, how an approved recommendation is sent, and the export format.

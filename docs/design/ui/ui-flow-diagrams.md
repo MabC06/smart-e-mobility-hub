@@ -1,6 +1,6 @@
 # UI Flow Diagrams
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-07 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
 > One diagram for each actor. Screens `S1` to `S9` are in `wireframes-student.md`, `O1` to `O6` in `wireframes-operator.md`.
 > A box is a screen. A dashed box is a screen that is only in the requirements, not in the code yet. A line is a move from one screen to another. The commands on each screen and what happens when they are refused are in the tables. `iot_sim` has no screen.
 
@@ -55,7 +55,7 @@ flowchart TD
     O6 -->|open| O4
 
     classDef planned stroke-dasharray: 5 4
-    class O3,O5,O6 planned
+    class O3,O6 planned
 ```
 
 *Operator flows.*
@@ -68,7 +68,7 @@ After login the operator lands on O1. The tab bar and the alert strip are on eve
 | O3 | Change slot, recalculate | `UC-M7-03`, `UC-M7-04` | Planned (M3) | Not offered by M3 |
 | O4 | Plan, approve, pick-up, delivery, cancel, settings | `UC-M7-05`, `UC-M7-06`, `UC-M4-09` | Implemented | Task `FAILED` or request refused, with the reason on the card |
 | O4 | Reject | `UC-M4-02` | Planned | |
-| O5 | Acknowledge, resolve and close | `UC-M7-08` | Planned (M5) | Action hidden when the status does not allow it |
+| O5 | Acknowledge, resolve, close | `UC-M7-08` | Implemented (M5's code, not yet merged) | Action hidden when the status does not allow it |
 | O6 | Run on a copy, approve a recommendation | `UC-M7-09`, `UC-M7-10` | Demand surge implemented; rest planned (M6) | Field message for invalid inputs; the owning module may refuse |
 
 ## 3. Behaviour shared by the flows

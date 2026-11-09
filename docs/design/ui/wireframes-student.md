@@ -1,8 +1,8 @@
 # Wireframes: Student Interface
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-07 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`.
-> Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `origin/feat/reservation-booking-flow`; M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text); `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
+> Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `origin/feat/reservation-booking-flow`; M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text) and M3's code on `origin/feat/charging-phase2`; `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
 
 Each screen is marked **Implemented** (the backend function exists in the code I read) or **Planned** (only in the requirements; no code yet). Wording of labels and messages is my own choice, not a requirement of another module.
 
@@ -201,7 +201,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M3 has no code. In M3's requirements, `FR-06` is a student's charging request for a rental vehicle returned at a Hub (now or scheduled, with change and cancel), and `FR-07.M3.2` is a charging slot for a private EV.
+- M3's code keeps only an in-memory queue, with no status and no route, so this screen follows M3's requirements. In them, `FR-06` is a student's charging request for a rental vehicle returned at a Hub (now or scheduled, with change and cancel), and `FR-07.M3.2` is a charging slot for a private EV.
 - Change and Cancel are allowed up to a time limit before the slot. M3 gives no value for that limit.
 - `UC-M3-01` says the student selects an available charging port. The REST route for charging points is for operators only, but a page can read them directly (`core.queries.list_charging_points`).
 - M3's documents list different session states (see `erd.md`, Section 5). The status words (Waiting, Scheduled, Charging, Done, Cancelled, Interrupted, Failed) are provisional.

@@ -1,8 +1,9 @@
 # Consistency Review: UI, Class Diagram, ERD, Code and Other Modules
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-07
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09
 > I compared the screens with `class-diagram-core.md`, `erd.md`, the code, and the Phase 1 documents of the other modules.
 > Read on 2026-11-07: `core` on `develop`; `architecture-diagram.md`; M2's code (`origin/feat/reservation-booking-flow`) and documents (`origin/docs/reservation-phase1-design`); M4's code (`origin/feat/allocation-phase2`); M5 (`origin/docs/monitoring-phase1`); M6 (`origin/docs/simulation-design`, `origin/feat/m6-simulation-impl`); M3 (`origin/docs/charging-scheduling-requirements`).
+> Read again on 2026-11-09: M5's code (`origin/feat/monitoring-incident`) and M3's code (`origin/feat/charging-phase2`).
 
 ## 1. Class diagram, ERD and code
 
@@ -10,15 +11,15 @@
 - `DomainEvent`: the class exists and the table `domain_events` is created, but no code writes to it. M1 decided that events are not stored. The ERD does not draw the table.
 - `parking_spaces.occupant_vehicle_id` has no foreign key; the foreign key is `vehicles.parking_space_id`.
 - The operations in Section 3 of the class diagram exist in `src/core` under the same names.
-- M2 and M4 tables follow their code. M5 tables follow its document (no code).
+- M2, M4 and M5 tables follow their code.
 
 ## 2. Fields on the screens
 
 Every field on the screens was traced to a `core` query (and the REST route that returns the same data), an ERD table, a function of M2 or M4, or a requirement or data model of M3, M5 or M6. Results:
 
-- The REST output `VehicleOut` leaves out `owner_user_id` and `connector_type`. The screens do not need them.
+- The REST output `VehicleOut` leaves out `battery_capacity_kwh`, `owner_user_id` and `connector_type`. The screens do not need them.
 - `ChargingPointView` has no label, so O2 shows `charging_point_id`.
-- The screens for M3, for M5's code, for M6 beyond demand surge, and for M2's cancel, parking and return-space hold follow requirements only. They must be checked again when those modules publish code.
+- The screens for M3, for M5's remote reset and stale data, for M6 beyond demand surge, and for M2's cancel, parking and return-space hold follow requirements only. They must be checked again when those modules publish code.
 
 ## 3. What the screens need and the backend lacks
 
@@ -36,8 +37,8 @@ These depend on another module:
 | # | Need | Owner |
 |---|---|---|
 | G5 | A list of the student's bookings and trips (S2, S5). M2's service has only `reserve`, `pickup`, `return_trip` | M2 |
-| G6 | Charging data for students and a route to register a private EV (S7, S8). Only the charging module, an operator or `iot_sim` may call `register_vehicle` | M3 |
-| G7 | Incident routes, alerts, the stale-data flag, the remote reset (O1, O5). M5 has documents and a data model, no code | M5 |
+| G6 | Charging data for students and a route to register a private EV (S7, S8). Only the charging module, an operator or `iot_sim` may call `register_vehicle`. M3's code has only an in-memory queue, with no status and no route | M3 |
+| G7 | The stale-data flag and the remote reset (O1, O5). M5's code has the incident and metrics routes but takes `operator_id` from the request body, not from the token | M5 |
 | G8 | Simulation routes, input ranges, how an approved recommendation is sent, export format (O6) | M6, M4 |
 | G9 | A reject action; the router uses a fixed operator `OP01`; `BATTERY_TOO_LOW` and `CLAIM_CONFLICT` return HTTP 500 (O4) | M4 |
 
@@ -48,13 +49,14 @@ These depend on another module:
 | D1 | `architecture-diagram.md` says `ui` "talks HTTP" (Section 4) and also "may call `core` in-process" (Section 11, point 2). The import test forbids importing another module's package. How a page reaches M2 to M6 is undecided | M1 |
 | D2 | M1 decided events are not stored, but `schema.py` creates `domain_events` | M1 |
 | D3 | `architecture-diagram.md` (Section 6) lists the Phase 0 table names of M4, M5 and M6 | M1 |
-| D4 | M5's model calls the Hub table `core_hubs` (it is `hubs`), uses old column names in `HubMetricsSnapshot`, and does not say whether `assigned_operator_id` is a foreign key | M5 |
-| D5 | M5's sequence polls `GET /api/v1/hubs/overview`, which does not exist | M5, M7 |
-| D6 | M3's state machine, M3's report and the timeline list different session states | M3 |
+| D4 | M5's model calls the Hub table `core_hubs` and uses old column names in `HubMetricsSnapshot`. M5's code uses `hubs`, does not store the metrics, and has no foreign key on `assigned_operator_id`; the model should follow it | M5 |
+| D5 | M5's sequence polls `GET /api/v1/hubs/overview`, which does not exist. M5's code has `GET /api/v1/monitoring/metrics/hubs` and `/metrics/hubs/{hub_id}` | M5, M7 |
+| D6 | M3's state machine, M3's report and the timeline list different session states; M3's code has none | M3 |
 | D7 | On M3's branch `fr-06-07-11-charging.md` holds report text and has no `FR-06` or `UC-M3` definitions. The branch also lacked 63 commits of `develop` when I checked | M3 |
 | D8 | M6's design and code differ on input ranges and on one field name (`destination_bias` and `destination_distribution`) | M6 |
 | D9 | M4's design says `REBALANCE`, its code uses `DISPATCH_TASK` claims | M4 |
 | D10 | M5's final version escalates `HIGH` and `CRITICAL` tickets and uses 30 seconds for stale data; its earlier text said `HIGH` and 60 seconds. The screens use the final version | M5 |
+| D11 | M3's code names the charging point `station_id`; `core` calls it `charging_point_id` | M3 |
 
 ## 5. Requirements and screens
 
@@ -78,6 +80,6 @@ NFR-20 is met by the alert strip and the order of O1. NFR-21 is met by the error
 ## 6. Result
 
 1. The `core` entities agree across the class diagram, the code and the ERD.
-2. Every field the screens read from `core`, M2 and M4 exists. The gaps in Section 3 are not blocking, except that a list of the student's bookings (G5) is needed from M2.
-3. The tables of M2 and M4 follow open branches and may change before the code freeze on 12 November.
+2. Every field the screens read from `core`, M2, M4 and M5 exists. The gaps in Section 3 are not blocking, except that a list of the student's bookings (G5) is needed from M2.
+3. The tables of M2, M4 and M5 follow open branches and may change before the code freeze on 12 November.
 4. Section 4 lists disagreements between other members' documents. This review does not decide them.

@@ -1,6 +1,6 @@
 ## 3.4 User-interface Design
 
-> Draft · Owner: M7 · Date: 2026-11-07
+> Draft · Owner: M7 · Date: 2026-11-09
 > Full wireframes: `docs/design/ui/wireframes-student.md` and `wireframes-operator.md`. Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. "Planned" means the screen follows a requirement for which there is no code yet. Figure numbers are provisional.
 
 ### 3.4.1 Approach and principles
@@ -13,7 +13,7 @@ Principles:
 2. **Critical status is visible without navigation (NFR-20).** The operator's alert strip is on every screen.
 3. **Every refusal explains itself (NFR-21).** It gives the cause, an alternative when there is one, and the error code under "Details". No stack trace is shown.
 4. **Data shows its age.** Screens show the time of the data (`as_of`).
-5. **A slow answer is not reported as a failure.** For rental commands the screen reads the booking again before saying "failed", and a retry uses the same reservation ID (an M2 proposal).
+5. **A slow answer is not reported as a failure.** For rental commands the screen reads the booking again before saying "failed", and a retry uses the same reservation ID.
 
 ### 3.4.2 Major user flows and navigation
 
@@ -56,7 +56,7 @@ flowchart TD
     O6 -->|open| O4
 
     classDef planned stroke-dasharray: 5 4
-    class O3,O5,O6 planned
+    class O3,O6 planned
 ```
 
 *Figure 3.9 — Operator flows. A dashed box is Planned.*
@@ -79,7 +79,7 @@ flowchart TD
 | O2 Hub detail | Vehicles, spaces and charging points with state, battery and fault; state history of a vehicle |
 | O3 Charging (Planned) | Charging queue with battery, target, priority, status, point |
 | O4 Dispatch | Tasks with route, vehicles, status, priority, reason; allocation settings |
-| O5 Incidents (Planned) | Tickets with type, severity, status, age, history |
+| O5 Incidents | Tickets with type, severity, status, age, history |
 | O6 Simulation (Planned) | Scenario inputs, baseline against mitigated results, recommendations |
 
 ```
@@ -178,6 +178,53 @@ flowchart TD
 
 *Figure 3.14 — O4, dispatch tasks.*
 
+```
++--------------------------------------------------------------------------+
+| Incidents Severity [ v all ] Status [ v active ] Hub [ v all ] Type [ v ]|
++--------------------------------------------------------------------------+
+|  Type                          Hub  Severity  Status       Age           |
+|  INC-HW-01 Charger fault       H02  Critical  OPEN         {2} min       |
+|  INC-CAP-01 Hub full           H03  High      ESCALATED    {12} min      |
+|  INC-USR-01 Rental overdue     H05  Low       IN_PROGRESS  {35} min      |
++--------------------------------------------------------------------------+
+| INC-CAP-01 Hub reached 100% parking capacity: H03     High  ESCALATED    |
+|  (not acknowledged for more than 5 minutes)                              |
+|  Component {Hub H03} · error code {-} · reported by {SYSTEM_IOT_INTAKE}  |
+|  History  {10:30} created · {10:35} escalated by the system              |
+|  Notes  [__________________________________________________________]     |
+|  [ Acknowledge ]                          [ Resolve ]   [ Close ]        |
++--------------------------------------------------------------------------+
+```
+
+*Figure 3.15 — O5, incident tickets with the selected ticket.*
+
+```
++--------------------------------------------------------------------------+
+| Simulation Lab  ┌ SIMULATION: a copy of the state, nothing real changes ┐|
++--------------------------------------------------------------------------+
+| Scenario [ v Peak-hour demand surge ]                                    |
+|  Target Hubs     [ H01 x ] [ H02 x ]                                     |
+|  Surge multiplier [ 1.5 ]      Duration [ 60 ] min                       |
+|  Time horizon     [ 120 ] min   Random seed [ 42 ]       [ Run ]         |
+|  ⚠ (on error) The multiplier must be between 1.0 and 5.0.                |
++--------------------------------------------------------------------------+
+| Result   snapshot {SNAP-001} taken {10:42:05}   status {SUCCESS}         |
+|                              Baseline    With recommendations            |
+|  Vehicle shortage rate       {28}%          {9}%                         |
+|  Hub overflow / rejected returns {12}%      {3}%                         |
+|  Avg charging queue wait     {22} min       {12} min                     |
+|  Critical battery count      {6}            {2}                          |
+|                                                                          |
+| Recommendations                                                          |
+|  1. Move {3} vehicles H01 -> H02       feasible   Pending  -> allocation |
+|        reason: {shortage rate above threshold}   [ Approve ] [ Reject ]  |
+|  Assumptions and limits: {...}                                           |
+|  [ Export report ]                           [ Discard and reset ]       |
++--------------------------------------------------------------------------+
+```
+
+*Figure 3.16 — O6, What-if Simulation Lab with baseline and mitigated results.*
+
 ### 3.4.4 User actions and system feedback
 
 | Student action | On success | When refused |
@@ -194,7 +241,7 @@ flowchart TD
 |---|---|---|
 | Change a vehicle, point or Hub state (O2) | New state and a new line in the history | "Cannot be changed directly now. Handle its reservation or trip first", or "Changed by someone else. Refreshed" |
 | Plan, approve, pick-up, delivery, cancel (O4) | The task with its new status | The task keeps its reason when it fails, or the request is refused with the cause |
-| Acknowledge, or resolve and close (O5, Planned) | Ticket "In progress", or "Resolved" then "Closed" | The action is hidden when the status does not allow it |
+| Acknowledge, resolve, close (O5) | Ticket "In progress", "Resolved" or "Closed" | The action is hidden when the status does not allow it |
 | Run a simulation, approve a recommendation (O6) | The report; the recommendation sent to its module | A field message for invalid inputs; the receiving module may refuse |
 
 Every refusal uses the same block: what failed, the cause, up to two alternatives, and the code under "Details".
@@ -210,6 +257,7 @@ Every refusal uses the same block: what failed, the cause, up to two alternative
 | O1 | One card per Hub, ordered by severity; symbol and word, not colour alone | Hubs that need attention are seen at once, and the screen is readable without colour |
 | O2 | State history under the vehicle; only the button that fits the state | The operator sees how the vehicle got there before overriding |
 | O4 | "Update recommendations" is a button; a failed task keeps its reason | Planning writes data, so it must be deliberate; no need to ask why a task failed |
+| O5 | Active tickets first, most severe and oldest on top; only the actions the status allows; history under the ticket | The operator handles the worst ticket first and cannot close a ticket before it is resolved |
 | O6 | Banner that the screen works on a copy; baseline next to the mitigated result; seed shown | Simulated results are not mistaken for real state, and the same seed gives the same result (NFR-13) |
 | All | Loading, empty and error states | The user can tell "nothing here" from "something failed" |
 
@@ -246,20 +294,20 @@ The review of NFR-20 and NFR-21 on the running interface is planned for Phases 3
 
 ### 3.4.8 Consistency with the data design and status
 
-Every field on a screen was traced to a `core` query, a table in Section 3.2.2, a function of M2 or M4, or a requirement or data model of M3, M5 or M6. Three points matter:
+Every field on a screen was traced to a `core` query, a table in Section 3.2.2, a function of the reservation, allocation or monitoring module, or a requirement of the charging or simulation module. Three points matter:
 
 - Some `core` queries have no REST route (the next claim on a resource, one vehicle by ID, the configured limits). A page calls them directly, so they do not block the interface.
-- The architecture document says both that `ui` talks HTTP and that it may call `core` directly. M1 is asked to decide how a page reaches the other modules' services.
-- M3's documents list different session states, so the status words of the charging screens are provisional.
+- The architecture document says both that `ui` talks HTTP and that it may call `core` directly. How a page reaches the other modules' services is still to be decided.
+- The charging module's code has no session status and its documents list different states, so the status words of the charging screens are provisional.
 
 | Backend | Status |
 |---|---|
 | `core`: login, Hubs, vehicles, spaces, charging points, history | Implemented |
-| M2: reserve, pick up, return | Implemented as a service, no route yet |
-| M2: cancel, parking, return-space hold | Planned |
-| M3 charging | Planned |
-| M4: plan, approve, pick-up, delivery, cancel, settings | Implemented; reject planned |
-| M5 incidents | Planned (documents and data model published, no code) |
-| M6 simulation | Demand surge implemented, no route; the rest planned |
+| Reservation (M2): reserve, pick up, return | Implemented as a service, no route yet |
+| Reservation (M2): cancel, parking, return-space hold | Planned |
+| Charging (M3) | Queue in memory only, no route; screens planned |
+| Allocation (M4): plan, approve, pick-up, delivery, cancel, settings | Implemented; reject planned |
+| Monitoring (M5): incidents and metrics | Implemented; remote reset and stale data planned |
+| Simulation (M6) | Demand surge implemented, no route; the rest planned |
 
 This section will be revised in Phase 3 to match the implementation.

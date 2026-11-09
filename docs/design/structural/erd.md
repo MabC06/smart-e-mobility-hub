@@ -1,8 +1,8 @@
 # Entity-Relationship Diagram
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-07 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Replaces the Phase 0 draft `erd-entities-draft.md`.
-> Sources: `class-diagram-core.md` and the code of `core`; the code of M2 and M4 on their open branches; M5's `incident-data-model.md`. IDs such as `D-xxx` and `BR-...` are in `docs/DECISIONS.md` and `docs/requirements/`.
+> Sources: `class-diagram-core.md` and the code of `core`; the code of M2, M3, M4 and M5 on their open branches; M5's `incident-data-model.md`. IDs such as `D-xxx` and `BR-...` are in `docs/DECISIONS.md` and `docs/requirements/`.
 
 ## 1. What is covered
 
@@ -13,8 +13,8 @@ The system uses one SQLite database. `core` creates the shared tables, and each 
 | `core` (7 tables) | Class diagram and code on `develop` | Final |
 | M2 | Code on `origin/feat/reservation-booking-flow` | Provisional (rental only) |
 | M4 | Code on `origin/feat/allocation-phase2` | Provisional |
-| M5 | `incident-data-model.md` on `origin/docs/monitoring-phase1` | Provisional (design only, no code) |
-| M3 | No data model yet | Not drawn |
+| M5 | Code on `origin/feat/monitoring-incident` | Provisional |
+| M3 | Code on `origin/feat/charging-phase2` keeps the queue in memory | No tables |
 | M6 | Code keeps results in memory | No tables |
 
 ## 2. How to read the diagrams
@@ -238,16 +238,16 @@ erDiagram
     }
 ```
 
-*Figure 3.7 — M5 tables (design only).*
+*Figure 3.7 — M5 tables.*
 
-- These two tables are specified in M5's `incident-data-model.md`. There is no code in `src/monitoring` yet.
+- These two tables are coded in `src/monitoring/schema.py` and match M5's `incident-data-model.md`.
 - Nullable: `error_code`, `assigned_operator_id`, `resolution_notes`, `acknowledged_at`, `escalated_at`, `resolved_at`, `closed_at`, and `reason` in the audit log.
-- `entity_type` and `entity_id` name the failed component and have no foreign key. `reported_by` is free text. M5 does not say whether `assigned_operator_id` is a foreign key to `user_accounts`, so it is drawn without one.
-- M5's document has two mistakes against `core`: it calls the Hub table `core_hubs` (it is `hubs`), and its `HubMetricsSnapshot` uses the old names `total_parking_capacity` and `total_charging_points`. `HubMetricsSnapshot` has no table specification, so it is not drawn.
+- `entity_type` and `entity_id` name the failed component and have no foreign key. `reported_by` is free text. `assigned_operator_id` has no foreign key in the code.
+- M5's document has two mistakes against `core`: it calls the Hub table `core_hubs` (it is `hubs`), and its `HubMetricsSnapshot` uses the old names `total_parking_capacity` and `total_charging_points`. The code uses `hubs` and computes the metrics (`HubMetricsView`) with `core`'s names without storing them, so they are not drawn.
 
 ## 5. Not drawn
 
-- **M3:** there is no data model. M3's state machine (2026-11-06) lists `AVAILABLE`, `PREPARING`, `CHARGING`, `COMPLETED`, `FAULTED`, `CANCELLED`, its report adds `SUSPENDED`, and the timeline lists `Requested`, `Scheduled`, `Charging`, `Completed`, `Interrupted`, `Failed`. A `charging_session` table is expected.
+- **M3:** the code keeps a queue of `ChargingRequest` in memory, with no table and no status field. Its `station_id` is `core`'s `charging_point_id`. M3's state machine (2026-11-06) lists `AVAILABLE`, `PREPARING`, `CHARGING`, `COMPLETED`, `FAULTED`, `CANCELLED`, its report adds `SUSPENDED`, and the timeline lists `Requested`, `Scheduled`, `Charging`, `Completed`, `Interrupted`, `Failed`. A `charging_session` table is expected.
 - **M6:** `m6-simulation-design.md` and `src/simulation` keep each run in memory. The draft tables `simulation_run` and `coordination_recommendation` have no basis and were dropped.
 
 ## 6. Enumerated values
@@ -270,7 +270,7 @@ erDiagram
 | `monitoring_incidents.incident_type` | `CHARGING_POINT_FAILURE` (`INC-HW-01`), `PARKING_SENSOR_FAULT` (`INC-HW-02`), `HUB_CAPACITY_FULL` (`INC-CAP-01`), `HUB_VEHICLE_DEFICIT` (`INC-CAP-02`), `BATTERY_CRITICAL_FAULT` (`INC-BAT-01`), `TELEMETRY_CONNECTION_LOSS` (`INC-COMM-01`), `OVERDUE_VEHICLE` (`INC-USR-01`) |
 | `monitoring_incidents.severity` | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
 | `monitoring_incidents.status` | `OPEN`, `IN_PROGRESS`, `ESCALATED`, `RESOLVED`, `CLOSED` |
-| `monitoring_incident_audit_logs.action` | `ACKNOWLEDGE`, `ESCALATE`, `RESOLVE`, `CLOSE` |
+| `monitoring_incident_audit_logs.action` | `CREATE`, `ACKNOWLEDGE`, `ESCALATE`, `RESOLVE`, `CLOSE` |
 
 A space has no `RESERVED` status and a charging point has no `SCHEDULED` status. A future hold is a row of `resource_claims`.
 
@@ -278,19 +278,19 @@ A space has no `RESERVED` status and a charging point has no `SCHEDULED` status.
 
 | Rule | Checked by |
 |---|---|
-| Foreign keys; one plate per vehicle; one vehicle per space; one charging point per space (D-007); ranges such as battery 0 to 100 | The database |
+| Foreign keys; one plate per vehicle; one label per space in a Hub; one vehicle per space; one charging point per space (D-007); ranges such as battery 0 to 100 | The database |
 | A vehicle's `hub_id` and `parking_space_id` are both set or both null; `PRIVATE` if and only if `owner_user_id` is set | The database (CHECK) |
 | A vehicle is at a Hub exactly when its state is not `IN_USE`; a `CHARGING` vehicle is in a charging bay | `core` (`InvariantChecker`) |
 | `parking_capacity` equals the number of spaces; `charging_point_count` equals the number of charging points; a charging point's bay is in its own Hub | `core` (`InvariantChecker`) |
 | Occupied spaces do not exceed capacity (`BR-M1-02`); two active claims on one resource never overlap (`BR-M1-01`) | `core` (`InvariantChecker`) |
 | Vehicle state changes follow the transition table (`BR-M1-03`) | `core` (`VehicleStateMachine`) |
-| A `HIGH` or `CRITICAL` ticket that stays `OPEN` for 5 minutes becomes `ESCALATED` (`BR-M5-04`) | M5 (not implemented) |
+| A `HIGH` or `CRITICAL` ticket that stays `OPEN` for 5 minutes becomes `ESCALATED` (`BR-M5-04`) | M5 (the code has an `escalate` route but no timer) |
 
 ## 8. Check against the class diagram and the code
 
 - The eight entities of `class-diagram-core.md` (Section 2) have the same attributes in `entities.py` and the same columns in `schema.py`. Seven are drawn. `DomainEvent` is a class only, because events are not stored.
 - The operations in Section 3 of the class diagram exist in `src/core` under the same names.
-- M2 and M4 were compared with their code. M5 was compared with its document only.
+- M2, M4 and M5 were compared with their code.
 
 ## 9. Changes from the Phase 0 draft
 
@@ -299,15 +299,15 @@ A space has no `RESERVED` status and a charging point has no `SCHEDULED` status.
 - M2: `Reservation` and `Trip` replaced by `rental_reservations` and `rental_trips`, as coded.
 - M4: `RedistributionTask` and `RedistributionTaskVehicle` replaced by `m4_dispatch_tasks`.
 - M5: `Incident` replaced by the two `monitoring_*` tables.
-- Dropped `ChargingSession`, `SimulationRun` and `CoordinationRecommendation` (no data model or code).
+- Dropped `ChargingSession`, `SimulationRun` and `CoordinationRecommendation` (no table in the code).
 
 ## 10. Open points
 
 1. Confirm that `PENDING` is not stored. M2 asked M1 and M7.
 2. M4: keep `vehicle_ids` as a comma-separated column, or ask for a table of task and vehicle pairs.
 3. M4: the design says `REBALANCE`, the code uses `DISPATCH_TASK` claims.
-4. M5: table name `core_hubs`, the old column names in `HubMetricsSnapshot`, the foreign key on `assigned_operator_id`, and whether `HubMetricsSnapshot` is stored.
-5. M3: no data model, and its documents list different session states.
+4. M5: the code answers the table name (`hubs`), the foreign key on `assigned_operator_id` (none) and whether the metrics are stored (no). `incident-data-model.md` should be updated to match.
+5. M3: no table and no session status in the code, `station_id` instead of `charging_point_id`, and its documents list different session states.
 6. M2: add the parking-reservation fields when they are in the code.
 7. M1: `domain_events` is created but never written. Remove it or store events.
 8. M1: `architecture-diagram.md` (Section 6) still lists the Phase 0 table names of M4, M5 and M6.
