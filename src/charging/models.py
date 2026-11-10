@@ -1,7 +1,5 @@
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-LOW_BATTERY_THRESHOLD = 15.0
+from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass
@@ -11,7 +9,7 @@ class ChargingRequest:
     station_id: str
     current_soc: float
     target_soc: float = 100.0
-    requested_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    requested_at: datetime | None = None
     is_emergency: bool = False
 
     def __post_init__(self) -> None:
@@ -19,6 +17,3 @@ class ChargingRequest:
             raise ValueError("current_soc must be between 0.0 and 100.0")
         if not (0.0 <= self.target_soc <= 100.0):
             raise ValueError("target_soc must be between 0.0 and 100.0")
-
-        if self.current_soc <= LOW_BATTERY_THRESHOLD:
-            self.is_emergency = True

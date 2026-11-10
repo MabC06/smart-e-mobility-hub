@@ -18,6 +18,8 @@ from typing import Any, Protocol
 
 from core.errors import ErrorCode
 from core.result import Err, Result
+from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger("core.providers")
 
@@ -46,7 +48,9 @@ class ProviderRegistry:
     def is_registered(self, port: ProviderPort) -> bool:
         return port in self._providers
 
-    def call[T](self, port: ProviderPort, work: Callable[[Any], Result[T]]) -> Result[T]:
+    def call[T](
+        self, port: ProviderPort, work: Callable[[Any], Result[T]]
+    ) -> Result[T]:
         """Run ``work(provider)``; no provider or a failing one gives RESOURCE_UNAVAILABLE."""
         provider = self._providers.get(port)
         if provider is None:
@@ -58,13 +62,26 @@ class ProviderRegistry:
             return work(provider)
         except Exception:
             logger.exception("provider %s failed", port.value)
-            return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
+            return Err(
+                ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed"
+            )
 
 
-# ==========================================
-# Add Protocol for Module M3 (D-020)
-# ==========================================
+@dataclass(frozen=True)
+class ScheduledChargingSessionRow:
+    """Typed row representing exposed scheduled charging sessions (D-020)."""
+
+    session_id: str
+    vehicle_id: str
+    charger_id: str
+    energy_kwh: float
+    start_time: datetime
+    end_time: datetime
+
+
 class ChargingDemandProtocol(Protocol):
-    "The provider port for Module M3 Charging Demand"
+    """The provider port for Module M3 Charging Demand (D-020)."""
 
-    def get_pending_demand(self) -> Result[list[dict[str, Any]]]: ...
+    def scheduled_sessions(
+        self, hub_id: str, horizon: datetime
+    ) -> Result[list[ScheduledChargingSessionRow]]: ...
