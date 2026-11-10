@@ -6,7 +6,7 @@
 - Activity Diagram: [`docs/design/behavioral/incident-activity-diagram.md`](../design/behavioral/incident-activity-diagram.md)
 - Sequence Diagram: [`docs/design/behavioral/monitoring-sequence-diagram.md`](../design/behavioral/monitoring-sequence-diagram.md)
 - Incident Data Model: [`docs/design/structural/incident-data-model.md`](../design/structural/incident-data-model.md)
-- Use Case Diagram: [`docs/requirements/use-case-diagrams/uc-m5-monitoring.puml`](use-case-diagrams/uc-m5-monitoring.puml)
+- Use Case Diagram: [`docs/requirements/use-case-diagrams/uc-m5-monitoring.puml`](use-case-diagrams/uc-m5-monitoring.puml) ([SVG](use-case-diagrams/uc-m5-monitoring.svg))
 
 ---
 
