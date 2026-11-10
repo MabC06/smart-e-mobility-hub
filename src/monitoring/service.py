@@ -12,6 +12,7 @@ Traceability:
 """
 
 import logging
+from datetime import datetime
 from uuid import uuid4
 
 from core.actor import Actor
@@ -47,6 +48,14 @@ class InvalidStatusTransitionError(Exception):
 class MonitoringService:
     def __init__(self, core: CoreFacade) -> None:
         self._core = core
+        self._log_counter = 0
+
+    def _now(self) -> datetime:
+        return self._core.queries.get_config().as_of
+
+    def _next_log_id(self) -> str:
+        self._log_counter += 1
+        return f"LOG-{self._log_counter:06d}"
 
     # ---------------------------------------------------------------------------------- Metrics
     def get_hub_metrics(self, hub_id: str) -> HubMetricsView | None:
@@ -208,7 +217,7 @@ class MonitoringService:
     ) -> IncidentTicket:
         """Create and persist a new incident ticket with audit trail (FR-09.2, NFR-25)."""
         incident_id = f"INC-{uuid4().hex[:8].upper()}"
-        now = self._core._clock.now()
+        now = self._now()
 
         ticket = IncidentTicket(
             incident_id=incident_id,
@@ -232,7 +241,7 @@ class MonitoringService:
         )
 
         log = TicketAuditLog(
-            log_id=f"LOG-{uuid4().hex[:8].upper()}",
+            log_id=self._next_log_id(),
             incident_id=incident_id,
             previous_status=IncidentStatus.OPEN,
             new_status=IncidentStatus.OPEN,
@@ -265,7 +274,7 @@ class MonitoringService:
                 f"Cannot acknowledge ticket in status {ticket.status.value}"
             )
 
-        now = self._core._clock.now()
+        now = self._now()
         previous_status = ticket.status
         expected_version = ticket.version
 
@@ -274,7 +283,7 @@ class MonitoringService:
         ticket.acknowledged_at = now
 
         log = TicketAuditLog(
-            log_id=f"LOG-{uuid4().hex[:8].upper()}",
+            log_id=self._next_log_id(),
             incident_id=incident_id,
             previous_status=previous_status,
             new_status=IncidentStatus.IN_PROGRESS,
@@ -306,14 +315,14 @@ class MonitoringService:
                 f"Cannot escalate ticket in status {ticket.status.value}"
             )
 
-        now = self._core._clock.now()
+        now = self._now()
         expected_version = ticket.version
 
         ticket.status = IncidentStatus.ESCALATED
         ticket.escalated_at = now
 
         log = TicketAuditLog(
-            log_id=f"LOG-{uuid4().hex[:8].upper()}",
+            log_id=self._next_log_id(),
             incident_id=incident_id,
             previous_status=IncidentStatus.OPEN,
             new_status=IncidentStatus.ESCALATED,
@@ -348,7 +357,7 @@ class MonitoringService:
                 f"Cannot resolve ticket in status {ticket.status.value}"
             )
 
-        now = self._core._clock.now()
+        now = self._now()
         previous_status = ticket.status
         expected_version = ticket.version
 
@@ -357,7 +366,7 @@ class MonitoringService:
         ticket.resolved_at = now
 
         log = TicketAuditLog(
-            log_id=f"LOG-{uuid4().hex[:8].upper()}",
+            log_id=self._next_log_id(),
             incident_id=incident_id,
             previous_status=previous_status,
             new_status=IncidentStatus.RESOLVED,
@@ -388,14 +397,14 @@ class MonitoringService:
                 "ticket must be RESOLVED first"
             )
 
-        now = self._core._clock.now()
+        now = self._now()
         expected_version = ticket.version
 
         ticket.status = IncidentStatus.CLOSED
         ticket.closed_at = now
 
         log = TicketAuditLog(
-            log_id=f"LOG-{uuid4().hex[:8].upper()}",
+            log_id=self._next_log_id(),
             incident_id=incident_id,
             previous_status=IncidentStatus.RESOLVED,
             new_status=IncidentStatus.CLOSED,
@@ -437,6 +446,8 @@ class MonitoringService:
 
     def list_audit_logs(self, incident_id: str) -> list[TicketAuditLog]:
         """Read all lifecycle audit log records for an incident (NFR-25)."""
-        return self._core.query_entities(
+        logs = self._core.query_entities(
             TicketAuditLog, predicate=lambda log: log.incident_id == incident_id
         )
+        logs.sort(key=lambda log: (log.timestamp, log.log_id))
+        return logs

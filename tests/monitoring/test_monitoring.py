@@ -6,10 +6,12 @@ Traceability:
 - NFR-01, NFR-06, NFR-10, NFR-20, NFR-25
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from core.actor import Actor
-from core.clock import SystemClock
+from core.clock import FixedClock
 from core.domain.entities import ChargingPoint, DomainEvent, Hub, ParkingSpace
 from core.domain.enums import ChargingPointStatus, HubStatus, Role, SpaceStatus
 from core.events import EventType
@@ -33,9 +35,13 @@ OPERATOR_ACTOR = Actor(user_id="op_viet", role=Role.OPERATOR, module="monitoring
 
 
 @pytest.fixture
-def core() -> CoreFacade:
+def clock() -> FixedClock:
+    return FixedClock(datetime(2026, 11, 8, 12, 0, tzinfo=UTC))
+
+
+@pytest.fixture
+def core(clock: FixedClock) -> CoreFacade:
     repo = InMemoryRepository()
-    clock = SystemClock()
     facade = CoreFacade(repository=repo, clock=clock)
     # Register M5 tables
     facade.register_entity(INCIDENT_SPEC)
@@ -166,7 +172,7 @@ def test_capacity_alert_recovery(core: CoreFacade, service: MonitoringService):
     assert hub.value.status is HubStatus.ACTIVE
 
 
-def test_incident_full_lifecycle(core: CoreFacade, service: MonitoringService):
+def test_incident_full_lifecycle(core: CoreFacade, service: MonitoringService, clock: FixedClock):
     """Test FR-09.2, FR-09.4, NFR-25: ticket creation, acknowledge,
     resolve, close with audit trail.
     """
@@ -187,11 +193,16 @@ def test_incident_full_lifecycle(core: CoreFacade, service: MonitoringService):
     assert len(logs) == 1
     assert logs[0].action == "CREATE"
 
+    # Advance clock between lifecycle steps
+    clock.advance(timedelta(seconds=1))
+
     # Acknowledge
     ack_ticket = service.acknowledge_incident(ticket.incident_id, "op_viet")
     assert ack_ticket.status == IncidentStatus.IN_PROGRESS
     assert ack_ticket.assigned_operator_id == "op_viet"
     assert ack_ticket.acknowledged_at is not None
+
+    clock.advance(timedelta(seconds=1))
 
     # Resolve
     res_ticket = service.resolve_incident(ticket.incident_id, "Replaced battery", "op_viet")
@@ -199,15 +210,16 @@ def test_incident_full_lifecycle(core: CoreFacade, service: MonitoringService):
     assert res_ticket.resolution_notes == "Replaced battery"
     assert res_ticket.resolved_at is not None
 
+    clock.advance(timedelta(seconds=1))
+
     # Close
     closed_ticket = service.close_incident(ticket.incident_id, "op_viet")
     assert closed_ticket.status == IncidentStatus.CLOSED
     assert closed_ticket.closed_at is not None
 
-    # All logs (sort by timestamp to check chronological sequence)
+    # All logs (chronological sequence guaranteed by increasing timestamps & sequence IDs)
     all_logs = service.list_audit_logs(ticket.incident_id)
     assert len(all_logs) == 4
-    all_logs.sort(key=lambda log: log.timestamp)
     assert [log.action for log in all_logs] == ["CREATE", "ACKNOWLEDGE", "RESOLVE", "CLOSE"]
 
 
@@ -261,7 +273,7 @@ def test_automated_hardware_and_battery_event_handlers(
     core: CoreFacade, service: MonitoringService
 ):
     """Test BR-M5-03, BR-M5-05: automated incident creation on domain events."""
-    now = core._clock.now()
+    now = core.queries.get_config().as_of
 
     # 1. Charger out of service event
     charger_event = DomainEvent(
