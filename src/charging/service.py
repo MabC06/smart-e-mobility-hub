@@ -36,9 +36,7 @@ class ChargingQueueService:
     def add_request(self, request: ChargingRequest) -> None:
         """Add a charging request, fetch config/time, and place a claim (D-017)."""
         if any(r.request_id == request.request_id for r in self._queue):
-            raise ValueError(
-                f"Charging request {request.request_id} already exists in queue."
-            )
+            raise ValueError(f"Charging request {request.request_id} already exists in queue.")
 
         # Fetch configuration from core to standardize as_of time and check low battery threshold
         if self.core and hasattr(self.core, "queries"):
@@ -47,9 +45,7 @@ class ChargingQueueService:
                 if request.requested_at is None and hasattr(config, "as_of"):
                     request.requested_at = config.as_of
                 if hasattr(config, "low_battery_threshold"):
-                    request.is_emergency = (
-                        request.current_soc <= config.low_battery_threshold
-                    )
+                    request.is_emergency = request.current_soc <= config.low_battery_threshold
 
         self._queue.append(request)
         self.sort_queue()

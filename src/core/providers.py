@@ -48,9 +48,7 @@ class ProviderRegistry:
     def is_registered(self, port: ProviderPort) -> bool:
         return port in self._providers
 
-    def call[T](
-        self, port: ProviderPort, work: Callable[[Any], Result[T]]
-    ) -> Result[T]:
+    def call[T](self, port: ProviderPort, work: Callable[[Any], Result[T]]) -> Result[T]:
         """Run ``work(provider)``; no provider or a failing one gives RESOURCE_UNAVAILABLE."""
         provider = self._providers.get(port)
         if provider is None:
@@ -62,9 +60,7 @@ class ProviderRegistry:
             return work(provider)
         except Exception:
             logger.exception("provider %s failed", port.value)
-            return Err(
-                ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed"
-            )
+            return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
 
 
 @dataclass(frozen=True)

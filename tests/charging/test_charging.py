@@ -50,15 +50,9 @@ def test_priority_queue_sorting_order():
     mock_core.queries.get_config.return_value = CoreConfig()
     service = ChargingQueueService(core=mock_core)
 
-    req1 = ChargingRequest(
-        request_id="R1", vehicle_id="V1", station_id="S1", current_soc=50.0
-    )
-    req2 = ChargingRequest(
-        request_id="R2", vehicle_id="V2", station_id="S1", current_soc=30.0
-    )
-    req3 = ChargingRequest(
-        request_id="R3", vehicle_id="V3", station_id="S1", current_soc=60.0
-    )
+    req1 = ChargingRequest(request_id="R1", vehicle_id="V1", station_id="S1", current_soc=50.0)
+    req2 = ChargingRequest(request_id="R2", vehicle_id="V2", station_id="S1", current_soc=30.0)
+    req3 = ChargingRequest(request_id="R3", vehicle_id="V3", station_id="S1", current_soc=60.0)
 
     service.add_request(req1)
     service.add_request(req2)
