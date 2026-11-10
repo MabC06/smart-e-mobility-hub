@@ -4,6 +4,7 @@
 > **Phase:** Phase 0 - Requirements Analysis
 > **Status:** Initial baseline (v0.1)
 > **Last updated:** 2026-10-31
+> **Related design:** [`IoT Simulator Design`](../design/simulation/iot-sim-design.md)
 
 ## Purpose
 
