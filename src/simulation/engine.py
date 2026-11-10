@@ -11,9 +11,7 @@ from simulation.snapshot import IsolatedSandboxState, SimulatedHub
 
 
 class SimulationEngine:
-    def __init__(
-        self, config: SimulationConfig, initial_state: IsolatedSandboxState
-    ) -> None:
+    def __init__(self, config: SimulationConfig, initial_state: IsolatedSandboxState) -> None:
         self.config = config
         self.state: IsolatedSandboxState = deepcopy(initial_state)
         self.rng = random.Random(config.random_seed)
@@ -34,22 +32,14 @@ class SimulationEngine:
                 continue
 
             available_vehicles = len(
-                [
-                    v
-                    for v in hub.vehicles
-                    if v.state == "AVAILABLE" and v.soc >= 0.2
-                ]
+                [v for v in hub.vehicles if v.state == "AVAILABLE" and v.soc >= 0.2]
             )
 
             base_requests = max(10, available_vehicles * 2)
             simulated_requests = int(base_requests * multiplier)
             unmet = max(0, simulated_requests - available_vehicles)
 
-            shortage_pct = (
-                (unmet / simulated_requests * 100.0)
-                if simulated_requests > 0
-                else 0.0
-            )
+            shortage_pct = (unmet / simulated_requests * 100.0) if simulated_requests > 0 else 0.0
 
             total_shortage += unmet
             total_requests_all += simulated_requests
@@ -97,9 +87,7 @@ class SimulationEngine:
 
     def _find_donor_hub(self, target_hub_id: str) -> SimulatedHub | None:
         candidates = [
-            h
-            for hid, h in self.state.hubs.items()
-            if hid != target_hub_id and len(h.vehicles) > 5
+            h for hid, h in self.state.hubs.items() if hid != target_hub_id and len(h.vehicles) > 5
         ]
         if not candidates:
             return None

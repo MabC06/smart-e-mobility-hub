@@ -9,9 +9,7 @@ class SimulationService:
 
     def run_simulation(self, config: SimulationConfig) -> SimulationReport:
         if not hasattr(self.core, "snapshots"):
-            raise RuntimeError(
-                "Core facade does not provide 'snapshots' module."
-            )
+            raise RuntimeError("Core facade does not provide 'snapshots' module.")
 
         core_snap = self.core.snapshots.export_snapshot()
         sandbox = SnapshotAdapter.from_core_snapshot(core_snap)
