@@ -11,9 +11,7 @@ from simulation.snapshot import (
 
 class TestSimulationEngine(unittest.TestCase):
     def setUp(self) -> None:
-        self.sandbox = IsolatedSandboxState(
-            snapshot_id="SNAP_TEST_42", taken_at=None
-        )
+        self.sandbox = IsolatedSandboxState(snapshot_id="SNAP_TEST_42", taken_at=None)
 
         self.sandbox.hubs["H01"] = SimulatedHub(
             hub_id="H01", name="KTX Khu B", parking_capacity=40, occupied=2
