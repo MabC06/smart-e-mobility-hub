@@ -73,3 +73,9 @@ All functional requirements are explicitly traced to the subsystem Use-Case arch
   - **Battery Urgency Factor:** Lower current State of Charge (% SoC) values yield higher priority weighting to ensure depleted vehicles receive immediate service.
   - **Schedule Proximity Factor:** Vehicles linked to imminent student trip reservations within a close time window receive elevated priority to prevent travel disruptions.
   - **Low Battery Override Clause:** To prevent severe cell degradation or deep discharge damage, any vehicle entering the queue at or below `LOW_BATTERY_THRESHOLD = 15%` receives an immediate high-priority override flag, granting it top priority for the next available charging port regardless of standard queue order.
+
+## 2.4 Architectural Interfacing & Design Constraints
+
+- **[D-017] Resource Claim Management:** Module M3 shall is responsible for autonomously placing and releasing its own `CHARGING_SESSION` resource claims throughout the lifecycle of every charging session. Claims are established upon session initialization and safely revoked when sessions reach terminal states (`COMPLETED`, `CANCELLED`, or `FAULTED`).
+- **[D-020] Charging Demand Data Exposure:** Active and pending charging sessions, along with real-time demand metrics, shall be exposed and transferred to consuming modules—specifically **Module M4** (Smart Scheduling / Power Distribution) and **Module M6** (Billing / Operations)—exclusively via the `ChargingDemand` provider port (`ChargingDemandProvider`).
+- **Private EV Onboarding (`register_vehicle`):** To accommodate private electric vehicle owners (`FR-07.M3`), the system shall provide and enforce the `register_vehicle` interface to onboard vehicle specifications, battery capacities, and connector profiles prior to permitting scheduling or session state transitions.

@@ -29,7 +29,15 @@ This document defines the lifecycle and state transitions specific to an M3 char
 
 ---
 
-## 3. Key Design Rules
+## 3. System Interfacing & Claim Management
+
+- **Resource Claim Management (D-017):** Module M3 independently places and releases its own `CHARGING_SESSION` resource claims during the charging lifecycle. A claim is placed upon entering `PREPARING` and safely released when transitioning to terminal states (`COMPLETED`, `CANCELLED`, or `FAULTED`).
+- **Provider Port Integration (D-020):** Charging sessions and demand data are exposed to **Module M4** (Smart Scheduling) and **Module M6** (Billing / Operations) exclusively via the `ChargingDemand` provider port (`ChargingDemandProvider`).
+- **Private EV Onboarding:** Private Electric Vehicles (Private EVs) must be registered in the system using the `register_vehicle` interface before initiating a charging session state transition.
+
+---
+
+## 4. Key Design Rules
 
 - **Fail-Safe Isolation:** Any fault or interruption during the `CHARGING` state immediately drives the hardware into `FAULTED` or `CANCELLED`, ensuring zero risk of electrical arcing or equipment damage.
 - **Core Telemetry:** State changes are instantaneously pushed to the core management engine to update hub availability metrics.
