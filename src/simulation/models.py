@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 
-class ScenarioType(str, Enum):
+class ScenarioType(StrEnum):
     DEMAND_SURGE = "SCENARIO_01_DEMAND_SURGE"
     HUB_AT_CAPACITY = "SCENARIO_02_HUB_AT_CAPACITY"
     CHARGING_SURGE = "SCENARIO_03_CHARGING_SURGE"
