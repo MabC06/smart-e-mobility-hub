@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
+from charging import ChargingDemandProvider
 from charging.models import ChargingRequest
 from charging.service import ChargingQueueService
-from charging import ChargingDemandProvider
 from core.config import CoreConfig
 from core.providers import ScheduledChargingSessionRow
 from core.result import Ok

@@ -11,6 +11,8 @@ must not assume an answer.
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 
 # Add protocol for type checking
@@ -18,8 +20,6 @@ from typing import Any, Protocol
 
 from core.errors import ErrorCode
 from core.result import Err, Result
-from dataclasses import dataclass
-from datetime import datetime
 
 logger = logging.getLogger("core.providers")
 

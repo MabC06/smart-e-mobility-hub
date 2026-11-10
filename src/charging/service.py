@@ -1,3 +1,4 @@
+import contextlib
 from datetime import datetime
 from typing import Any
 
@@ -21,21 +22,16 @@ charging_requests_table = Table(
 
 
 class ChargingQueueService:
-    """Service managing the charging queue, integrating core configuration and claims."""
-
     def __init__(self, core: Any = None) -> None:
         self.core = core
         self._queue: list[ChargingRequest] = []
 
         # Register entity table with core (D-018)
         if self.core and hasattr(self.core, "register_entity"):
-            try:
+            with contextlib.suppress(Exception):
                 self.core.register_entity("charging_requests", charging_requests_table)
-            except Exception:
-                pass
 
     def add_request(self, request: ChargingRequest) -> None:
-        """Add a charging request to the queue, fetch config/time from core, and place a claim (D-017)."""
         if any(r.request_id == request.request_id for r in self._queue):
             raise ValueError(
                 f"Charging request {request.request_id} already exists in queue."
@@ -57,14 +53,12 @@ class ChargingQueueService:
 
         # Place CHARGING_SESSION claim via core (D-017)
         if self.core and hasattr(self.core, "place_claim"):
-            try:
+            with contextlib.suppress(Exception):
                 self.core.place_claim(
                     resource_type="CHARGING_SESSION",
                     resource_id=request.request_id,
                     owner_id=request.vehicle_id,
                 )
-            except Exception:
-                pass
 
     def sort_queue(self) -> None:
         """
@@ -82,25 +76,21 @@ class ChargingQueueService:
         )
 
     def pop_next_request(self) -> ChargingRequest | None:
-        """Retrieve and remove the highest priority request, releasing its claim via core (D-017)."""
         if not self._queue:
             return None
         request = self._queue.pop(0)
 
         # Release CHARGING_SESSION claim via core (D-017)
         if self.core and hasattr(self.core, "release_claim"):
-            try:
+            with contextlib.suppress(Exception):
                 self.core.release_claim(
                     resource_type="CHARGING_SESSION",
                     resource_id=request.request_id,
                 )
-            except Exception:
-                pass
 
         return request
 
     def get_pending_requests(self) -> list[dict[str, Any]]:
-        """Retrieve a list of pending requests (used for the Provider Port)."""
         return [
             {
                 "request_id": r.request_id,
@@ -114,5 +104,4 @@ class ChargingQueueService:
         ]
 
     def get_scheduled_sessions(self, hub_id: str, horizon: datetime) -> list[Any]:
-        """Return scheduled sessions filtered by hub and horizon (D-020)."""
         return self._queue
