@@ -1,0 +1,55 @@
+{#
+  S5. My bookings: pick up, cancel, return (wireframes-student.md), UC-M2-03 to UC-M2-05.
+  A booking with no trip is shown as "Reserved", a booking with a trip as "In progress".
+  "Return the vehicle" opens S8 (the step after a return in ui-flow-diagrams.md).
+#}
+{% extends "base.html" %}
+{% block title %}My bookings · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>My bookings</h1>
+
+{% for booking in bookings %}
+<section class="card">
+  {% if booking.trip_id is none %}
+  {% set left = (booking.hold_expires_at - as_of).total_seconds() | int %}
+  <h2>RENTAL {{ booking.reservation_id }} · Reserved</h2>
+  <p>Vehicle {{ booking.vehicle_id }} · Pick up at {{ booking.origin_hub_id }}</p>
+  <p>
+    Pick up before {{ booking.hold_expires_at | ict }}
+    {% if left > 0 %}(time left {{ "%02d:%02d" | format(left // 60, left % 60) }}){% endif %}
+  </p>
+  <p>
+    <a class="button" href="{{ request.url }}">I picked up the vehicle</a>
+    <button class="button" type="button" disabled>Cancel reservation</button>
+    <span class="planned">Planned</span>
+  </p>
+  {% else %}
+  <h2>RENTAL {{ booking.reservation_id }} · In progress · Trip {{ booking.trip_id }}</h2>
+  <p>
+    Vehicle {{ booking.vehicle_id }} · Picked up {{ booking.picked_up_at | ict }} ·
+    Expected back {{ booking.expected_return_at | ict }}
+  </p>
+  <p>
+    <label>Return to
+      <select>
+        {% for hub in hubs %}
+        <option{% if hub.hub_id == booking.destination_hub_id %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+  <p>
+    <button class="button" type="button" disabled>Hold a return space for 10 min</button>
+    <span class="planned">Planned</span>
+    <a class="button" href="{{ url_for('student_charging') }}">Return the vehicle</a>
+  </p>
+  {% if booking.trip_status == "OVERDUE" %}
+  {% set late = ((as_of - booking.expected_return_at).total_seconds() // 60) | int %}
+  <p class="status status-WARNING">⚠ You are {{ late }} minutes past the expected return time.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{% else %}
+<p>You have no booking. <a href="{{ url_for('student_hubs') }}">Find a vehicle</a>.</p>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{#
+  Layout shared by every screen (wireframes-student.md rule 1, wireframes-operator.md rule 1).
+  `actor` comes from routes.py: "student" gives the student header, "operator" the operator
+  header, tab bar and alert strip, nothing (S1 Login) gives neither. Times are shown in ICT
+  with the `ict` filter (D-005).
+#}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart E-Mobility Hub{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('ui-static', path='app.css') }}">
+</head>
+<body>
+  <p class="prototype-note">Prototype (Phase 2): the data is sample data and no button changes anything.</p>
+
+  {% if actor == "student" %}
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('student_hubs') }}">Smart E-Mobility Hub</a>
+    <span class="user">{{ user_id }}</span>
+    <nav>
+      <a href="{{ url_for('student_bookings') }}">My bookings</a> |
+      <a href="{{ url_for('login_page') }}">Logout</a>
+    </nav>
+  </header>
+  {% elif actor == "operator" %}
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('operator_overview') }}">Smart E-Mobility Hub: Operator</a>
+    <span class="user">{{ user_id }}</span>
+    <nav><a href="{{ url_for('login_page') }}">Logout</a></nav>
+  </header>
+  <nav class="tabs">
+    {% for name, label in [
+      ("operator_overview", "Overview"),
+      ("operator_charging", "Charging"),
+      ("operator_dispatch", "Dispatch"),
+      ("operator_incidents", "Incidents"),
+      ("operator_simulation", "Simulation Lab"),
+    ] %}
+    {% set link = url_for(name) %}
+    <a href="{{ link }}"{% if request.url.path == link.path %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <p class="alert-strip">
+    Alerts:
+    {% for hub in alert_hubs %}
+    <a class="status status-{{ hub.status }}" href="{{ url_for('operator_hub', hub_id=hub.hub_id) }}">
+      {{ hub.status | status_symbol }} {{ hub.hub_id }} {{ hub.status }}</a> ·
+    {% else %}
+    no Hub in WARNING or CRITICAL ·
+    {% endfor %}
+    <a href="{{ url_for('operator_incidents') }}">Incidents: {{ active_incidents }} active</a>
+  </p>
+  {% endif %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if actor %}
+  <footer class="site-footer">
+    Data as of {{ as_of | ict }} · <a href="{{ request.url }}">Refresh</a>
+  </footer>
+  {% endif %}
+</body>
+</html>

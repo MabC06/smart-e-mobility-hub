@@ -1,0 +1,15 @@
+{#
+  A screen that is Planned in the wireframes and has no prototype yet (S6, S7, S8, O3).
+  `screen` and `reason` come from routes.py; the reason is the one given in the wireframe.
+#}
+{% extends "base.html" %}
+{% block title %}{{ screen }} · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>{{ screen }} <span class="planned">Planned</span></h1>
+<p>{{ reason }}</p>
+{% if actor == "operator" %}
+<p><a href="{{ url_for('operator_overview') }}">Back to Overview</a></p>
+{% else %}
+<p><a href="{{ url_for('student_hubs') }}">Back to Hubs</a></p>
+{% endif %}
+{% endblock %}

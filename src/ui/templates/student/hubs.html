@@ -1,0 +1,56 @@
+{# S2. Find a Hub (wireframes-student.md), FR-01. The student's home screen. #}
+{% extends "base.html" %}
+{% block title %}Find a Hub · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set status_words = {
+  "ACTIVE": "Open",
+  "WARNING": "Nearly full",
+  "CRITICAL": "Full",
+  "MAINTENANCE": "Closed",
+} %}
+<h1>Find a Hub</h1>
+<p>From Hub: choose a row below.</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Hub</th>
+        <th>Zone</th>
+        <th>Vehicles</th>
+        <th>Free spaces</th>
+        <th>Charging in use</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hub in hubs %}
+      <tr>
+        <td>{{ hub.hub_id }} {{ hub.name }}</td>
+        <td>{{ hub.zone_code }}</td>
+        <td>{{ hub.available_vehicles }}</td>
+        <td>{{ hub.free_spaces }} of {{ hub.parking_capacity }}</td>
+        <td>{{ hub.charging_in_use }} of {{ hub.charging_points }}</td>
+        <td>
+          <span class="status status-{{ hub.status }}">{{ status_words[hub.status] }}</span>
+          {% if hub.status == "CRITICAL" %}<br>No new parking bookings{% endif %}
+        </td>
+        <td>
+          <a class="button" href="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">Find a vehicle at this Hub</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No Hub to show. Refresh the page in a moment.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p>
+  Also:
+  <a href="{{ url_for('student_parking') }}">Parking</a> ·
+  <a href="{{ url_for('student_private_ev') }}">My private EV</a> ·
+  <a href="{{ url_for('student_charging') }}">Charging</a>
+</p>
+{% endblock %}
