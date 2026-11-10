@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from simulation.models import (
     HubImpactMetrics,
@@ -83,7 +83,7 @@ class SimulationEngine:
             else 0.0
         )
 
-        report_time = self.state.taken_at or datetime.now(timezone.utc)
+        report_time = self.state.taken_at or datetime.now(UTC)
 
         return SimulationReport(
             simulation_id=self.config.simulation_id,
