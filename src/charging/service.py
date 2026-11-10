@@ -22,6 +22,8 @@ charging_requests_table = Table(
 
 
 class ChargingQueueService:
+    """Service managing the charging queue, integrating core config and claims."""
+
     def __init__(self, core: Any = None) -> None:
         self.core = core
         self._queue: list[ChargingRequest] = []
@@ -32,6 +34,7 @@ class ChargingQueueService:
                 self.core.register_entity("charging_requests", charging_requests_table)
 
     def add_request(self, request: ChargingRequest) -> None:
+        """Add a charging request, fetch config/time, and place a claim (D-017)."""
         if any(r.request_id == request.request_id for r in self._queue):
             raise ValueError(
                 f"Charging request {request.request_id} already exists in queue."
@@ -76,6 +79,7 @@ class ChargingQueueService:
         )
 
     def pop_next_request(self) -> ChargingRequest | None:
+        """Retrieve and remove highest priority request, releasing claim (D-017)."""
         if not self._queue:
             return None
         request = self._queue.pop(0)
@@ -91,6 +95,7 @@ class ChargingQueueService:
         return request
 
     def get_pending_requests(self) -> list[dict[str, Any]]:
+        """Retrieve a list of pending requests (used for the Provider Port)."""
         return [
             {
                 "request_id": r.request_id,
@@ -104,4 +109,5 @@ class ChargingQueueService:
         ]
 
     def get_scheduled_sessions(self, hub_id: str, horizon: datetime) -> list[Any]:
+        """Return scheduled sessions filtered by hub and horizon (D-020)."""
         return self._queue

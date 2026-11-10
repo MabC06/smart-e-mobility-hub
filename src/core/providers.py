@@ -9,11 +9,11 @@ If no provider is registered, or the provider fails, the caller gets RESOURCE_UN
 must not assume an answer.
 """
 
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+import logging
 
 # Add protocol for type checking
 from typing import Any, Protocol
