@@ -41,7 +41,11 @@ class SimulationEngine:
                 continue
 
             available_vehicles = len(
-                [v for v in hub.vehicles if v.state == "AVAILABLE" and v.soc >= 0.2]
+                [
+                    v
+                    for v in hub.vehicles
+                    if v.state == "AVAILABLE" and v.soc >= 0.2
+                ]
             )
 
             base_requests = max(10, available_vehicles * 2)

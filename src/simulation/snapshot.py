@@ -48,7 +48,8 @@ class SnapshotAdapter:
         )
 
         sandbox = IsolatedSandboxState(
-            snapshot_id=snapshot_id, taken_at=taken_at
+            snapshot_id=snapshot_id,
+            taken_at=taken_at,
         )
 
         # M6-3: Hub occupied count based on parking_spaces with state OCCUPIED
