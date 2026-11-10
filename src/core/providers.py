@@ -10,10 +10,13 @@ must not assume an answer.
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
+from core.domain.enums import VehicleType
 from core.errors import ErrorCode
 from core.result import Err, Result
 
@@ -56,3 +59,81 @@ class ProviderRegistry:
         except Exception:
             logger.exception("provider %s failed", port.value)
             return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
+
+
+# ------------------------------------------------------------------ allocation ports (M4, D-020)
+
+
+@dataclass(frozen=True, slots=True)
+class AlternativeHubRequest:
+    """Read-only lookup request for alternative hubs (UC-M4-05, BR-M4-10)."""
+
+    requested_hub_id: str
+    vehicle_type: VehicleType | None = None
+    require_vehicle: bool = True
+    require_parking: bool = False
+    limit: int = 3
+
+
+@dataclass(frozen=True, slots=True)
+class HubAlternative:
+    """One candidate hub ranked by closeness, available capacity, battery and hub ID."""
+
+    hub_id: str
+    hub_name: str
+    closeness: int
+    available_vehicles: int
+    free_spaces: int
+    best_battery_level: float
+
+
+@dataclass(frozen=True, slots=True)
+class AlternativeHubResult:
+    """Ranked alternative hubs with read timestamp and BR-M4-10 reason code."""
+
+    candidates: tuple[HubAlternative, ...]
+    as_of: datetime
+    reason_code: str
+
+
+class AlternativeHubProvider(Protocol):
+    """M4 read port (UC-M4-05, D-020). Suggests alternative hubs without holding resources."""
+
+    def suggest_alternative_hubs(
+        self, request: AlternativeHubRequest
+    ) -> Result[AlternativeHubResult]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class DisplacedChargingRequest:
+    """One charging request displaced from a hub with no free charging bay."""
+
+    request_id: str
+    details: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ChargingAlternative:
+    """Suggested alternative hub and charging point for one displaced charging request."""
+
+    request_id: str
+    alternative_hub_id: str | None
+    charging_point_id: str | None
+    closeness: int
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class AlternativeChargingResult:
+    """Alternative charging suggestions paired per displaced request at read time."""
+
+    alternatives: tuple[ChargingAlternative, ...]
+    as_of: datetime
+
+
+class AlternativeChargingProvider(Protocol):
+    """M4 read port (UC-M4-07, D-020). Suggests free bays at other hubs for displaced requests."""
+
+    def find_alternative_charging(
+        self, requests: Sequence[DisplacedChargingRequest], hub_id: str
+    ) -> Result[AlternativeChargingResult]: ...

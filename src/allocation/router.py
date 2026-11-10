@@ -12,9 +12,14 @@ from pydantic import BaseModel, Field
 from core.actor import Actor
 from core.domain.enums import Role, VehicleType
 from core.errors import ErrorCode
+from core.providers import (
+    AlternativeChargingProvider,
+    AlternativeHubProvider,
+    AlternativeHubRequest,
+    DisplacedChargingRequest,
+)
 from core.result import Ok, Result
 
-from .alternatives import AlternativeChargingService, AlternativeHubService
 from .arbitration import ContenderRequest, RequestClass, settle_competing_requests
 from .config import AllocationConfig
 from .models import DispatchTaskStatus
@@ -79,10 +84,12 @@ def _handle_result[T](result: Result[T]) -> T:
         ErrorCode.NOT_FOUND: status.HTTP_404_NOT_FOUND,
         ErrorCode.INVALID_INPUT: status.HTTP_400_BAD_REQUEST,
         ErrorCode.INVALID_TRANSITION: status.HTTP_409_CONFLICT,
+        ErrorCode.CLAIM_CONFLICT: status.HTTP_409_CONFLICT,
         ErrorCode.VERSION_CONFLICT: status.HTTP_409_CONFLICT,
         ErrorCode.RESOURCE_UNAVAILABLE: status.HTTP_503_SERVICE_UNAVAILABLE,
         ErrorCode.FORBIDDEN: status.HTTP_403_FORBIDDEN,
-        ErrorCode.HUB_FULL: status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ErrorCode.HUB_FULL: status.HTTP_422_UNPROCESSABLE_CONTENT,
+        ErrorCode.BATTERY_TOO_LOW: status.HTTP_422_UNPROCESSABLE_CONTENT,
     }
     status_code = code_map.get(result.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
     raise HTTPException(
@@ -92,8 +99,8 @@ def _handle_result[T](result: Result[T]) -> T:
 
 def create_allocation_router(
     service: AllocationService,
-    hub_provider: AlternativeHubService,
-    charging_provider: AlternativeChargingService,
+    hub_provider: AlternativeHubProvider,
+    charging_provider: AlternativeChargingProvider,
 ) -> APIRouter:
     router = APIRouter()
     operator_actor = Actor(user_id="OP01", role=Role.OPERATOR, module="allocation")
@@ -188,19 +195,48 @@ def create_allocation_router(
         limit: int = 3,
     ) -> dict[str, Any]:
         """Suggest nearest suitable alternative hubs (UC-M4-05, BR-M4-10)."""
-        res = _handle_result(
-            hub_provider.suggest_alternative_hubs(
-                requested_hub_id, vehicle_type, require_vehicle, require_parking, limit
-            )
+        req = AlternativeHubRequest(
+            requested_hub_id=requested_hub_id,
+            vehicle_type=vehicle_type,
+            require_vehicle=require_vehicle,
+            require_parking=require_parking,
+            limit=limit,
         )
-        return res
+        res = _handle_result(hub_provider.suggest_alternative_hubs(req))
+        return {
+            "candidates": [
+                {
+                    "hub_id": c.hub_id,
+                    "hub_name": c.hub_name,
+                    "closeness": c.closeness,
+                    "available_vehicles": c.available_vehicles,
+                    "free_spaces": c.free_spaces,
+                    "best_battery_level": c.best_battery_level,
+                }
+                for c in res.candidates
+            ],
+            "as_of": res.as_of.isoformat(),
+            "reason_code": res.reason_code,
+        }
 
     @router.post("/alternatives/charging")
     def find_alternative_charging(body: FindAlternativeChargingIn) -> list[dict[str, Any]]:
         """Suggest nearest suitable alternative charging hubs (UC-M4-07, BR-M4-10, BR-M3-02)."""
-        reqs = [{"request_id": r.request_id, "details": r.details} for r in body.displaced_requests]
+        reqs = [
+            DisplacedChargingRequest(request_id=r.request_id, details=r.details)
+            for r in body.displaced_requests
+        ]
         res = _handle_result(charging_provider.find_alternative_charging(reqs, body.failed_hub_id))
-        return res
+        return [
+            {
+                "request_id": alt.request_id,
+                "alternative_hub_id": alt.alternative_hub_id,
+                "charging_point_id": alt.charging_point_id,
+                "closeness": alt.closeness,
+                "status": alt.status,
+            }
+            for alt in res.alternatives
+        ]
 
     @router.post("/arbitrate")
     def arbitrate_competing_requests(body: ArbitrateIn) -> dict[str, Any]:
