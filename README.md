@@ -103,7 +103,7 @@ smart-e-mobility-hub/
 ├── tests/
 │   ├── <module>/               # unit tests, written by each module's owner
 │   └── integration/            # integration tests, owned by M8
-├── .github/                    # pull_request_template.md, CODEOWNERS, CI workflow (if any)
+├── .github/                    # pull_request_template.md, CODEOWNERS, workflows/ci.yml (CI)
 ├── .env.example                 # required environment variables (names only)
 ├── .gitignore
 ├── CONTRIBUTING.md              # workflow & coding rules — read before your first PR
@@ -114,15 +114,18 @@ No hardware is used, so vehicle, parking and charging-point state comes from sim
 
 ## Tech Stack
 
-> *TBD — to be filled in once the team finalizes the stack during the Design phase (proposal: `docs/design/architecture/tech-stack-proposal.md`). Record the final decision in `docs/DECISIONS.md`.*
+Decided in D-002 (details and reasons: [`docs/design/architecture/tech-stack-proposal.md`](docs/design/architecture/tech-stack-proposal.md)).
 
-- Backend language/framework: *TBD*
-- Frontend: *TBD*
-- Database: *TBD*
-- UML/wireframing tools: *TBD*
-- Test framework / test-case management: *TBD*
+- Backend language/framework: Python 3.12, FastAPI with Pydantic
+- Frontend: server-rendered pages with Jinja2 + HTMX, served by the same application
+- Database: SQLite through SQLAlchemy 2.x
+- UML/wireframing tools: Mermaid in the Markdown files; draw.io or PlantUML where Mermaid is not enough
+- Test framework / test-case management: pytest with pytest-cov; test cases as Markdown tables in `docs/testing/`, linked to pytest by `TC-M<n>-###` markers
+- Quality checks: ruff (lint and format), mypy (strict on `core`), run by CI on every PR
 
 ## Getting Started
+
+You need **Python 3.12 or newer** (`python --version`). Nothing else has to be installed. The commands below work in Git Bash (Windows), macOS and Linux; Windows PowerShell differs only in step 4.
 
 ```bash
 # 1. Clone the repo
@@ -134,17 +137,22 @@ git config --local user.name  "<Student ID> <Full name>"
 git config --local user.email "<your GitHub noreply email>"
 
 # 3. Configure environment variables
-cp .env.example .env        # then fill in values; never commit .env
+cp .env.example .env        # then fill in values (at least SECRET_KEY); never commit .env
 
-# 4. Install dependencies   (update once the tech stack is set)
-# ...
+# 4. Create the virtual environment and install the pinned dependencies
+python -m venv .venv
+source .venv/Scripts/activate      # Git Bash on Windows. macOS/Linux: source .venv/bin/activate. PowerShell: .venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
 
-# 5. Run the project locally (update once the tech stack is set)
-# ...
+# 5. Run the project locally
+python -m uvicorn --app-dir src main:create_app --factory --port 8000
+#    then open http://127.0.0.1:8000/docs  (hidden when APP_ENV=production-demo)
 
-# 6. Run tests              (update once the tech stack is set)
-# ...
+# 6. Run the checks (the same commands CI runs)
+python -m pytest -q && ruff check . && ruff format --check . && mypy
 ```
+
+Activate the virtual environment again (step 4, second line) in every new terminal; without it Python cannot find the installed packages. `SECRET_KEY` is required and has no default: any text of at least 16 characters works locally. Set `SEED_ON_START=true` in `.env` to load the demo network into an empty database once the simulator (`src/iot_sim`, M8) provides `build_network_spec`.
 
 ## Contributing
 
