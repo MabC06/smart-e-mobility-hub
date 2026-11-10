@@ -1,21 +1,22 @@
-"""State snapshot ingestion and memory isolation adapter.
+"""Snapshot adapter isolating simulation sandbox state from Core DB.
 
-Traces: FR-12.1, NFR-12, core-api-spec.md Section 7
+Traces: NFR-12, Core API Spec §7
 """
 
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class SimulatedVehicle:
     vehicle_id: str
-    hub_id: Optional[str]
+    hub_id: str
     vehicle_type: str
     state: str
     battery_pct: float
-    soc: float  # Fraction 0.0 - 1.0 derived from battery_pct
+    soc: float
 
 
 @dataclass
@@ -30,55 +31,64 @@ class SimulatedHub:
 @dataclass
 class IsolatedSandboxState:
     snapshot_id: str
-    taken_at: Any
+    taken_at: Optional[datetime]
     hubs: Dict[str, SimulatedHub] = field(default_factory=dict)
     vehicles: Dict[str, SimulatedVehicle] = field(default_factory=dict)
 
 
 class SnapshotAdapter:
-    """Isolates operational snapshot from M1 Core into a clean simulation state."""
-
     @staticmethod
-    def from_core_snapshot(snapshot: Any) -> IsolatedSandboxState:
-        data = snapshot.to_dict() if hasattr(snapshot, "to_dict") else deepcopy(snapshot)
-
-        sandbox = IsolatedSandboxState(
-            snapshot_id=str(data.get("snapshot_id", "SNAP_M6_ISOLATED")),
-            taken_at=data.get("taken_at")
+    def from_core_snapshot(data: Dict[str, Any]) -> IsolatedSandboxState:
+        snapshot_id = str(data.get("snapshot_id", "SNAP_UNKNOWN"))
+        taken_at_val = data.get("taken_at")
+        taken_at = (
+            datetime.fromisoformat(str(taken_at_val))
+            if isinstance(taken_at_val, str)
+            else taken_at_val
         )
 
-        # Map Hubs
+        sandbox = IsolatedSandboxState(
+            snapshot_id=snapshot_id, taken_at=taken_at
+        )
+
+        # M6-3: Hub occupied count based on parking_spaces with state OCCUPIED
         for h in data.get("hubs", []):
-            hid = h.get("id") or h.get("hub_id")
-            cap = h.get("parking_capacity", 0)
-            occ = h.get("occupied", 0)
-            name = h.get("name", hid)
-            sandbox.hubs[hid] = SimulatedHub(
-                hub_id=hid,
-                name=name,
-                parking_capacity=cap,
-                occupied=occ,
-                vehicles=[]
-            )
+            if isinstance(h, dict):
+                hid = str(h.get("id") or h.get("hub_id"))
+                cap = int(h.get("parking_capacity", 0))
 
-        # Map flat vehicle list to Hubs
+                parking_spaces = h.get("parking_spaces", [])
+                occ_count = sum(
+                    1
+                    for sp in parking_spaces
+                    if isinstance(sp, dict) and sp.get("state") == "OCCUPIED"
+                )
+
+                sandbox.hubs[hid] = SimulatedHub(
+                    hub_id=hid,
+                    name=str(h.get("name", hid)),
+                    parking_capacity=cap,
+                    occupied=occ_count,
+                )
+
         for v in data.get("vehicles", []):
-            vid = v.get("vehicle_id") or v.get("id")
-            hid = v.get("hub_id")
-            bat = float(v.get("battery_pct", 100.0))
-            v_type = v.get("vehicle_type", "E_BIKE")
-            state = v.get("state", "AVAILABLE")
+            if isinstance(v, dict):
+                vid = str(v.get("id") or v.get("vehicle_id"))
+                hid = str(v.get("hub_id", ""))
+                vtype = str(v.get("type", "E_BIKE"))
+                st = str(v.get("state", "AVAILABLE"))
+                soc_val = float(v.get("battery_pct", 80.0)) / 100.0
 
-            sim_veh = SimulatedVehicle(
-                vehicle_id=vid,
-                hub_id=hid,
-                vehicle_type=v_type,
-                state=state,
-                battery_pct=bat,
-                soc=bat / 100.0
-            )
-            sandbox.vehicles[vid] = sim_veh
-            if hid and hid in sandbox.hubs:
-                sandbox.hubs[hid].vehicles.append(sim_veh)
+                sim_v = SimulatedVehicle(
+                    vehicle_id=vid,
+                    hub_id=hid,
+                    vehicle_type=vtype,
+                    state=st,
+                    battery_pct=float(v.get("battery_pct", 80.0)),
+                    soc=soc_val,
+                )
+                sandbox.vehicles[vid] = sim_v
+                if hid in sandbox.hubs:
+                    sandbox.hubs[hid].vehicles.append(sim_v)
 
-        return sandbox
+        return deepcopy(sandbox)

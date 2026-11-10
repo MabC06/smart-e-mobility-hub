@@ -167,7 +167,7 @@ Interfaces defined in `core`, implemented by other modules and registered throug
 
 | Port | Operation | Implemented by | Used in |
 |---|---|---|---|
-| `ReservationDemand` | `upcoming_bookings(hub_id, horizon)`, `open_trips(hub_id)` (with `expected_return_at`) | M2 | M4 `s1-plan`; M6, which needs the due times that are not in the snapshot (§7) |
+| `ReservationDemand` | `upcoming_bookings(hub_id, horizon)`, `open_trips(hub_id)` (with `expected_return_at`) | M2 | M4 `s1-plan`; M6, which needs the due times that are not in the snapshot (§7) |`
 | `ChargingDemand` | `scheduled_sessions(hub_id, horizon)` | M3 | M4 `s1-plan`; M6 (§7) |
 | `AlternativeHubProvider` | `suggest_alternative_hubs(request) -> (candidates, as_of)` | M4 (`UC-M4-05`) | M2 `s3-return`, `s4-alt-hubs` |
 | `AlternativeChargingProvider` | `find_alternative_charging(requests, hub_id)` | M4 (`UC-M4-07`) | M3 `s5-alt-charging` (`UC-M3-08`, D-012) |
