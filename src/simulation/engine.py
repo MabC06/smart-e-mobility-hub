@@ -3,10 +3,12 @@
 Traces: FR-12.4, NFR-13, UC-M4-03, D-005
 """
 
+from __future__ import annotations
+
 import random
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from simulation.models import (
     HubImpactMetrics,
@@ -19,18 +21,17 @@ from simulation.snapshot import IsolatedSandboxState, SimulatedHub
 class SimulationEngine:
     def __init__(
         self, config: SimulationConfig, initial_state: IsolatedSandboxState
-    ):
+    ) -> None:
         self.config = config
         self.state: IsolatedSandboxState = deepcopy(initial_state)
-        # M6-5: Isolated local RNG for deterministic execution (NFR-13)
         self.rng = random.Random(config.random_seed)
 
     def run_demand_surge(self) -> SimulationReport:
         target_hubs = self.config.parameters.target_hub_ids
         multiplier = self.config.parameters.surge_multiplier
 
-        hub_metrics: List[HubImpactMetrics] = []
-        recommendations: List[Dict[str, Any]] = []
+        hub_metrics: list[HubImpactMetrics] = []
+        recommendations: list[dict[str, Any]] = []
 
         total_shortage = 0
         total_requests_all = 0
@@ -90,7 +91,6 @@ class SimulationEngine:
             else 0.0
         )
 
-        # M6-6: Use snapshot taken_at for report time (D-005, NFR-13)
         report_time = self.state.taken_at or datetime.now(timezone.utc)
 
         return SimulationReport(
@@ -103,7 +103,7 @@ class SimulationEngine:
             recommendations=recommendations,
         )
 
-    def _find_donor_hub(self, target_hub_id: str) -> Optional[SimulatedHub]:
+    def _find_donor_hub(self, target_hub_id: str) -> SimulatedHub | None:
         candidates = [
             h
             for hid, h in self.state.hubs.items()

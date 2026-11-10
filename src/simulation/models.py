@@ -3,10 +3,12 @@
 Traces: FR-12.2, FR-12.4, FR-12.5, BR-M6-03
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ScenarioType(str, Enum):
@@ -19,10 +21,10 @@ class ScenarioType(str, Enum):
 
 @dataclass
 class DemandSurgeParams:
-    target_hub_ids: List[str]
+    target_hub_ids: list[str]
     surge_multiplier: float = 1.5
     duration_minutes: int = 60
-    destination_distribution: Optional[Dict[str, float]] = None
+    destination_distribution: dict[str, float] | None = None
 
     def __post_init__(self) -> None:
         if not self.target_hub_ids:
@@ -68,5 +70,5 @@ class SimulationReport:
     snapshot_id: str
     executed_at: datetime
     baseline_shortage_rate_pct: float
-    hub_metrics: List[HubImpactMetrics]
-    recommendations: List[Dict[str, Any]]
+    hub_metrics: list[HubImpactMetrics]
+    recommendations: list[dict[str, Any]]

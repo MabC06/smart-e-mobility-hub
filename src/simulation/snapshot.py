@@ -3,10 +3,12 @@
 Traces: NFR-12, Core API Spec §7
 """
 
+from __future__ import annotations
+
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -25,20 +27,20 @@ class SimulatedHub:
     name: str
     parking_capacity: int
     occupied: int
-    vehicles: List[SimulatedVehicle] = field(default_factory=list)
+    vehicles: list[SimulatedVehicle] = field(default_factory=list)
 
 
 @dataclass
 class IsolatedSandboxState:
     snapshot_id: str
-    taken_at: Optional[datetime]
-    hubs: Dict[str, SimulatedHub] = field(default_factory=dict)
-    vehicles: Dict[str, SimulatedVehicle] = field(default_factory=dict)
+    taken_at: datetime | None
+    hubs: dict[str, SimulatedHub] = field(default_factory=dict)
+    vehicles: dict[str, SimulatedVehicle] = field(default_factory=dict)
 
 
 class SnapshotAdapter:
     @staticmethod
-    def from_core_snapshot(data: Dict[str, Any]) -> IsolatedSandboxState:
+    def from_core_snapshot(data: dict[str, Any]) -> IsolatedSandboxState:
         snapshot_id = str(data.get("snapshot_id", "SNAP_UNKNOWN"))
         taken_at_val = data.get("taken_at")
         taken_at = (
@@ -52,7 +54,6 @@ class SnapshotAdapter:
             taken_at=taken_at,
         )
 
-        # M6-3: Hub occupied count based on parking_spaces with state OCCUPIED
         for h in data.get("hubs", []):
             if isinstance(h, dict):
                 hid = str(h.get("id") or h.get("hub_id"))

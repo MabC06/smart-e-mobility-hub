@@ -3,6 +3,8 @@
 Traces: FR-12.2, FR-12.4, NFR-12, NFR-13, UC-M6-01
 """
 
+from __future__ import annotations
+
 import unittest
 
 from simulation.engine import SimulationEngine
@@ -16,7 +18,9 @@ from simulation.snapshot import (
 
 class TestSimulationEngine(unittest.TestCase):
     def setUp(self) -> None:
-        self.sandbox = IsolatedSandboxState(snapshot_id="SNAP_TEST_42", taken_at=None)
+        self.sandbox = IsolatedSandboxState(
+            snapshot_id="SNAP_TEST_42", taken_at=None
+        )
 
         self.sandbox.hubs["H01"] = SimulatedHub(
             hub_id="H01", name="KTX Khu B", parking_capacity=40, occupied=2
@@ -53,7 +57,9 @@ class TestSimulationEngine(unittest.TestCase):
             simulation_id="SIM_SURGE_001",
             scenario_id=ScenarioType.DEMAND_SURGE,
             parameters=DemandSurgeParams(
-                target_hub_ids=["H01"], surge_multiplier=2.5, duration_minutes=60
+                target_hub_ids=["H01"],
+                surge_multiplier=2.5,
+                duration_minutes=60,
             ),
         )
 
