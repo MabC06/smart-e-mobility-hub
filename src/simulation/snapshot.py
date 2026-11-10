@@ -1,14 +1,6 @@
-"""Snapshot adapter isolating simulation sandbox state from Core DB.
-
-Traces: NFR-12, Core API Spec §7
-"""
-
-from __future__ import annotations
-
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 
 @dataclass
@@ -40,7 +32,7 @@ class IsolatedSandboxState:
 
 class SnapshotAdapter:
     @staticmethod
-    def from_core_snapshot(data: dict[str, Any]) -> IsolatedSandboxState:
+    def from_core_snapshot(data: dict[str, object]) -> IsolatedSandboxState:
         snapshot_id = str(data.get("snapshot_id", "SNAP_UNKNOWN"))
         taken_at_val = data.get("taken_at")
         taken_at = (

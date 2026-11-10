@@ -1,10 +1,3 @@
-"""Unit tests for M6 Simulation Engine.
-
-Traces: FR-12.2, FR-12.4, NFR-12, NFR-13, UC-M6-01
-"""
-
-from __future__ import annotations
-
 import unittest
 
 from simulation.engine import SimulationEngine

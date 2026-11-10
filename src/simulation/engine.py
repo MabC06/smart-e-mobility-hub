@@ -1,14 +1,6 @@
-"""Discrete-event simulation engine for Module M6.
-
-Traces: FR-12.4, NFR-13, UC-M4-03, D-005
-"""
-
-from __future__ import annotations
-
 import random
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any
 
 from simulation.models import (
     HubImpactMetrics,
@@ -31,7 +23,7 @@ class SimulationEngine:
         multiplier = self.config.parameters.surge_multiplier
 
         hub_metrics: list[HubImpactMetrics] = []
-        recommendations: list[dict[str, Any]] = []
+        recommendations: list[dict[str, object]] = []
 
         total_shortage = 0
         total_requests_all = 0

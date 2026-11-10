@@ -1,14 +1,6 @@
-"""Data models and validation schemas for Module M6 (Simulation & Coordination).
-
-Traces: FR-12.2, FR-12.4, FR-12.5, BR-M6-03
-"""
-
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 
 class ScenarioType(str, Enum):
@@ -71,4 +63,4 @@ class SimulationReport:
     executed_at: datetime
     baseline_shortage_rate_pct: float
     hub_metrics: list[HubImpactMetrics]
-    recommendations: list[dict[str, Any]]
+    recommendations: list[dict[str, object]]
