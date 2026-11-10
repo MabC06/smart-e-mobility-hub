@@ -193,7 +193,7 @@ Each question has an assumption used in this version, so the document is valid n
 | # | Question | Assumed now | Parts to change if different | Ask |
 |---|---|---|---|---|
 | 1 | Is the FR-11 split with M3 acceptable? | **Decided:** D-012 (Accepted) gives failed-charging-point handling to M3 and the cross-Hub lookup to M4 | Only if M3 or M4 objects in Phase 1: FR-11.M4.1 to FR-11.M4.3, BR-M4-01, UC-M4-06, UC-M4-07 | M3 |
-| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | Yes (used in the design, sequences S2 and S3; claim kind `DISPATCH_TASK`, D-017) | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
+| 2 | Is a dispatch a system-made reservation (purpose `REBALANCE`), so the vehicle states need no new state? | **Decided (D-016, D-017):** No M2 system reservation and no extra vehicle state; M4 places and releases its own `HolderKind.DISPATCH_TASK` claims through Core and reuses standard vehicle events | BR-M4-08, UC-M4-02, UC-M4-03 | M1, M2 |
 | 3 | Which public interface does M4 use to read upcoming reservations and charging plans? | **Decided:** D-020 provider ports (`ReservationDemand` and `ChargingDemand` in `core.providers`) | Design and implementation | M1, M2, M3 |
 | 4 | Do low-battery and near-full limits use the same values as M3 and M5? | Yes | Settings list | M3, M5 |
 | 5 | Does the operator approve every task, or is there an automatic mode for demos? | Operator approves every task | UC-M4-02 | M5, M7 |

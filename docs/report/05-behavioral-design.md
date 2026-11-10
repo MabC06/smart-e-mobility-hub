@@ -7,7 +7,7 @@
 
 ### Design overview
 
-The allocation module works in two steps. First it **plans** on a read-only snapshot: it finds Hubs that will run short of vehicles and Hubs with surplus, and proposes dispatch tasks. Planning is a pure function, so M6 can reuse it on a copy of the state. Then, after the operator approves a task, it **commits** through Core in one atomic unit of work: the vehicles and one destination space are held together as a system reservation (purpose `REBALANCE`) owned by M2, or nothing is held. Pick-up, return, cancel and failure each release or complete what was held.
+The allocation module works in two steps. First it **plans** on a read-only view of the network: it finds Hubs that will run short of vehicles and Hubs with surplus, and proposes dispatch tasks. Planning is a pure function, so M6 can reuse it on a copy of the state. Then, after the operator approves a task, it **commits** through Core in one atomic unit of work: M4 places `HolderKind.DISPATCH_TASK` claims on the vehicles and destination spaces directly via Core (D-017), or nothing is claimed. Pick-up transitions the vehicles using those claims; return, cancel and failure each release active `DISPATCH_TASK` claims through Core.
 
 Two further flows are read-only lookups called through Core: alternative Hubs for a reservation request (M2) and an alternative charging point for requests displaced when a Hub has no free port (M3, UC-M3-08, D-012). Competing requests are ordered by class level, then time, then ID (BR-M4-01), and the winner claims the resource atomically.
 

@@ -1,5 +1,5 @@
 @startuml
-title S2 - Approve or reject a dispatch task (UC-M4-02): proposed interaction contract
+title S2 - Approve or reject a dispatch task (UC-M4-02): DISPATCH_TASK claim interaction contract
 skinparam shadowing false
 skinparam defaultFontName Arial
 hide footbox
@@ -7,30 +7,29 @@ actor Operator
 boundary UI
 control Allocation
 control Core
-control Reservation
 Operator -> UI: Choose task and decision
 alt Operator approves (optional lower quantity)
-  UI -> Allocation: approve_task(task_id, qty, command key)
-  Allocation -> Allocation: Check task is Recommended (BR-M4-08)
-  Allocation -> Core: Begin unit of work on a fresh snapshot (version)
-  Allocation -> Allocation: Re-check BR-M4-02..06 and BR-M1-01 on the fresh snapshot
+  UI -> Allocation: approve_task(task_id, adjusted_qty?)
+  Allocation -> Allocation: Check task is RECOMMENDED (BR-M4-08)
+  Allocation -> Core: Read fresh hub spaces and vehicle states
+  Allocation -> Allocation: Re-check BR-M4-02..06 and BR-M1-01
   alt Conditions still valid
-    group Atomic Core-coordinated unit of work (BR-M4-04, BR-M1-01)
-      Allocation -> Reservation: Create system reservation (purpose REBALANCE):\nvehicle claim + destination space hold
-      Reservation -> Core: Apply claims, Vehicle Reserved
+    group Atomic Core-coordinated unit of work (BR-M4-04, BR-M1-01, D-017)
+      Allocation -> Core: place_claim(VEHICLE, HolderKind.DISPATCH_TASK, task_id)
+      Allocation -> Core: place_claim(SPACE, HolderKind.DISPATCH_TASK, task_id)
+      Allocation -> Allocation: Task APPROVED; persist via uow.repository
     end
     Core --> Allocation: Committed (new version)
-    Allocation -> Allocation: Task Approved; log transition (NFR-25)
-    Allocation --> UI: Approved
+    Allocation --> UI: APPROVED
   else Conditions changed or a competing claim won
-    Allocation -> Core: Roll back (nothing held)
-    Allocation -> Allocation: Task Failed with reason code; log
-    Allocation --> UI: Failed (reason), offer to re-plan
+    Allocation -> Core: Roll back (nothing claimed)
+    Allocation -> Allocation: Task FAILED with reason code; log
+    Allocation --> UI: FAILED (reason), offer to re-plan
   end
 else Operator rejects
   UI -> Allocation: reject_task(task_id)
-  Allocation -> Allocation: Task Rejected; log
-  Allocation --> UI: Rejected
+  Allocation -> Allocation: Task REJECTED; log
+  Allocation --> UI: REJECTED
 end
 UI --> Operator: Show result
 @enduml

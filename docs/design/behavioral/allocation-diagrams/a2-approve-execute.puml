@@ -15,35 +15,35 @@ if (BR-M4-02..06 and BR-M1-01 still valid?) then (no)
   stop
 endif
 :Begin one atomic unit of work;
-:Hold vehicles (system reservation, purpose REBALANCE)\nand a destination space;
-if (Hold succeeded without conflict?) then (no)
-  :Roll back, nothing held; Task Failed (reason);
+:Place DISPATCH_TASK claims on vehicles\nand destination spaces via Core (D-017);
+if (Claims succeeded without conflict?) then (no)
+  :Roll back, nothing claimed; Task FAILED (reason);
   stop
 endif
-:Commit; Task Approved;
+:Commit; Task APPROVED;
 if (Operator cancels before pick-up?) then (yes)
-  :Release held vehicle and space; Task Cancelled;
+  :Release DISPATCH_TASK vehicle & space claims; Task CANCELLED;
   stop
 endif
 if (Pick-up confirmed before the timeout?) then (no)
-  :Release held vehicle and space; Task Failed (timeout);
+  :Release DISPATCH_TASK vehicle & space claims; Task FAILED (timeout);
   :Start re-plan (UC-M4-08);
   stop
 endif
-:Task InProgress;
+:Task IN_PROGRESS;
 if (Operator cancels while in progress?) then (yes)
   if (Vehicle already at the destination?) then (yes)
     :Complete the task for that vehicle (no move back);
   else (no)
-    :Release held vehicle and space; Task Cancelled;
+    :Release DISPATCH_TASK vehicle & space claims; Task CANCELLED;
   endif
   stop
 endif
 if (Return confirmed before the timeout, no fault?) then (yes)
-  :Update vehicle location and both Hubs' space counts atomically;
-  :Task Completed; log;
+  :Return vehicles using held space claims,\nrelease remaining DISPATCH_TASK claims,\nupdate locations and counts atomically;
+  :Task COMPLETED; log;
 else (no)
-  :Release held vehicle and space; Task Failed;
+  :Release DISPATCH_TASK vehicle & space claims; Task FAILED;
   :Start re-plan (UC-M4-08);
 endif
 stop

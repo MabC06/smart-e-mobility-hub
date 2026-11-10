@@ -4,16 +4,16 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 hide empty description
 [*] --> Recommended : plan created
-Recommended --> Approved : approve [conditions valid, holds committed]
+Recommended --> Approved : approve [conditions valid, DISPATCH_TASK claims committed]
 Recommended --> Rejected : reject
-Recommended --> Failed : approve [conditions changed or hold conflict]
+Recommended --> Failed : approve [conditions changed or claim conflict]
 Recommended --> Cancelled : re-plan withdraws it (superseded)
 Approved --> InProgress : pick-up confirmed
-Approved --> Cancelled : operator cancels / release holds
-Approved --> Failed : timeout before pick-up / release holds
-InProgress --> Completed : return confirmed at destination
-InProgress --> Cancelled : operator cancels / release holds
-InProgress --> Failed : vehicle missing or faulty, or timeout / release holds
+Approved --> Cancelled : operator cancels / release DISPATCH_TASK claims
+Approved --> Failed : timeout before pick-up / release DISPATCH_TASK claims
+InProgress --> Completed : return confirmed at destination / release claims
+InProgress --> Cancelled : operator cancels / release DISPATCH_TASK claims
+InProgress --> Failed : vehicle missing or faulty, or timeout / release DISPATCH_TASK claims
 Completed --> [*]
 Rejected --> [*]
 Cancelled --> [*]
