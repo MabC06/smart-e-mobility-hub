@@ -18,7 +18,7 @@ Main concern: decision logic and loops. Destinations are served from the most ur
 
 [Source](allocation-diagrams/a2-approve-execute.puml). FR-10.4, FR-10.5, FR-10.7; UC-M4-02, UC-M4-03, UC-M4-04; BR-M4-02 to BR-M4-06, BR-M4-08, BR-M1-01, BR-M1-02.
 
-Main concern: alternative paths. Every exit releases what was held: reject, changed conditions, hold conflict, cancel, timeout and fault. Failures start a re-plan (UC-M4-08) so that the missing vehicles are covered by a new task.
+Main concern: alternative paths. Every exit releases active `DISPATCH_TASK` claims (D-017): reject, changed conditions, claim conflict, cancel, timeout and fault. Failures start a re-plan (UC-M4-08) so that the missing vehicles are covered by a new task.
 
 ## A3 - Settle competing requests for one resource
 

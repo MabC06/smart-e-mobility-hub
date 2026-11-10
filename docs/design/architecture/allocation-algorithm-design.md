@@ -105,7 +105,7 @@ Checks: H05 keeps `26 - 7 = 19 >= 8 + 3 = 11` (BR-M4-05). H03 keeps `27 - 4 = 23
 
 ### 4.4 Approval and commit
 
-The plan can be minutes old, so approval repeats the checks on a fresh snapshot and then holds the vehicles (as a system reservation with purpose `REBALANCE`) and one destination space in one atomic unit of work (NFR-09, BR-M4-04, BR-M1-01). If a competing claim was committed first, nothing is held and the task becomes `Failed` (NFR-06). Timeouts use the injectable clock (D-005).
+The plan can be minutes old, so approval repeats the checks on current Hub and vehicle state and then places `HolderKind.DISPATCH_TASK` claims on the vehicles and destination spaces through Core in one atomic unit of work (NFR-09, BR-M4-04, BR-M1-01, D-017). If a competing claim was committed first, nothing is claimed and the task becomes `Failed` (NFR-06). Timeouts use the injectable clock (D-005).
 
 ### 4.5 Re-planning without duplicates (UC-M4-08, FR-10.7)
 
@@ -170,7 +170,7 @@ Sections 1 to 9 are designed. The items below have been settled with the release
 |---|---|---|---|
 | 1 | Values of parameters in section 7 (horizon, safety stock, buffer, minimum dispatch battery, limits, timeout, staleness limit) | **Decided:** Default parameters provided in module config (horizon 30 min, safety stock 3, parking buffer 3, min battery 30%, task timeout 60 min, max vehicles 10) | Section 7, `src/allocation/config.py` |
 | 2 | Closeness table between Hubs | **Decided:** Configured as a hop/distance lookup table per dataset DS-STD (10 hubs) and DS-STRESS (20 hubs) | `src/allocation/config.py` |
-| 3 | Public interface to read snapshots and demand | **Decided:** `core.snapshots.take_snapshot()` and provider ports `ProviderPort.RESERVATION_DEMAND`, `ProviderPort.CHARGING_DEMAND` | D-020, Core API spec §6.1 |
+| 3 | Public interface to read snapshots and demand | **Decided:** `core.snapshots.export_snapshot()` and provider ports `ProviderPort.RESERVATION_DEMAND`, `ProviderPort.CHARGING_DEMAND` | D-020, Core API spec §6.1, §7 |
 | 4 | Vehicle transitions and claims for dispatch | **Decided:** Claim kind `HolderKind.DISPATCH_TASK` (D-017); vehicle moves to `IN_USE` on dispatch pickup, `RETURNED` on return, and `mark_ready` returns it to `AVAILABLE` (D-016, `vehicle-state-machine.md`) | D-016, D-017, `vehicle-state-machine.md` |
 | 5 | Operator approval workflow | **Decided:** Operator approves every task via UC-M4-02 | UC-M4-02 |
 | 6 | Provider ports implemented by M4 | **Decided:** M4 implements `ProviderPort.ALTERNATIVE_HUB` and `ProviderPort.ALTERNATIVE_CHARGING` | D-020 |
