@@ -45,3 +45,17 @@ def test_seed_refuses_to_overwrite_existing_network() -> None:
     assert not isinstance(seed_core(core, seed=3), Err)
     second = seed_core(core, seed=3)
     assert isinstance(second, Err)
+
+
+def test_minimal_feed_rejects_naive_start_at() -> None:
+    core = CoreFacade()
+
+    try:
+        run_minimal_feed(
+            core,
+            start_at=datetime(2026, 11, 6, 8, 0),
+        )
+    except ValueError as exc:
+        assert str(exc) == "start_at must be timezone-aware"
+    else:
+        raise AssertionError("Expected ValueError for naive start_at")

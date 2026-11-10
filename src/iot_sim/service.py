@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime
 
 from core.actor import Actor
 from core.domain.enums import Role
@@ -30,12 +30,13 @@ def apply_events(core: CoreFacade, events: Iterable[SensorEvent]) -> list[Result
 
 def run_minimal_feed(
     core: CoreFacade,
+    start_at: datetime,
     seed: int = 0,
-    start_at: datetime | None = None,
     config: SimulatorConfig | None = None,
 ) -> list[Result[SensorResult]]:
     """Emit the minimal deterministic feed against a network seeded with the same seed."""
+    if start_at.tzinfo is None or start_at.utcoffset() is None:
+        raise ValueError("start_at must be timezone-aware")
     selected = config or SimulatorConfig(seed=seed)
-    moment = start_at or datetime.now(UTC)
     spec: NetworkSpec = build_network_spec(selected.seed)
-    return apply_events(core, iter_minimal_events(spec, moment, selected))
+    return apply_events(core, iter_minimal_events(spec, start_at, selected))
