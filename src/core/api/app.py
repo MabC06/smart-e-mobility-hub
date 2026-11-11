@@ -23,6 +23,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from core.api.errors import ApiError, fail
 from core.api.schemas import (
     ChargingPointOut,
     ErrorOut,
@@ -35,6 +36,7 @@ from core.api.schemas import (
     StateLogOut,
     VehicleOut,
 )
+from core.api.security import check_bearer, check_role
 from core.auth import AuthService, Principal
 from core.domain.enums import (
     ChargingPointStatus,
@@ -72,16 +74,6 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 }
 
 
-class ApiError(Exception):
-    def __init__(self, error: Err) -> None:
-        super().__init__(error.message)
-        self.error = error
-
-
-def _fail(code: ErrorCode, message: str) -> ApiError:
-    return ApiError(Err(code, message))
-
-
 def _error_response(error: Err) -> JSONResponse:
     headers = {"WWW-Authenticate": "Bearer"} if error.code is ErrorCode.UNAUTHENTICATED else None
     body = {
@@ -104,22 +96,14 @@ def create_router(core: CoreFacade, auth: AuthService) -> APIRouter:
     router = APIRouter()
 
     def principal(authorization: Annotated[str | None, Header()] = None) -> Principal:
-        scheme, _, token = (authorization or "").partition(" ")
-        if scheme.lower() != "bearer" or not token.strip():
-            raise _fail(ErrorCode.UNAUTHENTICATED, "missing, invalid or expired token")
-        result = auth.authenticate(token.strip())
-        if isinstance(result, Err):
-            raise ApiError(result)
-        return result.value
+        return check_bearer(auth, authorization)
 
     def operator(who: Annotated[Principal, Depends(principal)]) -> Principal:
-        if who.role is not Role.OPERATOR:
-            raise _fail(ErrorCode.FORBIDDEN, "this endpoint is for operators")
-        return who
+        return check_role(who, Role.OPERATOR, "this endpoint is for operators")
 
     def simulator(who: Annotated[Principal, Depends(principal)]) -> Principal:
         if who.role is not Role.OPERATOR or who.module != "iot_sim":
-            raise _fail(
+            raise fail(
                 ErrorCode.FORBIDDEN, "this endpoint is for the simulator's service credential"
             )
         return who
@@ -265,6 +249,7 @@ def create_app(
         lifespan=lifespan,
         openapi_url="/openapi.json" if expose_docs else None,
     )
+    app.state.auth = auth  # the sign-in checks of the module routers read it (security.py)
     app.include_router(create_router(core, auth))
 
     @app.exception_handler(ApiError)
