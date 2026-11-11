@@ -9,12 +9,13 @@ if (Private EV stay?) then (yes)
 else (rental return)
   :Validate owned Active Trip;\nimmediate 10-minute hold;
 endif
-:Core checks quota, input, existing M2 booking,\noccupancy and calendar under serialization;
+:M2 checks quota, input and its existing booking;\nCore checks occupancy and claims in the same unit of work;
 if (Hub not CRITICAL; valid capacity and claims?) then (yes)
   if (Charging requested?) then (yes)
     :Core / M3 validate compatible bay + charger;\nprepare one joint interval claim;
   else (no)
-    :Prepare parking claim;
+    :Call Core find_free_space(hub, start, end);
+    :Place RESERVATION claim on the returned named space;
   endif
   if (All checks and commit succeed?) then (yes)
     :Confirm all claims atomically;\nshow arrival deadline / planned end;
