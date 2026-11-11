@@ -44,3 +44,5 @@ jobs:
       # once M8 adds them, tests/integration. Core coverage must stay at or above NFR-24 (70 %).
       - name: Tests
         run: python -m pytest -q --cov=core --cov-fail-under=70
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
