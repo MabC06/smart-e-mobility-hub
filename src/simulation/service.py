@@ -1,6 +1,6 @@
-from simulation.engine import SimulationEngine
-from simulation.models import SimulationConfig, SimulationReport
-from simulation.snapshot import SnapshotAdapter
+from src.simulation.engine import SimulationEngine
+from src.simulation.models import SimulationConfig, SimulationReport
+from src.simulation.snapshot import SnapshotAdapter
 
 
 class SimulationService:

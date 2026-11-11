@@ -1,7 +1,11 @@
 import unittest
 
 from src.simulation.engine import SimulationEngine
-from src.simulation.models import DemandSurgeParams, ScenarioType, SimulationConfig
+from src.simulation.models import (
+    DemandSurgeParams,
+    ScenarioType,
+    SimulationConfig,
+)
 from src.simulation.snapshot import (
     IsolatedSandboxState,
     SimulatedHub,
