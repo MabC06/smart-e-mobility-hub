@@ -2,12 +2,12 @@ import random
 from copy import deepcopy
 from datetime import UTC, datetime
 
-from src.simulation.models import (
+from simulation.models import (
     HubImpactMetrics,
     SimulationConfig,
     SimulationReport,
 )
-from src.simulation.snapshot import IsolatedSandboxState, SimulatedHub
+from simulation.snapshot import IsolatedSandboxState, SimulatedHub
 
 
 class SimulationEngine:
