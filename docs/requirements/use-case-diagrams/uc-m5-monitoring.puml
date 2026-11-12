@@ -1,0 +1,57 @@
+@startuml uc-m5-monitoring
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+left to right direction
+
+title Use Case Diagram — Module M5: Operator Monitoring & Incident Handling\n(FR-08, FR-09)
+
+actor "System Operator" as Operator <<Human>>
+actor "IoT Sensor / Telemetry" as Sensor <<External System>>
+actor "Duty Supervisor" as Supervisor <<Human>>
+actor "Field Technician" as Technician <<Human>>
+
+rectangle "Smart E-Mobility Hub — Monitoring & Incident Subsystem (M5)" {
+    ' FR-08 Monitoring Use Cases
+    usecase "UC-M5-01\nMonitor Hub Network Status" as UC_Monitor
+    usecase "View Real-Time Metrics\n& Utilization" as UC_ViewMetrics
+    usecase "Receive Capacity\nWarning Alert" as UC_CapAlert
+    usecase "Inspect Hub Granular\nResources" as UC_InspectHub
+
+    ' FR-09 Incident Handling Use Cases
+    usecase "UC-M5-02\nProcess & Resolve\nOperational Incident" as UC_Incident
+    usecase "Ingest Telemetry\nAnomaly Signal" as UC_IngestFault
+    usecase "Execute Automated\nSafety Interlock" as UC_Interlock
+    usecase "Issue Remote Soft-Reset" as UC_Reset
+    usecase "Dispatch Field\nTechnician" as UC_DispatchTech
+    usecase "Auto-Escalate\nUnacknowledged Ticket" as UC_Escalate
+}
+
+' Operator Connections
+Operator --> UC_Monitor
+Operator --> UC_Incident
+Operator --> UC_Reset
+Operator --> UC_DispatchTech
+
+' Sensor Connections
+Sensor --> UC_IngestFault
+Sensor --> UC_ViewMetrics
+
+' Supervisor & Technician Connections
+Supervisor <-- UC_Escalate
+Technician <-- UC_DispatchTech
+
+' Include & Extend relationships for UC-M5-01
+UC_Monitor ..> UC_ViewMetrics : <<include>>
+UC_CapAlert ..> UC_Monitor : <<extend>>\n(occupancy >= 90%)
+UC_InspectHub ..> UC_Monitor : <<extend>>
+
+' Include & Extend relationships for UC-M5-02
+UC_Incident ..> UC_IngestFault : <<include>>
+UC_Incident ..> UC_Interlock : <<include>>
+UC_Reset ..> UC_Incident : <<extend>>\n(soft-fault)
+UC_DispatchTech ..> UC_Incident : <<extend>>\n(hardware breakdown)
+UC_Escalate ..> UC_Incident : <<extend>>\n(unacknowledged > 5 min)
+
+@enduml
+
