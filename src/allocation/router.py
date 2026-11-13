@@ -4,13 +4,13 @@ Implements REST API endpoints following D-002 (plain def handlers, Pydantic v2 s
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from core.actor import Actor
-from core.domain.enums import Role, VehicleType
+from core.api.security import Principal, acting_as, require_operator
+from core.domain.enums import VehicleType
 from core.errors import ErrorCode
 from core.providers import (
     AlternativeChargingProvider,
@@ -103,12 +103,15 @@ def create_allocation_router(
     charging_provider: AlternativeChargingProvider,
 ) -> APIRouter:
     router = APIRouter()
-    operator_actor = Actor(user_id="OP01", role=Role.OPERATOR, module="allocation")
 
     @router.post("/tasks/plan")
-    def plan_tasks(body: PlanRequestIn) -> list[dict[str, Any]]:
+    def plan_tasks(
+        body: PlanRequestIn,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> list[dict[str, Any]]:
         """Generate and save redistribution recommendations (UC-M4-01)."""
-        tasks = _handle_result(service.plan(operator_actor, body.slot_id))
+        actor = acting_as(principal, "allocation")
+        tasks = _handle_result(service.plan(actor, body.slot_id))
         return [
             {
                 "task_id": t.task_id,
@@ -125,7 +128,10 @@ def create_allocation_router(
         ]
 
     @router.get("/tasks")
-    def list_tasks(task_status: DispatchTaskStatus | None = None) -> list[dict[str, Any]]:
+    def list_tasks(
+        principal: Annotated[Principal, Depends(require_operator)],
+        task_status: DispatchTaskStatus | None = None,
+    ) -> list[dict[str, Any]]:
         """List current allocation tasks with optional status filter."""
         tasks = service.list_tasks(task_status)
         return [
@@ -144,7 +150,10 @@ def create_allocation_router(
         ]
 
     @router.get("/tasks/{task_id}")
-    def get_task(task_id: str) -> dict[str, Any]:
+    def get_task(
+        task_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
         """Get details of one dispatch task."""
         t = _handle_result(service.get_task(task_id))
         return {
@@ -160,35 +169,55 @@ def create_allocation_router(
         }
 
     @router.post("/tasks/{task_id}/approve")
-    def approve_task(task_id: str, body: ApproveTaskIn | None = None) -> dict[str, Any]:
+    def approve_task(
+        task_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
+        body: ApproveTaskIn | None = None,
+    ) -> dict[str, Any]:
         """Approve task and place claims on vehicles and target spaces (UC-M4-02)."""
+        actor = acting_as(principal, "allocation")
         qty = body.adjusted_quantity if body else None
-        t = _handle_result(service.approve_task(task_id, operator_actor, qty))
+        t = _handle_result(service.approve_task(task_id, actor, qty))
         return {"task_id": t.task_id, "status": t.status.value, "quantity": t.quantity}
 
     @router.post("/tasks/{task_id}/pickup")
-    def carry_out_pickup(task_id: str) -> dict[str, Any]:
+    def carry_out_pickup(
+        task_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
         """Confirm vehicle pick-up at origin hub, setting task to IN_PROGRESS (UC-M4-03)."""
-        t = _handle_result(service.carry_out_pickup(task_id, operator_actor))
+        actor = acting_as(principal, "allocation")
+        t = _handle_result(service.carry_out_pickup(task_id, actor))
         return {"task_id": t.task_id, "status": t.status.value}
 
     @router.post("/tasks/{task_id}/return")
-    def carry_out_return(task_id: str, body: ReturnTaskIn | None = None) -> dict[str, Any]:
+    def carry_out_return(
+        task_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
+        body: ReturnTaskIn | None = None,
+    ) -> dict[str, Any]:
         """Confirm delivery at destination, releasing claims and completing task (UC-M4-03)."""
+        actor = acting_as(principal, "allocation")
         pct = body.battery_pct if body else None
-        t = _handle_result(service.carry_out_return(task_id, operator_actor, pct))
+        t = _handle_result(service.carry_out_return(task_id, actor, pct))
         return {"task_id": t.task_id, "status": t.status.value}
 
     @router.post("/tasks/{task_id}/cancel")
-    def cancel_task(task_id: str, body: CancelTaskIn | None = None) -> dict[str, Any]:
+    def cancel_task(
+        task_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
+        body: CancelTaskIn | None = None,
+    ) -> dict[str, Any]:
         """Cancel task and release held claims (UC-M4-04)."""
+        actor = acting_as(principal, "allocation")
         reason = body.reason if body else ""
-        t = _handle_result(service.cancel_task(task_id, operator_actor, reason))
+        t = _handle_result(service.cancel_task(task_id, actor, reason))
         return {"task_id": t.task_id, "status": t.status.value, "reason": t.reason}
 
     @router.get("/alternatives/hubs")
     def suggest_alternative_hubs(
         requested_hub_id: str,
+        principal: Annotated[Principal, Depends(require_operator)],
         vehicle_type: VehicleType | None = None,
         require_vehicle: bool = True,
         require_parking: bool = False,
@@ -220,7 +249,10 @@ def create_allocation_router(
         }
 
     @router.post("/alternatives/charging")
-    def find_alternative_charging(body: FindAlternativeChargingIn) -> list[dict[str, Any]]:
+    def find_alternative_charging(
+        body: FindAlternativeChargingIn,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> list[dict[str, Any]]:
         """Suggest nearest suitable alternative charging hubs (UC-M4-07, BR-M4-10, BR-M3-02)."""
         reqs = [
             DisplacedChargingRequest(request_id=r.request_id, details=r.details)
@@ -239,7 +271,10 @@ def create_allocation_router(
         ]
 
     @router.post("/arbitrate")
-    def arbitrate_competing_requests(body: ArbitrateIn) -> dict[str, Any]:
+    def arbitrate_competing_requests(
+        body: ArbitrateIn,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
         """Arbitrate competing requests for a shared resource (UC-M4-06, BR-M4-01)."""
         contenders = [
             ContenderRequest(
@@ -262,7 +297,9 @@ def create_allocation_router(
         }
 
     @router.get("/config")
-    def get_config() -> dict[str, Any]:
+    def get_config(
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
         """Get current allocation configuration (UC-M4-09)."""
         cfg = service.get_config()
         return {
@@ -278,7 +315,10 @@ def create_allocation_router(
         }
 
     @router.put("/config")
-    def update_config(body: ConfigUpdateIn) -> dict[str, Any]:
+    def update_config(
+        body: ConfigUpdateIn,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
         """Update allocation configuration settings (UC-M4-09)."""
         cur = service.get_config()
         new_cfg = AllocationConfig(

@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core.actor import Actor
-from core.auth import AuthConfig
+from core.auth import AuthConfig, hash_password
 from core.clock import FixedClock
 from core.config import CoreConfig
 from core.domain.enums import Role, VehicleType
@@ -15,7 +15,7 @@ from core.facade import CoreFacade
 from core.providers import ProviderPort
 from core.repository.memory import InMemoryRepository
 from core.result import Ok, Result
-from core.seed import HubSpec, NetworkSpec, VehicleSpec, charging_point_id
+from core.seed import HubSpec, NetworkSpec, UserSpec, VehicleSpec, charging_point_id
 from main import Settings, build_app
 
 
@@ -73,13 +73,18 @@ def _make_client(*, with_demand_provider: bool = True) -> TestClient:
                 ),
             ),
             HubSpec("H02", "Hub 2", "Z2", 10, 1),
-        )
+        ),
+        users=(
+            UserSpec("OP01", "OP-01", Role.OPERATOR, hash_password("pw-operator", 1000)),
+            UserSpec("STU01", "STU-01", Role.STUDENT, hash_password("pw-student", 1000)),
+        ),
     )
     core.commands.load_network(spec, admin)
     if with_demand_provider:
         core.register_provider(ProviderPort.RESERVATION_DEMAND, _StubReservationDemand(fixed_now))
 
-    return TestClient(app)
+    token = app.state.auth.issue_service_token("allocation", "OP01")
+    return TestClient(app, headers={"Authorization": f"Bearer {token}"})
 
 
 @pytest.fixture
@@ -213,3 +218,75 @@ def test_config_endpoints(client: TestClient) -> None:
     get_res2 = client.get("/allocation/config")
     assert get_res2.status_code == 200
     assert get_res2.json()["safety_stock"] == 5
+
+
+def test_endpoints_reject_unauthenticated() -> None:
+    """NFR-16, D-014, D-023: Requests without bearer token return 401 UNAUTHENTICATED."""
+    raw_client = _make_client()
+    raw_client.headers.clear()
+
+    endpoints: list[tuple[str, str, dict[str, object] | None]] = [
+        ("POST", "/allocation/tasks/plan", {"slot_id": "s1"}),
+        ("GET", "/allocation/tasks", None),
+        ("GET", "/allocation/tasks/TASK-1", None),
+        ("POST", "/allocation/tasks/TASK-1/approve", {}),
+        ("POST", "/allocation/tasks/TASK-1/pickup", None),
+        ("POST", "/allocation/tasks/TASK-1/return", {}),
+        ("POST", "/allocation/tasks/TASK-1/cancel", {}),
+        ("GET", "/allocation/alternatives/hubs?requested_hub_id=H01", None),
+        (
+            "POST",
+            "/allocation/alternatives/charging",
+            {"displaced_requests": [], "failed_hub_id": "H01"},
+        ),
+        ("POST", "/allocation/arbitrate", {"requests": []}),
+        ("GET", "/allocation/config", None),
+        ("PUT", "/allocation/config", {}),
+    ]
+    for method, path, json_body in endpoints:
+        if method == "GET":
+            res = raw_client.get(path)
+        elif method == "POST":
+            res = raw_client.post(path, json=json_body)
+        elif method == "PUT":
+            res = raw_client.put(path, json=json_body)
+        assert res.status_code == 401, f"{method} {path} gave {res.status_code}"
+        assert res.headers["www-authenticate"] == "Bearer"
+        assert res.json()["error"]["code"] == "UNAUTHENTICATED"
+
+
+def test_endpoints_refuse_student_with_403() -> None:
+    """NFR-16, D-023: Operator endpoints return 403 FORBIDDEN for student tokens."""
+    client = _make_client()
+    login_res = client.post("/auth/login", json={"code": "STU-01", "password": "pw-student"})
+    assert login_res.status_code == 200
+    student_token = login_res.json()["access_token"]
+    student_headers = {"Authorization": f"Bearer {student_token}"}
+
+    endpoints: list[tuple[str, str, dict[str, object] | None]] = [
+        ("POST", "/allocation/tasks/plan", {"slot_id": "s1"}),
+        ("GET", "/allocation/tasks", None),
+        ("GET", "/allocation/tasks/TASK-1", None),
+        ("POST", "/allocation/tasks/TASK-1/approve", {}),
+        ("POST", "/allocation/tasks/TASK-1/pickup", None),
+        ("POST", "/allocation/tasks/TASK-1/return", {}),
+        ("POST", "/allocation/tasks/TASK-1/cancel", {}),
+        ("GET", "/allocation/alternatives/hubs?requested_hub_id=H01", None),
+        (
+            "POST",
+            "/allocation/alternatives/charging",
+            {"displaced_requests": [], "failed_hub_id": "H01"},
+        ),
+        ("POST", "/allocation/arbitrate", {"requests": []}),
+        ("GET", "/allocation/config", None),
+        ("PUT", "/allocation/config", {}),
+    ]
+    for method, path, json_body in endpoints:
+        if method == "GET":
+            res = client.get(path, headers=student_headers)
+        elif method == "POST":
+            res = client.post(path, json=json_body, headers=student_headers)
+        elif method == "PUT":
+            res = client.put(path, json=json_body, headers=student_headers)
+        assert res.status_code == 403, f"{method} {path} gave {res.status_code}"
+        assert res.json()["error"]["code"] == "FORBIDDEN"
