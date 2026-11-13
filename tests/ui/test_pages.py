@@ -100,7 +100,7 @@ def test_hub_list_shows_every_hub_with_its_free_spaces(client):
     for hub in sample_data.HUBS:
         assert f"{hub.hub_id} {hub.name}" in html
         assert f"{hub.free_spaces} of {hub.parking_capacity}" in html
-    assert "Data as of 10:42:05" in html
+    assert 'Data as of <span id="as-of">10:42:05</span>' in html
 
 
 @pytest.mark.parametrize(
