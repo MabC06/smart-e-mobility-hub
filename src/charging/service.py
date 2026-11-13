@@ -66,9 +66,7 @@ class ChargingQueueService:
         schema.register_tables(core)
 
     def _run[T](
-        self,
-        fn: Callable[["UnitOfWork", Actor], ChargingResult[T]],
-        actor: Actor | None,
+        self, fn: Callable[..., ChargingResult[T]], actor: Actor | None
     ) -> ChargingResult[T]:
         caller = (
             Actor("SYSTEM_M3", Role.OPERATOR, "charging")
