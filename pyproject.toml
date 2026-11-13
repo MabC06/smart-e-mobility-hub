@@ -8,6 +8,30 @@ requires-python = ">=3.12"
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib"
+markers = [
+    "tc_m2_001: TC-M2-001 (docs/testing/reservation-phase2.md)",
+    "tc_m2_002: TC-M2-002 (docs/testing/reservation-phase2.md)",
+    "tc_m2_003: TC-M2-003 (docs/testing/reservation-phase2.md)",
+    "tc_m2_004: TC-M2-004 (docs/testing/reservation-phase2.md)",
+    "tc_m2_005: TC-M2-005 (docs/testing/reservation-phase2.md)",
+    "tc_m2_006: TC-M2-006 (docs/testing/reservation-phase2.md)",
+    "tc_m2_007: TC-M2-007 (docs/testing/reservation-phase2.md)",
+    "tc_m2_008: TC-M2-008 (docs/testing/reservation-phase2.md)",
+    "tc_m2_009: TC-M2-009 (docs/testing/reservation-phase2.md)",
+    "tc_m2_010: TC-M2-010 (docs/testing/reservation-phase2.md)",
+    "tc_m2_011: TC-M2-011 (docs/testing/reservation-phase2.md)",
+    "tc_m2_012: TC-M2-012 (docs/testing/reservation-phase2.md)",
+    "tc_m2_013: TC-M2-013 (docs/testing/reservation-phase2.md)",
+    "tc_m2_014: TC-M2-014 (docs/testing/reservation-phase2.md)",
+    "tc_m2_015: TC-M2-015 (docs/testing/reservation-phase2.md)",
+    "tc_m2_016: TC-M2-016 (docs/testing/reservation-phase2.md)",
+    "tc_m2_017: TC-M2-017 (docs/testing/reservation-phase2.md)",
+    "tc_m2_018: TC-M2-018 (docs/testing/reservation-phase2.md)",
+    "tc_m2_019: TC-M2-019 (docs/testing/reservation-phase2.md)",
+    "tc_m2_020: TC-M2-020 (docs/testing/reservation-phase2.md)",
+    "tc_m2_021: TC-M2-021 (docs/testing/reservation-phase2.md)",
+    "tc_m2_022: TC-M2-022 (docs/testing/reservation-phase2.md)",
+]
 
 [tool.ruff]
 line-length = 100
@@ -20,5 +44,5 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 mypy_path = "src"
-files = ["src/core", "src/main.py"]
+files = ["src/core", "src/main.py", "src/reservation"]
 strict = true
