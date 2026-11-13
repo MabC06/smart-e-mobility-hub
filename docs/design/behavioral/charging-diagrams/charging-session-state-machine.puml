@@ -1,43 +1,30 @@
 @startuml
-skinparam DefaultTextAlignment center
-skinparam StateBackgroundColor #f4f6f8
-skinparam StateBorderColor #333333
-
-title M3 - Charging Session State Machine
-
-[*] --> AVAILABLE : Port Initialized & Ready
-
-state AVAILABLE {
-  [*] --> WaitingForConnection
-  WaitingForConnection --> PluggedIn : Cable Connected & Verified
+left to right direction
+skinparam state {
+    BackgroundColor #E8F4F8
+    BorderColor #2980B9
 }
 
-AVAILABLE --> PREPARING : Validate Slot & User Authorization (BR-M3-01)
+[*] --> REQUESTED : submit_charging_request
 
-state PREPARING {
-  [*] --> CheckingHardware
-  CheckingHardware --> LockingPort : Hardware Ready
-}
+state REQUESTED as "REQUESTED"
+state SCHEDULED as "SCHEDULED"
+state CHARGING as "CHARGING"
+state COMPLETED as "COMPLETED"
+state INTERRUPTED as "INTERRUPTED"
+state FAILED as "FAILED"
 
-PREPARING --> CHARGING : Power Relay Closed\n(Session Active)
+REQUESTED --> CHARGING : Bay available & start
+REQUESTED --> SCHEDULED : Future schedule created
+REQUESTED --> FAILED : Request validation error
 
-state CHARGING {
-  [*] --> EnergyTransfer
-  EnergyTransfer --> MonitoringSafety : Check Current/Voltage Limits
-  MonitoringSafety --> EnergyTransfer : Normal
-}
+SCHEDULED --> CHARGING : Scheduled time reached
+SCHEDULED --> INTERRUPTED : Schedule cancelled
 
-CHARGING --> COMPLETED : Target SoC Reached / User Stop
-CHARGING --> FAULTED : Overcurrent / Hardware Fault / Emergency Stop
-CHARGING --> CANCELLED : User Aborts Session
-
-state FAULTED {
-  [*] --> TripRelay
-  TripRelay --> AlertOperator : Trigger Maintenance Log
-}
+CHARGING --> COMPLETED : Target SoC reached
+CHARGING --> INTERRUPTED : Session interrupted
 
 COMPLETED --> [*]
-CANCELLED --> [*]
-FAULTED --> [*]
-
+INTERRUPTED --> [*]
+FAILED --> [*]
 @enduml
