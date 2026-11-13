@@ -1,3 +1,4 @@
+# ruff: noqa: B008
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -130,7 +131,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
     def start_session(
         request_id: str, principal: Principal = Depends(current_principal)
     ) -> dict[str, Any]:
-        actor = acting_as(principal, "charging")
+        acting_as(principal, "charging")
         with core.unit_of_work() as uow:
             req = schema.read(core, request_id)
             if req is None:

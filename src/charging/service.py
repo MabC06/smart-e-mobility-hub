@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -317,7 +318,7 @@ class ChargingQueueService:
                 immediate=immediate,
             )
             if bay is None:
-                try:
+                with contextlib.suppress(Exception):
                     self.core.providers.call(
                         ProviderPort.ALTERNATIVE_CHARGING,
                         {
@@ -327,8 +328,6 @@ class ChargingQueueService:
                             "vehicle_id": vehicle_id,
                         },
                     )
-                except Exception:
-                    pass
 
                 if not queue_if_full:
                     return _err(
