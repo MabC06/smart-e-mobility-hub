@@ -87,9 +87,7 @@ def _serialize_session(req: ChargingRequest) -> dict[str, Any]:
     }
 
 
-def create_charging_router(
-    service: ChargingQueueService, core: CoreFacade
-) -> APIRouter:
+def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> APIRouter:
     router = APIRouter(prefix="/charging", tags=["charging"])
 
     @router.post("/requests/immediate")
@@ -164,9 +162,7 @@ def create_charging_router(
         principal: Principal = Depends(current_principal),
     ) -> dict[str, Any]:
         actor = acting_as(principal, "charging")
-        res = service.interrupt_charging(
-            request_id, actor, current_soc=body.current_soc
-        )
+        res = service.interrupt_charging(request_id, actor, current_soc=body.current_soc)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
         return _serialize_session(res.value)
@@ -207,7 +203,7 @@ def create_charging_router(
                 vehicle_type=body.vehicle_type,
                 battery_capacity_kwh=body.battery_capacity_kwh,
                 connector_type=body.connector_type,
-                ownership=HolderKind.CHARGING_SESSION,  
+                ownership=HolderKind.CHARGING_SESSION,
                 battery_pct=body.current_soc,
                 actor=actor,
             )

@@ -38,9 +38,7 @@ def _setup(
     repo.add(Hub("H1", "Hub 1", "Z1", 5, 1))
     repo.add(UserAccount("STU1", "2452030", Role.STUDENT))
     repo.add(ParkingSpace("H1-S001", "H1", "S1", SpaceStatus.OCCUPIED, "V-DOCKED"))
-    repo.add(
-        ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE)
-    )
+    repo.add(ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE))
 
     vehicles = [
         ("V-DOCKED", "P-00", 50.0, "H1-S001"),
@@ -81,9 +79,7 @@ def _setup(
 def test_battery_threshold_bva(vehicle_id: str, expected_emergency: bool) -> None:
     """BVA around 15.0% threshold: 14.9% and 15.0% are emergency; 15.1% is not."""
     _, _, service = _setup()
-    res = service.submit_charging_request(
-        f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT
-    )
+    res = service.submit_charging_request(f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT)
     assert isinstance(res, Ok)
     assert res.value.status is ChargingSessionStatus.QUEUED
     assert res.value.is_emergency is expected_emergency
@@ -117,9 +113,7 @@ def test_threshold_reads_from_core_config() -> None:
 def test_charging_lifecycle_and_d020_provider() -> None:
     """Immediate request starts/finishes charging; D-020 provider returns scheduled sessions."""
     core, _, service = _setup()
-    started = service.submit_charging_request(
-        "REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0
-    )
+    started = service.submit_charging_request("REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
 
@@ -177,9 +171,7 @@ def test_interrupt_charging_session() -> None:
     """Active charging session can be prematurely interrupted and cancelled."""
     core, _, service = _setup()
 
-    started = service.submit_charging_request(
-        "REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0
-    )
+    started = service.submit_charging_request("REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
     interrupted = service.interrupt_charging("REQ-INT", STUDENT, current_soc=60.0)

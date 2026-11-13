@@ -23,9 +23,7 @@ class _ChargingDemandProvider(ChargingDemand):
 def install(core: CoreFacade, app: Any = None) -> ChargingQueueService:
     """Register M3 tables, router, and ChargingDemand provider with Core (D-013, D-020)."""
     service = ChargingQueueService(core)
-    core.register_provider(
-        ProviderPort.CHARGING_DEMAND, _ChargingDemandProvider(service)
-    )
+    core.register_provider(ProviderPort.CHARGING_DEMAND, _ChargingDemandProvider(service))
 
     if app is not None:
         if hasattr(app, "state"):

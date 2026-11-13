@@ -43,9 +43,7 @@ def from_core_error(err: Err) -> ChargingError:
         getattr(ErrorCode, "BATTERY_TOO_LOW", None): ChargingErrorCode.INVALID_INPUT,
     }
     clean_mapping = {k: v for k, v in mapping.items() if k is not None}
-    return ChargingError(
-        clean_mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message
-    )
+    return ChargingError(clean_mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message)
 
 
 class ChargingSessionStatus(StrEnum):
@@ -53,7 +51,7 @@ class ChargingSessionStatus(StrEnum):
     SCHEDULED = "SCHEDULED"
     CHARGING = "CHARGING"
     COMPLETED = "COMPLETED"
-    INTERRUPTED = "INTERRUPTED" 
+    INTERRUPTED = "INTERRUPTED"
     CANCELLED = "CANCELLED"
 
 
