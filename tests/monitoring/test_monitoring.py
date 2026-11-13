@@ -312,9 +312,8 @@ def test_api_endpoints(core: CoreFacade, service: MonitoringService):
     """Test router endpoints for monitoring module directly."""
     from fastapi import HTTPException
 
+    from core.auth import Principal
     from monitoring.router import (
-        AcknowledgeRequest,
-        CloseRequest,
         CreateIncidentRequest,
         EscalateRequest,
         ResolveRequest,
@@ -332,24 +331,26 @@ def test_api_endpoints(core: CoreFacade, service: MonitoringService):
         set_service,
     )
 
+    who = Principal(user_id="op_test", role=Role.OPERATOR, module="ui")
+
     set_service(service)
     _seed_sample_hub(core, hub_id="H01", capacity=10, occupied=5)
 
     # 1. GET /metrics/hubs
-    metrics_list = list_hub_metrics()
+    metrics_list = list_hub_metrics(who=who)
     assert len(metrics_list) == 1
     assert metrics_list[0].hub_id == "H01"
     assert metrics_list[0].parking_occupancy_pct == 50.0
 
     # 2. GET /metrics/hubs/{id}
-    h_metric = get_hub_metrics("H01")
+    h_metric = get_hub_metrics(hub_id="H01", who=who)
     assert h_metric.hub_id == "H01"
     with pytest.raises(HTTPException) as exc_info:
-        get_hub_metrics("UNKNOWN")
+        get_hub_metrics(hub_id="UNKNOWN", who=who)
     assert exc_info.value.status_code == 404
 
     # 3. POST /hubs/{id}/evaluate-capacity
-    eval_res = evaluate_hub_capacity("H01")
+    eval_res = evaluate_hub_capacity(hub_id="H01", who=who)
     assert "status" in eval_res
 
     # 4. POST /incidents
@@ -360,42 +361,46 @@ def test_api_endpoints(core: CoreFacade, service: MonitoringService):
         entity_type="Hub",
         entity_id="H01",
         description="Deficit warning",
-        reported_by="OPERATOR",
     )
-    ticket = create_incident(create_body)
+    ticket = create_incident(body=create_body, who=who)
     inc_id = ticket.incident_id
     assert ticket.status == IncidentStatus.OPEN
+    assert ticket.reported_by == "op_test"
 
     # 5. GET /incidents & GET /incidents/{id}
-    inc_list = list_incidents(hub_id="H01", status_filter=IncidentStatus.OPEN, severity_filter=None)
+    inc_list = list_incidents(
+        who=who, hub_id="H01", status_filter=IncidentStatus.OPEN, severity_filter=None
+    )
     assert len(inc_list) == 1
-    fetched = get_incident(inc_id)
+    fetched = get_incident(incident_id=inc_id, who=who)
     assert fetched.incident_id == inc_id
     with pytest.raises(HTTPException):
-        get_incident("NON_EXISTENT")
+        get_incident(incident_id="NON_EXISTENT", who=who)
 
     # 6. POST /incidents/{id}/acknowledge
-    ack_res = acknowledge_incident(inc_id, AcknowledgeRequest(operator_id="op_test"))
+    ack_res = acknowledge_incident(incident_id=inc_id, who=who)
     assert ack_res.status == IncidentStatus.IN_PROGRESS
+    assert ack_res.assigned_operator_id == "op_test"
 
     # 7. POST /incidents/{id}/escalate (from IN_PROGRESS invalid transition test)
     with pytest.raises(HTTPException) as exc_esc:
-        escalate_incident(inc_id, EscalateRequest(reason="late"))
+        escalate_incident(incident_id=inc_id, body=EscalateRequest(reason="late"), who=who)
     assert exc_esc.value.status_code == 400
 
     # 8. POST /incidents/{id}/resolve
     res_ticket = resolve_incident(
-        inc_id,
-        ResolveRequest(resolution_notes="Dispatched fleet", operator_id="op_test"),
+        incident_id=inc_id,
+        body=ResolveRequest(resolution_notes="Dispatched fleet"),
+        who=who,
     )
     assert res_ticket.status == IncidentStatus.RESOLVED
 
     # 9. POST /incidents/{id}/close
-    closed_ticket = close_incident(inc_id, CloseRequest(operator_id="op_test"))
+    closed_ticket = close_incident(incident_id=inc_id, who=who)
     assert closed_ticket.status == IncidentStatus.CLOSED
 
     # 10. GET /incidents/{id}/logs
-    logs = get_incident_audit_logs(inc_id)
+    logs = get_incident_audit_logs(incident_id=inc_id, who=who)
     assert len(logs) == 4
 
 
