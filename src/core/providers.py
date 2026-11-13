@@ -52,7 +52,7 @@ class ProviderRegistry:
         if provider is None:
             return Err(
                 ErrorCode.RESOURCE_UNAVAILABLE, f"no provider is registered for {port.value}"
-                )
+            )
         try:
             return work(provider)
         except Exception:
