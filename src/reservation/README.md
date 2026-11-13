@@ -22,6 +22,7 @@ from Maintenance. See [lifecycle.py](lifecycle.py) and its
 
 `install(core, app)` registers `rental_reservations` and `rental_trips` through
 `core.register_entity` and sets `app.state.reservation` to a `BookingService`.
+It also sets `app.state.reservation_lifecycle` to a `RentalLifecycle`.
 The composition root calls this automatically. The caller must supply an
 authenticated Core `Actor`; never construct it from untrusted request fields.
 The service rechecks the stored account and fixes the command module to
@@ -66,6 +67,7 @@ shared Core low-battery lockout, one live rental per student, planned duration
 | [__init__.py](__init__.py) | `install` registers tables and wires the service into the application. It does not register unfinished providers. |
 | [models.py](models.py) | `ReserveRequest` and the M2-owned `RentalReservation` / `RentalTrip` dataclasses, with stable persisted statuses. Pending validation is transient. |
 | [service.py](service.py) | Public workflow methods above; `_actor` checks account authorization, `_execute` maps repository failures after rollback, private operation methods own the transaction. Small ID/version helpers reject invalid inputs. |
+| [lifecycle.py](lifecycle.py) | `cancel` ends an owned unused rental; `expire` settles a due booking; `expire_due` selects due bookings and returns each result. `_settle` handles input/repository failures; `_transaction` checks ownership, time, claim and vehicle before atomic release. No background scheduler is installed. |
 | [storage.py](storage.py) | SQL table definitions and `register_tables`; `read` / `all_reservations` read through Core; `add` / `update` use the caller's UOW repository. Local casts bridge Core v1.1's closed Entity type annotation, without changing runtime storage rules. |
 | [results.py](results.py) | `BookingErrorCode` / `BookingError`; `from_core` maps Core failures and removes other holders' details from responses. |
 | [Core providers](../core/providers.py) | M2-owned `ReservationDemand` / `HoldConsumer` Protocols and immutable result dataclasses under D-020/D-021. These are contract definitions only. |
