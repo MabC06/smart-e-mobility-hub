@@ -1,6 +1,6 @@
 # Non-Functional Requirements (NFR) — v1
 
-> **Status:** Final v1.1 · **Owner:** M1 · **Date:** 2026-10-28 · Replaces Draft v1 (2026-10-05)
+> **Status:** Final v1.2 · **Owner:** M1 · **Date:** 2026-11-12 · Replaces v1.1 (2026-10-28)
 > Targets are measured against the reference dataset DS-STD (A-11) during testing (2026-11-06 to 2026-11-18). A target that is not met is reported in section 4.4 of the report, not silently changed here.
 > Each requirement states a measurable target and how it is verified, so that M8 can derive test cases (`TC-M<n>-###`) from it.
 > NFR-11, NFR-19, NFR-23 and NFR-27 are withdrawn; their rows stay so that IDs remain stable.
@@ -9,8 +9,8 @@
 
 - **ID:** `NFR-xx`. IDs are reused in commits, PRs and tests (CONTRIBUTING section 5).
 - **p95:** 95th-percentile response time measured at the API boundary.
-- **DS-STD (reference dataset, A-11):** 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs, 1,000 student accounts. Performance targets assume 100 concurrent sessions. Full specification: `docs/requirements/reference-dataset.md`.
-- **DS-STRESS:** 2x DS-STD (defined in the reference dataset; no NFR target uses it any more).
+- **DS-STD (reference dataset, A-11):** 10 Hubs, 400 parking spaces, 61 charging points, 250 rental vehicles, 100 registered private EVs, 1,000 student accounts. NFR-02 and NFR-03 are measured with sequential requests on this dataset, not with concurrent sessions (D-024). Full specification: `docs/requirements/reference-dataset.md`.
+- **DS-STRESS:** 2x DS-STD (defined in the reference dataset, D-010). It has no pass/fail target; M4 uses it to time the network-wide plan on 20 Hubs and show how the run time grows (NFR-04).
 - **Priority:** every active requirement is M (must). A withdrawn requirement keeps its row and is marked `Withdrawn`.
 
 ## 2. Performance
@@ -18,8 +18,8 @@
 | ID | Requirement | Target | Verification | Related | Prio |
 |---|---|---|---|---|---|
 | NFR-01 | After `core` accepts a state update, subsequent reads return the new state; the UI shows it shortly after. | API read reflects the update within 1 s (p95). UI shows it within 5 s. | Integration test with timestamps; UI polling/refresh interval check. | FR-01, FR-08 | M |
-| NFR-02 | Read operations (view Hubs, search vehicles, dashboard queries) respond quickly under load. | p95 ≤ 500 ms and max ≤ 2 s on DS-STD with 100 concurrent sessions. | Load script (e.g. concurrent requests against seeded data). | FR-01, FR-02, FR-08 | M |
-| NFR-03 | Write operations (reserve, pick up, return, parking reservation, charging request) respond quickly. | p95 ≤ 1 s on DS-STD with 100 concurrent sessions. | Load script. | FR-03 to FR-07 | M |
+| NFR-02 | Read operations (view Hubs, search vehicles, dashboard queries) respond quickly. | p95 ≤ 500 ms and max ≤ 2 s per endpoint, over at least 100 sequential requests on DS-STD. | Timed test with the in-process client over the seeded dataset (D-024). | FR-01, FR-02, FR-08 | M |
+| NFR-03 | Write operations (reserve, pick up, return, parking reservation, charging request) respond quickly. | p95 ≤ 1 s per operation, over at least 100 sequential operations on DS-STD. | Timed test with the in-process client over the seeded dataset (D-024). | FR-03 to FR-07 | M |
 | NFR-04 | Allocation and scheduling computations finish in interactive time. | Charging schedule for one Hub ≤ 3 s. Network-wide redistribution recommendation ≤ 5 s (DS-STD). | Timed unit/integration tests. | FR-10, FR-11 | M |
 | NFR-05 | A What-if scenario completes in acceptable time. | Each of the 5 standard scenarios ≤ 30 s on DS-STD. | Timed scenario tests. | FR-12 | M |
 
@@ -87,6 +87,7 @@
 3. Thresholds are named configuration values: near-capacity 90% (`BR-M5-01`, used by NFR-20) and `LOW_BATTERY_THRESHOLD` 15% (`BR-M3-03`, `BR-M5-05`).
 4. Coverage thresholds in NFR-24 (core ≥ 70%, other modules ≥ 60%) are to be confirmed by M8.
 5. NFR-06, 07 and 08 state the measurable target of the core business rules `BR-M1-01`, `BR-M1-02` and `BR-M1-03` (`docs/requirements/fr-01-core.md`).
+6. (2026-11-12, D-024) NFR-02 and NFR-03 keep their p95 and max limits but are measured with sequential requests, not with 100 concurrent sessions, so no load-test tool is needed. Behaviour under concurrent requests stays covered by NFR-06. NFR-04 and NFR-05 are unchanged. DS-STRESS has no pass/fail target (D-010).
 
 ## 11. Mapping to the rubric (Requirements, 2.3)
 
