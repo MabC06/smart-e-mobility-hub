@@ -32,7 +32,7 @@ class TestSimulationEngineAndService(unittest.TestCase):
         def mock_find_vehicles(hub_id: str):
             vehicles = []
             count = 2 if hub_id == "H01" else 10
-            for i in range(count):
+            for _ in range(count):  # Đã đổi 'i' thành '_'
                 v = MagicMock()
                 v.state = "AVAILABLE"
                 v.soc = 0.9
