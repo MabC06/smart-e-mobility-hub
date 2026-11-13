@@ -1,0 +1,81 @@
+{#
+  O5. Incident management (wireframes-operator.md), UC-M7-08. Tickets of M5, most severe first,
+  then oldest. Actions follow the status: Acknowledge on OPEN or ESCALATED, Resolve (notes
+  required) on IN_PROGRESS or ESCALATED, Close on RESOLVED. The screen never sets ESCALATED.
+  In Phase 2 every button only reloads this page.
+#}
+{% extends "base.html" %}
+{% block title %}Incidents · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set type_names = {
+  "INC-HW-01": "Charging-point fault",
+  "INC-HW-02": "Parking sensor",
+  "INC-CAP-01": "Hub full",
+  "INC-CAP-02": "Vehicle deficit",
+  "INC-BAT-01": "Low battery",
+  "INC-COMM-01": "Telemetry loss",
+  "INC-USR-01": "Overdue rental",
+} %}
+<h1>Incidents</h1>
+
+<p>
+  <label>Severity <select disabled><option>all</option></select></label>
+  <label>Status <select disabled><option>all</option></select></label>
+  <label>Hub <select disabled><option>all</option></select></label>
+  <label>Type <select disabled><option>all</option></select></label>
+  <span class="planned">Planned</span> Filters (Phase 3).
+</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Hub</th><th>Severity</th><th>Status</th><th>Age</th></tr>
+    </thead>
+    <tbody>
+      {% for incident in incidents %}
+      <tr>
+        <td>
+          <a href="#{{ incident.incident_id }}">{{ incident.incident_type }}
+            {{ type_names.get(incident.incident_type, "") }}</a>
+        </td>
+        <td><a href="{{ url_for('operator_hub', hub_id=incident.hub_id) }}">{{ incident.hub_id }}</a></td>
+        <td>{{ incident.severity | capitalize }}</td>
+        <td>{{ incident.status }}</td>
+        <td>{{ ((as_of - incident.created_at).total_seconds() // 60) | int }} min</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No incident.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% for incident in incidents %}
+<section class="card" id="{{ incident.incident_id }}">
+  <h2>
+    {{ incident.incident_type }} {{ incident.description }} ·
+    {{ incident.severity | capitalize }} · {{ incident.status }}
+  </h2>
+  <p>
+    Ticket {{ incident.incident_id }} · Hub {{ incident.hub_id }} ·
+    reported by {{ incident.reported_by }} · created {{ incident.created_at | ict }} ·
+    assigned to {{ incident.assigned_operator_id or "nobody yet" }}
+  </p>
+  <p><span class="planned">Planned</span> History of the ticket (Phase 3).</p>
+  <p>
+    <label>Notes <textarea rows="2" cols="60"></textarea></label>
+  </p>
+  <p>
+    {% if incident.status in ("OPEN", "ESCALATED") %}
+    <a class="button" href="{{ request.url }}">Acknowledge</a>
+    {% endif %}
+    {% if incident.status in ("IN_PROGRESS", "ESCALATED") %}
+    <a class="button" href="{{ request.url }}">Resolve</a>
+    {% endif %}
+    {% if incident.status == "RESOLVED" %}
+    <a class="button" href="{{ request.url }}">Close</a>
+    {% endif %}
+  </p>
+</section>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{#
+  S4. Confirm the reservation (wireframes-student.md), UC-M2-02, FR-03. In Phase 2 "Confirm
+  reservation" only opens S5 (the step after "reserved" in ui-flow-diagrams.md); nothing is held.
+#}
+{% extends "base.html" %}
+{% block title %}Confirm your rental · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set back = url_for('student_vehicles', hub_id=hub.hub_id) %}
+<p><a href="{{ back }}">&lt; Back</a></p>
+<h1>Confirm your rental</h1>
+
+<form action="{{ url_for('student_bookings') }}">
+  <table>
+    <tbody>
+      <tr>
+        <th>Vehicle</th>
+        <td>{{ vehicle.plate_or_code }} {{ vehicle.vehicle_type | type_label }}, battery {{ vehicle.battery_pct | round | int }}%</td>
+      </tr>
+      <tr><th>Pick up at</th><td>{{ hub.hub_id }} {{ hub.name }}</td></tr>
+      <tr>
+        <th>Return to</th>
+        <td>
+          {% if return_hub %}{{ return_hub.hub_id }} {{ return_hub.name }}{% else %}any Hub{% endif %}
+          (return space is NOT held)
+        </td>
+      </tr>
+      <tr>
+        <th><label for="planned-minutes">Planned time</label></th>
+        <td>
+          <input id="planned-minutes" name="planned_minutes" type="number" min="5" max="120"
+                 value="30" required> minutes (5 to 120)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>You will have 10 minutes after confirming to pick the vehicle up.</p>
+  <p>
+    <button class="button" type="submit">Confirm reservation</button>
+    <a class="button" href="{{ back }}">Cancel</a>
+  </p>
+</form>
+{% endblock %}

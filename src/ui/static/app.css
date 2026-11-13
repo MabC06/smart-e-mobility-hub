@@ -1,0 +1,161 @@
+/* Styles of the UI prototype (Phase 2). Plain CSS, no build step (D-002). */
+
+:root {
+  --text: #1f2933;
+  --muted: #616e7c;
+  --line: #cbd2d9;
+  --surface: #ffffff;
+  --page: #f5f7fa;
+  --link: #1f5fbf;
+  --ok: #1e7b45;
+  --warning: #9a5b00;      /* amber badge for WARNING (operator O1 notes) */
+  --warning-bg: #fff4dc;
+  --critical: #b3261e;     /* red badge for CRITICAL */
+  --critical-bg: #fde7e6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--page);
+  line-height: 1.5;
+}
+
+a { color: var(--link); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+.prototype-note {
+  margin: 0;
+  padding: 6px 16px;
+  background: #e8eefc;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header .brand { font-weight: 600; color: var(--text); text-decoration: none; }
+.site-header .user { color: var(--muted); }
+.site-header nav { margin-left: auto; }
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 16px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs a {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  text-decoration: none;
+}
+
+.tabs a[aria-current="page"] {
+  border-color: var(--line);
+  background: var(--page);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.alert-strip {
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+/* A status is always shown as a word (and a symbol on operator screens), never by colour only. */
+.status { font-weight: 600; }
+.status-ACTIVE { color: var(--ok); }
+.status-WARNING { color: var(--warning); background: var(--warning-bg); padding: 0 4px; }
+.status-CRITICAL { color: var(--critical); background: var(--critical-bg); padding: 0 4px; }
+.status-MAINTENANCE { color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+
+.table-wrap { overflow-x: auto; }
+
+.button {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--link);
+  border-radius: 4px;
+  background: var(--surface);
+  text-decoration: none;
+}
+
+.card {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.card h2 { margin: 0 0 4px; font-size: 1.1rem; }
+
+.note { color: var(--muted); font-size: 0.875rem; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.cards .card { margin: 0; }
+
+meter { width: 100%; }
+
+.simulation-banner {
+  padding: 6px 12px;
+  border: 2px dashed var(--warning);
+  background: var(--warning-bg);
+  font-weight: 600;
+}
+
+.login { max-width: 360px; margin: 32px auto; }
+.login label { display: block; font-weight: 600; }
+.login input { width: 100%; padding: 6px; }
+
+.planned {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.error-block {
+  padding: 12px 16px;
+  border: 1px solid var(--critical);
+  background: var(--critical-bg);
+}
+
+.error-block h2 { margin: 0 0 4px; font-size: 1.1rem; color: var(--critical); }
+.error-block .details { color: var(--muted); font-size: 0.875rem; }
