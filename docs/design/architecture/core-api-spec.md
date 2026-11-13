@@ -220,6 +220,34 @@ State-changing endpoints are provided by the module that owns the workflow (rese
 | 409 | `VERSION_CONFLICT`, `CLAIM_CONFLICT`, `HUB_FULL`, `SPACE_NOT_FREE`, `INVALID_TRANSITION`, `RESOURCE_UNAVAILABLE`, `BATTERY_TOO_LOW` |
 | 500 | `INTERNAL_ERROR` (generic message, no stack trace; the cause goes to the log) |
 
+### 8.1 Sign-in checks for the routers of the modules
+
+A module that mounts its own router (allocation, monitoring, the UI) does not read tokens itself (NFR-16, D-014, D-023). It imports the checks from `core.api.security` and adds one dependency to each endpoint:
+
+| Dependency | Passes | Otherwise |
+|---|---|---|
+| `current_principal` | any signed-in user | 401 `UNAUTHENTICATED` |
+| `require_operator` | an operator, or the service credential of the simulator | 401 without a token, 403 `FORBIDDEN` for a student |
+| `require_student` | a student | 401 without a token, 403 `FORBIDDEN` for an operator |
+
+Each gives back a `Principal` (`user_id`, `role`, `module`). `acting_as(principal, module)` returns the `Actor` for a command that the module runs for that caller, so the state log names the user and the module (NFR-25).
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends
+from core.api.security import Principal, acting_as, require_operator
+
+router = APIRouter()
+
+
+@router.post("/tasks/{task_id}/approve")
+def approve(task_id: str, who: Annotated[Principal, Depends(require_operator)]):
+    actor = acting_as(who, "allocation")
+    ...
+```
+
+The errors use the one body of this section, because the module router lives in the application that `core.api.create_app` builds; `create_app` keeps the `AuthService` in `app.state.auth`, where the dependencies read it. An application built without it fails with 500 instead of letting requests through. Every endpoint of a module still needs its own authorization test (NFR-16: 100% of endpoints).
+
 ## 9. Mapping to requirements
 
 | Requirement | Where covered |
