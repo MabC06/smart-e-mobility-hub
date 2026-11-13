@@ -35,8 +35,17 @@ def from_core_error(err: Err) -> ChargingError:
         ErrorCode.NOT_FOUND: ChargingErrorCode.NOT_FOUND,
         ErrorCode.INVALID_STATE: ChargingErrorCode.INVALID_STATE,
         ErrorCode.RESOURCE_UNAVAILABLE: ChargingErrorCode.RESOURCE_UNAVAILABLE,
+        getattr(ErrorCode, "CLAIM_CONFLICT", None): ChargingErrorCode.CONFLICT,
+        getattr(ErrorCode, "VERSION_CONFLICT", None): ChargingErrorCode.CONFLICT,
+        getattr(ErrorCode, "INVALID_TRANSITION", None): ChargingErrorCode.INVALID_STATE,
+        getattr(ErrorCode, "HUB_FULL", None): ChargingErrorCode.INVALID_STATE,
+        getattr(ErrorCode, "SPACE_NOT_FREE", None): ChargingErrorCode.INVALID_STATE,
+        getattr(ErrorCode, "BATTERY_TOO_LOW", None): ChargingErrorCode.INVALID_INPUT,
     }
-    return ChargingError(mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message)
+    clean_mapping = {k: v for k, v in mapping.items() if k is not None}
+    return ChargingError(
+        clean_mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message
+    )
 
 
 class ChargingSessionStatus(StrEnum):
@@ -44,6 +53,7 @@ class ChargingSessionStatus(StrEnum):
     SCHEDULED = "SCHEDULED"
     CHARGING = "CHARGING"
     COMPLETED = "COMPLETED"
+    INTERRUPTED = "INTERRUPTED" 
     CANCELLED = "CANCELLED"
 
 

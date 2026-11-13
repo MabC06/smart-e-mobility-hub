@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from charging import schema
-from charging.models import ChargingError, ChargingErrorCode, ChargingRequest
+from charging.models import ChargingError, ChargingErrorCode, ChargingRequest, ChargingSessionStatus
 from charging.service import ChargingQueueService
 from core.actor import Actor
-from core.domain.entities import UserAccount
-from core.domain.enums import Role, VehicleType
+from core.api.security import Principal, current_principal, require_operator, acting_as
+from core.domain.enums import VehicleType, HolderKind
 from core.facade import CoreFacade
 from core.result import Err
 
@@ -87,41 +87,16 @@ def _serialize_session(req: ChargingRequest) -> dict[str, Any]:
     }
 
 
-def _extract_actor(request: Request, core: CoreFacade) -> Actor:
-    auth_header = request.headers.get("Authorization", "")
-    auth_service = getattr(request.app.state, "auth", None)
-    if auth_header.startswith("Bearer ") and auth_service is not None:
-        token = auth_header.removeprefix("Bearer ").strip()
-        verified = auth_service.verify(token)
-        if isinstance(verified, Err):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": verified.code.value, "message": verified.message},
-            )
-        return Actor(verified.value.user_id, verified.value.role, "charging")
-
-    user_id = request.headers.get("X-User-Id", "").strip()
-    if user_id:
-        account = core.get_entity(UserAccount, user_id)
-        if account is None or not account.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "FORBIDDEN", "message": "Invalid or inactive user."},
-            )
-        return Actor(account.user_id, account.role, "charging")
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"code": "UNAUTHENTICATED", "message": "Authentication required."},
-    )
-
-
-def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> APIRouter:
+def create_charging_router(
+    service: ChargingQueueService, core: CoreFacade
+) -> APIRouter:
     router = APIRouter(prefix="/charging", tags=["charging"])
 
     @router.post("/requests/immediate")
-    def request_immediate(body: ImmediateChargingIn, request: Request) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+    def request_immediate(
+        body: ImmediateChargingIn, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
         res = service.submit_charging_request(
             body.request_id,
             body.vehicle_id,
@@ -137,8 +112,10 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         return _serialize_session(res.value)
 
     @router.post("/requests/schedule")
-    def schedule_future(body: ScheduleChargingIn, request: Request) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+    def schedule_future(
+        body: ScheduleChargingIn, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
         res = service.submit_charging_request(
             body.request_id,
             body.vehicle_id,
@@ -153,16 +130,28 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         return _serialize_session(res.value)
 
     @router.post("/sessions/{request_id}/start")
-    def start_session(request_id: str, request: Request) -> dict[str, Any]:
-        _extract_actor(request, core)
-        req = schema.read(core, request_id)
-        if req is None:
-            _raise_charging_error(ChargingError(ChargingErrorCode.NOT_FOUND, "Session not found."))
-        return _serialize_session(req)
+    def start_session(
+        request_id: str, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
+        with core.unit_of_work() as uow:
+            req = schema.read(core, request_id)
+            if req is None:
+                _raise_charging_error(
+                    ChargingError(ChargingErrorCode.NOT_FOUND, "Session not found.")
+                )
+            req.status = ChargingSessionStatus.CHARGING
+            schema.update(uow.repository, req)
+            uow.commit()
+            return _serialize_session(req)
 
     @router.post("/sessions/{request_id}/finish")
-    def finish_session(request_id: str, body: FinishChargingIn, request: Request) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+    def finish_session(
+        request_id: str,
+        body: FinishChargingIn,
+        principal: Principal = Depends(current_principal),
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
         res = service.finish_charging(request_id, actor, final_soc=body.final_soc)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
@@ -170,19 +159,25 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
 
     @router.post("/sessions/{request_id}/interrupt")
     def interrupt_session(
-        request_id: str, body: InterruptChargingIn, request: Request
+        request_id: str,
+        body: InterruptChargingIn,
+        principal: Principal = Depends(current_principal),
     ) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
-        res = service.interrupt_charging(request_id, actor, current_soc=body.current_soc)
+        actor = acting_as(principal, "charging")
+        res = service.interrupt_charging(
+            request_id, actor, current_soc=body.current_soc
+        )
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
         return _serialize_session(res.value)
 
     @router.patch("/requests/{request_id}")
     def modify_schedule(
-        request_id: str, body: ModifyScheduleIn, request: Request
+        request_id: str,
+        body: ModifyScheduleIn,
+        principal: Principal = Depends(current_principal),
     ) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+        actor = acting_as(principal, "charging")
         res = service.modify_charging_schedule(
             request_id, body.start_at, body.duration_minutes, actor
         )
@@ -191,21 +186,43 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         return _serialize_session(res.value)
 
     @router.delete("/requests/{request_id}")
-    def cancel_schedule(request_id: str, request: Request) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+    def cancel_schedule(
+        request_id: str, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
         res = service.cancel_charging_schedule(request_id, actor)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
         return _serialize_session(res.value)
 
     @router.post("/private/vehicles")
-    def register_private_ev(body: RegisterPrivateEvIn, request: Request) -> dict[str, Any]:
-        _extract_actor(request, core)
-        return {"vehicle_id": body.vehicle_id or "V-PRIVATE-01"}
+    def register_private_ev(
+        body: RegisterPrivateEvIn, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
+        with core.unit_of_work() as uow:
+            reg_res = uow.commands.register_vehicle(
+                vehicle_id=body.vehicle_id or f"V-PRIV-{body.plate_or_code}",
+                plate_or_code=body.plate_or_code,
+                vehicle_type=body.vehicle_type,
+                battery_capacity_kwh=body.battery_capacity_kwh,
+                connector_type=body.connector_type,
+                ownership=HolderKind.CHARGING_SESSION,  
+                battery_pct=body.current_soc,
+                actor=actor,
+            )
+            if isinstance(reg_res, Err):
+                _raise_charging_error(
+                    ChargingError(ChargingErrorCode.INVALID_INPUT, reg_res.message)
+                )
+            uow.commit()
+            return {"vehicle_id": reg_res.value.vehicle_id}
 
     @router.post("/private/slots")
-    def reserve_private_slot(body: ScheduleChargingIn, request: Request) -> dict[str, Any]:
-        actor = _extract_actor(request, core)
+    def reserve_private_slot(
+        body: ScheduleChargingIn, principal: Principal = Depends(current_principal)
+    ) -> dict[str, Any]:
+        actor = acting_as(principal, "charging")
         res = service.submit_charging_request(
             body.request_id,
             body.vehicle_id,
@@ -220,28 +237,33 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         return _serialize_session(res.value)
 
     @router.get("/queue")
-    def get_priority_queue(hub_id: str | None = None) -> list[dict[str, Any]]:
+    def get_priority_queue(
+        hub_id: str | None = None, principal: Principal = Depends(current_principal)
+    ) -> list[dict[str, Any]]:
         return [_serialize_session(r) for r in service.compute_priority_queue(hub_id)]
 
     @router.post("/schedule/optimize")
-    def optimize_schedule(request: Request, hub_id: str | None = None) -> list[dict[str, Any]]:
-        actor = _extract_actor(request, core)
-        if actor.role is not Role.OPERATOR:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "FORBIDDEN", "message": "Operator role required."},
-            )
-        return [_serialize_session(r) for r in service.compute_priority_queue(hub_id)]
+    def optimize_schedule(
+        hub_id: str | None = None, principal: Principal = Depends(require_operator)
+    ) -> list[dict[str, Any]]:
+        queued = service.compute_priority_queue(hub_id)
+        return [_serialize_session(r) for r in queued]
 
     @router.get("/sessions")
-    def list_sessions(hub_id: str | None = None) -> list[dict[str, Any]]:
+    def list_sessions(
+        hub_id: str | None = None, principal: Principal = Depends(current_principal)
+    ) -> list[dict[str, Any]]:
         requests = schema.all_requests(core)
         if hub_id is not None:
             requests = [r for r in requests if r.station_id == hub_id]
         return [_serialize_session(r) for r in requests]
 
     @router.get("/demand")
-    def get_charging_demand(hub_id: str, horizon_minutes: int = 60) -> list[dict[str, Any]]:
+    def get_charging_demand(
+        hub_id: str,
+        horizon_minutes: int = 60,
+        principal: Principal = Depends(current_principal),
+    ) -> list[dict[str, Any]]:
         res = service.get_scheduled_sessions(hub_id, timedelta(minutes=horizon_minutes))
         if isinstance(res, Err):
             raise HTTPException(

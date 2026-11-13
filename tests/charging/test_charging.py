@@ -1,13 +1,15 @@
-"""Boundary-value & priority queue v1 unit tests for Module M3."""
-
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from fastapi import HTTPException, FastAPI
+from fastapi.testclient import TestClient
 
 from charging import install
 from charging.models import ChargingSessionStatus
 from charging.service import ChargingQueueService
+from charging.router import create_charging_router
 from core.actor import Actor
+from core.api.security import Principal, current_principal, require_operator
 from core.clock import FixedClock
 from core.config import CoreConfig
 from core.domain.entities import ChargingPoint, Hub, ParkingSpace, UserAccount, Vehicle
@@ -23,6 +25,7 @@ from core.facade import CoreFacade
 from core.providers import ProviderPort
 from core.repository.memory import InMemoryRepository
 from core.result import Ok
+from main import build_app
 
 T0 = datetime(2026, 11, 8, 8, 0, tzinfo=UTC)
 STUDENT = Actor("STU1", Role.STUDENT, "ui")
@@ -35,7 +38,9 @@ def _setup(
     repo.add(Hub("H1", "Hub 1", "Z1", 5, 1))
     repo.add(UserAccount("STU1", "2452030", Role.STUDENT))
     repo.add(ParkingSpace("H1-S001", "H1", "S1", SpaceStatus.OCCUPIED, "V-DOCKED"))
-    repo.add(ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE))
+    repo.add(
+        ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE)
+    )
 
     vehicles = [
         ("V-DOCKED", "P-00", 50.0, "H1-S001"),
@@ -76,7 +81,9 @@ def _setup(
 def test_battery_threshold_bva(vehicle_id: str, expected_emergency: bool) -> None:
     """BVA around 15.0% threshold: 14.9% and 15.0% are emergency; 15.1% is not."""
     _, _, service = _setup()
-    res = service.submit_charging_request(f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT)
+    res = service.submit_charging_request(
+        f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT
+    )
     assert isinstance(res, Ok)
     assert res.value.status is ChargingSessionStatus.QUEUED
     assert res.value.is_emergency is expected_emergency
@@ -110,7 +117,9 @@ def test_threshold_reads_from_core_config() -> None:
 def test_charging_lifecycle_and_d020_provider() -> None:
     """Immediate request starts/finishes charging; D-020 provider returns scheduled sessions."""
     core, _, service = _setup()
-    started = service.submit_charging_request("REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
+    started = service.submit_charging_request(
+        "REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0
+    )
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
 
@@ -168,10 +177,84 @@ def test_interrupt_charging_session() -> None:
     """Active charging session can be prematurely interrupted and cancelled."""
     core, _, service = _setup()
 
-    started = service.submit_charging_request("REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
+    started = service.submit_charging_request(
+        "REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0
+    )
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
     interrupted = service.interrupt_charging("REQ-INT", STUDENT, current_soc=60.0)
     assert isinstance(interrupted, Ok)
-    assert interrupted.value.status is ChargingSessionStatus.CANCELLED
+    assert interrupted.value.status is ChargingSessionStatus.INTERRUPTED
     assert interrupted.value.current_soc == 60.0
+
+
+def test_charging_router_security_401_403() -> None:
+    core, clock, service = _setup()
+
+    app = FastAPI()
+    app.include_router(create_charging_router(service, core))
+    client = TestClient(app)
+
+    app.dependency_overrides[current_principal] = lambda: (_ for _ in ()).throw(
+        HTTPException(status_code=401, detail="Not authenticated")
+    )
+    assert client.get("/charging/sessions").status_code == 401
+
+    student_principal = Principal(user_id="STU1", role=Role.STUDENT, module="charging")
+    app.dependency_overrides[current_principal] = lambda: student_principal
+    app.dependency_overrides[require_operator] = lambda: (_ for _ in ()).throw(
+        HTTPException(status_code=403, detail="Operator role required")
+    )
+    assert client.post("/charging/schedule/optimize").status_code == 403
+
+
+def test_charging_router_endpoints_success() -> None:
+    core, clock, service = _setup()
+
+    app = FastAPI()
+    app.include_router(create_charging_router(service, core))
+
+    student_principal = Principal(user_id="STU1", role=Role.STUDENT, module="charging")
+    app.dependency_overrides[current_principal] = lambda: student_principal
+
+    client = TestClient(app)
+
+    response_sessions = client.get("/charging/sessions")
+    assert response_sessions.status_code == 200
+    assert isinstance(response_sessions.json(), list)
+
+    response_demand = client.get("/charging/demand?hub_id=H1&horizon_minutes=60")
+    assert response_demand.status_code == 200
+    assert isinstance(response_demand.json(), list)
+
+
+def test_charging_router_private_endpoints() -> None:
+    core, clock, service = _setup()
+
+    app = FastAPI()
+    app.include_router(create_charging_router(service, core))
+
+    student_principal = Principal(user_id="STU1", role=Role.STUDENT, module="charging")
+    app.dependency_overrides[current_principal] = lambda: student_principal
+
+    client = TestClient(app)
+
+    response = client.get("/charging/queue?hub_id=H1")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_charging_router_demand_endpoint() -> None:
+    core, clock, service = _setup()
+
+    app = FastAPI()
+    app.include_router(create_charging_router(service, core))
+
+    student_principal = Principal(user_id="STU1", role=Role.STUDENT, module="charging")
+    app.dependency_overrides[current_principal] = lambda: student_principal
+
+    client = TestClient(app)
+
+    response = client.get("/charging/demand?hub_id=H1&horizon_minutes=60")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)

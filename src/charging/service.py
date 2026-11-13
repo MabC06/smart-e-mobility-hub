@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import ceil, isfinite
+from typing import Any
 
 from charging import schema
 from charging.models import (
@@ -13,6 +14,7 @@ from charging.models import (
     from_core_error,
 )
 from core.actor import Actor
+from core.events import EventType
 from core.domain.entities import Vehicle
 from core.domain.enums import (
     ChargingPointStatus,
@@ -25,7 +27,7 @@ from core.domain.enums import (
 )
 from core.errors import ErrorCode
 from core.facade import CoreFacade
-from core.providers import ScheduledChargingSessionRow
+from core.providers import ProviderPort, ScheduledChargingSessionRow
 from core.repository.base import RepositoryError, VersionConflictError
 from core.result import Err, Ok, Result
 from core.services.transition_ctx import TransitionCtx
@@ -37,7 +39,12 @@ DEFAULT_SESSION_MINUTES = 60
 
 
 def _id_valid(value: str) -> bool:
-    return isinstance(value, str) and bool(value) and value == value.strip() and len(value) <= 128
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and value == value.strip()
+        and len(value) <= 128
+    )
 
 
 def _soc_valid(value: float) -> bool:
@@ -53,12 +60,27 @@ def _err(code: ChargingErrorCode, message: str) -> ChargingError:
     return ChargingError(code, message)
 
 
+def _check_owner_or_operator(req: ChargingRequest, caller: Actor) -> bool:
+    """Cho phép chủ sở hữu session hoặc OPERATOR thao tác (M3-16)."""
+    return caller.role is Role.OPERATOR or req.user_id == caller.user_id
+
+
 class ChargingQueueService:
     """Phase 2 v1: charging requests, battery-threshold priority queue, and D-020 provider."""
 
     def __init__(self, core: CoreFacade) -> None:
         self.core = core
         schema.register_tables(core)
+        if hasattr(core, "events") and hasattr(core.events, "subscribe"):
+            try:
+                core.events.subscribe(
+                    EventType.CHARGING_POINT_STATUS_CHANGED,
+                    self._on_point_status_changed,
+                )
+            except Exception:
+                logger.debug(
+                    "Could not subscribe to CHARGING_POINT_STATUS_CHANGED event."
+                )
 
     def _run[T](
         self, fn: Callable[..., ChargingResult[T]], actor: Actor | None
@@ -81,6 +103,55 @@ class ChargingQueueService:
                 ChargingErrorCode.INTERNAL_ERROR,
                 "Charging operation could not be saved.",
             )
+
+    def _on_point_status_changed(self, event: Any) -> None:
+        """Xử lý sự kiện thay đổi trạng thái trạm sạc (UC-M3-08, M3-13)."""
+        try:
+            point_id = getattr(event, "charging_point_id", None)
+            new_status = getattr(event, "status", None)
+            hub_id = getattr(event, "hub_id", getattr(event, "station_id", None))
+            if not point_id or not new_status:
+                return
+
+            if new_status in (
+                ChargingPointStatus.OUT_OF_SERVICE,
+                ChargingPointStatus.MAINTENANCE,
+            ):
+                requests = schema.all_requests(self.core)
+                for req in requests:
+                    if (
+                        req.charger_id == point_id
+                        and req.status is ChargingSessionStatus.CHARGING
+                    ):
+                        self.interrupt_charging(
+                            req.request_id,
+                            Actor("SYSTEM_EVENT", Role.OPERATOR, "charging"),
+                        )
+
+            elif new_status is ChargingPointStatus.AVAILABLE and hub_id:
+                queued = self.compute_priority_queue(hub_id)
+                if queued:
+                    next_req = queued[0]
+                    with self.core.unit_of_work() as uow:
+                        config = uow.queries.get_config()
+                        now = config.as_of
+                        end_t = now + timedelta(minutes=DEFAULT_SESSION_MINUTES)
+                        bay = self._find_free_bay(
+                            uow, hub_id, now, end_t, immediate=True
+                        )
+                        if bay and bay.charging_point_id == point_id:
+                            self._bind_bay(
+                                uow,
+                                next_req,
+                                bay,
+                                now,
+                                end_t,
+                                Actor("SYSTEM_EVENT", Role.OPERATOR, "charging"),
+                                start_now=True,
+                                is_new=False,
+                            )
+        except Exception:
+            logger.exception("Error handling charging point status change event.")
 
     def _find_free_bay(
         self,
@@ -174,7 +245,9 @@ class ChargingQueueService:
         req.point_claim_id = pt_claim.value.claim_id
         req.vehicle_claim_id = veh_claim.value.claim_id
         req.status = (
-            ChargingSessionStatus.CHARGING if start_now else ChargingSessionStatus.SCHEDULED
+            ChargingSessionStatus.CHARGING
+            if start_now
+            else ChargingSessionStatus.SCHEDULED
         )
         (schema.add if is_new else schema.update)(uow.repository, req)
         committed = uow.commit()
@@ -192,11 +265,14 @@ class ChargingQueueService:
         duration_minutes: int | None = None,
         queue_if_full: bool = True,
     ) -> ChargingResult[ChargingRequest]:
-        """Create an immediate or scheduled charging request; queue if no bay is free."""
         if not all(_id_valid(v) for v in (request_id, vehicle_id, hub_id)):
-            return _err(ChargingErrorCode.INVALID_INPUT, "Invalid IDs for charging request.")
+            return _err(
+                ChargingErrorCode.INVALID_INPUT, "Invalid IDs for charging request."
+            )
         if not _soc_valid(target_soc) or target_soc <= 0.0:
-            return _err(ChargingErrorCode.INVALID_INPUT, "target_soc must be in (0, 100].")
+            return _err(
+                ChargingErrorCode.INVALID_INPUT, "target_soc must be in (0, 100]."
+            )
 
         def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest]:
             if (existing := schema.read(self.core, request_id)) is not None:
@@ -206,14 +282,14 @@ class ChargingQueueService:
             if isinstance(hub_res, Err):
                 return from_core_error(hub_res)
             if hub_res.value.status is HubStatus.MAINTENANCE:
-                return _err(ChargingErrorCode.RESOURCE_UNAVAILABLE, "Hub is in maintenance.")
+                return _err(ChargingErrorCode.INVALID_STATE, "Hub is in maintenance.")
 
             veh_res = uow.queries.get_vehicle(vehicle_id)
             if isinstance(veh_res, Err):
                 return from_core_error(veh_res)
             veh = veh_res.value
             if veh.fault_flag or veh.state is VehicleState.MAINTENANCE:
-                return _err(ChargingErrorCode.RESOURCE_UNAVAILABLE, "Vehicle is unavailable.")
+                return _err(ChargingErrorCode.INVALID_STATE, "Vehicle is unavailable.")
             if target_soc <= veh.battery_pct:
                 return _err(
                     ChargingErrorCode.INVALID_INPUT,
@@ -225,14 +301,18 @@ class ChargingQueueService:
             immediate = start_at is None
             session_start = now if immediate else start_at
             if not immediate and session_start < now:
-                return _err(ChargingErrorCode.INVALID_INPUT, "start_at cannot be in the past.")
+                return _err(
+                    ChargingErrorCode.INVALID_INPUT, "start_at cannot be in the past."
+                )
 
             veh_entity = uow.repository.get(Vehicle, vehicle_id)
             if veh_entity is None:
                 return _err(ChargingErrorCode.NOT_FOUND, "Vehicle entity not found.")
 
             energy_kwh = round(
-                veh_entity.battery_capacity_kwh * (target_soc - veh.battery_pct) / 100.0,
+                veh_entity.battery_capacity_kwh
+                * (target_soc - veh.battery_pct)
+                / 100.0,
                 4,
             )
             session_end = session_start + timedelta(
@@ -259,15 +339,32 @@ class ChargingQueueService:
                 immediate=immediate,
             )
             if bay is None:
+                try:
+                    self.core.providers.call(
+                        ProviderPort.ALTERNATIVE_CHARGING,
+                        {
+                            "hub_id": hub_id,
+                            "start_at": session_start,
+                            "end_at": session_end,
+                            "vehicle_id": vehicle_id,
+                        },
+                    )
+                except Exception:
+                    pass
+
                 if not queue_if_full:
                     return _err(
-                        ChargingErrorCode.RESOURCE_UNAVAILABLE,
+                        ChargingErrorCode.CONFLICT,
                         f"No free charging bay at hub {hub_id!r}.",
                     )
                 req.status = ChargingSessionStatus.QUEUED
                 schema.add(uow.repository, req)
                 committed = uow.commit()
-                return from_core_error(committed) if isinstance(committed, Err) else Ok(req)
+                return (
+                    from_core_error(committed)
+                    if isinstance(committed, Err)
+                    else Ok(req)
+                )
 
             if duration_minutes is None:
                 session_end = session_start + timedelta(
@@ -289,7 +386,6 @@ class ChargingQueueService:
     def finish_charging(
         self, request_id: str, actor: Actor, *, final_soc: float | None = None
     ) -> ChargingResult[ChargingRequest]:
-        """Complete an active CHARGING session, restore vehicle state, and release claims."""
         if not _id_valid(request_id):
             return _err(ChargingErrorCode.INVALID_INPUT, "Invalid request_id.")
         if final_soc is not None and not _soc_valid(final_soc):
@@ -297,7 +393,7 @@ class ChargingQueueService:
 
         def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest]:
             req = schema.read(self.core, request_id)
-            if req is None:
+            if req is None or not _check_owner_or_operator(req, caller):
                 return _err(ChargingErrorCode.NOT_FOUND, "Charging session not found.")
             if req.status is not ChargingSessionStatus.CHARGING:
                 return _err(ChargingErrorCode.INVALID_STATE, "Session is not CHARGING.")
@@ -356,7 +452,6 @@ class ChargingQueueService:
         new_duration_minutes: int,
         actor: Actor,
     ) -> ChargingResult[ChargingRequest]:
-        """Modify a scheduled charging request's start time and duration (UC-M3-03)."""
         if not _id_valid(request_id):
             return _err(ChargingErrorCode.INVALID_INPUT, "Invalid request_id.")
         if not isinstance(new_duration_minutes, int) or new_duration_minutes <= 0:
@@ -367,7 +462,7 @@ class ChargingQueueService:
 
         def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest]:
             req = schema.read(self.core, request_id)
-            if req is None:
+            if req is None or not _check_owner_or_operator(req, caller):
                 return _err(ChargingErrorCode.NOT_FOUND, "Charging session not found.")
             if req.status is not ChargingSessionStatus.SCHEDULED:
                 return _err(
@@ -382,7 +477,6 @@ class ChargingQueueService:
                     "New start time cannot be in the past.",
                 )
 
-            # Release old claims before re-allocating new bay slot
             for cid in (req.point_claim_id, req.vehicle_claim_id):
                 if cid is not None:
                     rel = uow.commands.release_claim(cid, caller)
@@ -393,7 +487,7 @@ class ChargingQueueService:
             bay = self._find_free_bay(uow, req.station_id, new_start_at, new_end_at)
             if bay is None:
                 return _err(
-                    ChargingErrorCode.RESOURCE_UNAVAILABLE,
+                    ChargingErrorCode.CONFLICT,
                     "No free bay for the new schedule slot.",
                 )
 
@@ -435,13 +529,12 @@ class ChargingQueueService:
     def cancel_charging_schedule(
         self, request_id: str, actor: Actor
     ) -> ChargingResult[ChargingRequest]:
-        """Cancel a queued or scheduled charging request and release claims (UC-M3-04)."""
         if not _id_valid(request_id):
             return _err(ChargingErrorCode.INVALID_INPUT, "Invalid request_id.")
 
         def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest]:
             req = schema.read(self.core, request_id)
-            if req is None:
+            if req is None or not _check_owner_or_operator(req, caller):
                 return _err(ChargingErrorCode.NOT_FOUND, "Charging session not found.")
             if req.status not in (
                 ChargingSessionStatus.QUEUED,
@@ -485,7 +578,6 @@ class ChargingQueueService:
     def interrupt_charging(
         self, request_id: str, actor: Actor, *, current_soc: float | None = None
     ) -> ChargingResult[ChargingRequest]:
-        """Interrupt an active CHARGING session prematurely."""
         if not _id_valid(request_id):
             return _err(ChargingErrorCode.INVALID_INPUT, "Invalid request_id.")
         if current_soc is not None and not _soc_valid(current_soc):
@@ -493,7 +585,7 @@ class ChargingQueueService:
 
         def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest]:
             req = schema.read(self.core, request_id)
-            if req is None:
+            if req is None or not _check_owner_or_operator(req, caller):
                 return _err(ChargingErrorCode.NOT_FOUND, "Charging session not found.")
             if req.status is not ChargingSessionStatus.CHARGING:
                 return _err(
@@ -542,15 +634,16 @@ class ChargingQueueService:
 
             req.current_soc = soc
             req.end_time = uow.queries.get_config().as_of
-            req.status = ChargingSessionStatus.CANCELLED
+            req.status = ChargingSessionStatus.INTERRUPTED
             schema.update(uow.repository, req)
             committed = uow.commit()
             return from_core_error(committed) if isinstance(committed, Err) else Ok(req)
 
         return self._run(_op, actor)
 
-    def compute_priority_queue(self, hub_id: str | None = None) -> list[ChargingRequest]:
-        """Priority queue v1: emergency (SoC <= low_battery_threshold) -> lowest SoC -> FIFO."""
+    def compute_priority_queue(
+        self, hub_id: str | None = None
+    ) -> list[ChargingRequest]:
         threshold = self.core.queries.get_config().low_battery_threshold
         queued = [
             r
@@ -558,11 +651,24 @@ class ChargingQueueService:
             if r.status is ChargingSessionStatus.QUEUED
             and (hub_id is None or r.station_id == hub_id)
         ]
+
+        booking_factors = {}
+        try:
+            res_demand = self.core.providers.call(
+                ProviderPort.RESERVATION_DEMAND, hub_id
+            )
+            if isinstance(res_demand, Ok) and isinstance(res_demand.value, dict):
+                booking_factors = res_demand.value
+        except Exception:
+            pass
+
         for req in queued:
             req.is_emergency = req.current_soc <= threshold
+
         queued.sort(
             key=lambda r: (
                 not (r.current_soc <= threshold),
+                booking_factors.get(r.request_id, 0),
                 r.current_soc,
                 r.requested_at,
             )
@@ -572,7 +678,6 @@ class ChargingQueueService:
     def get_scheduled_sessions(
         self, hub_id: str, horizon: timedelta
     ) -> Result[list[ScheduledChargingSessionRow]]:
-        """D-020 ChargingDemand port: return scheduled/active sessions at hub within horizon."""
         if not _id_valid(hub_id):
             return Err(ErrorCode.INVALID_INPUT, "hub_id must be a non-empty string")
         if horizon <= timedelta(0):
@@ -593,7 +698,8 @@ class ChargingQueueService:
             )
             for r in schema.all_requests(self.core)
             if r.station_id == hub_id
-            and r.status in (ChargingSessionStatus.SCHEDULED, ChargingSessionStatus.CHARGING)
+            and r.status
+            in (ChargingSessionStatus.SCHEDULED, ChargingSessionStatus.CHARGING)
             and r.charger_id is not None
             and r.start_time is not None
             and r.end_time is not None
