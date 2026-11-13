@@ -167,4 +167,3 @@ def test_operator_can_call_endpoints(site: Site):
     logs = res.json()
     assert len(logs) == 4
     assert all(log["changed_by"] == "OP1" for log in logs)
-
