@@ -13,7 +13,12 @@
   <span class="planned">Planned</span> Filters (Phase 3).
 </p>
 
-<div class="cards">
+<div class="cards"
+  hx-get="{{ url_for('operator_overview') }}"
+  hx-trigger="every 5s"
+  hx-select=".cards"
+  hx-select-oob="#as-of"
+  hx-swap="outerHTML">
   {% for hub in hubs %}
   <section class="card">
     <h2>

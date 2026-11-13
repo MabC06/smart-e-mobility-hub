@@ -11,6 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Smart E-Mobility Hub{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('ui-static', path='app.css') }}">
+  <script src="{{ url_for('ui-static', path='htmx.min.js') }}" defer></script>
 </head>
 <body>
   <p class="prototype-note">Prototype (Phase 2): the data is sample data and no button changes anything.</p>
@@ -60,7 +61,7 @@
 
   {% if actor %}
   <footer class="site-footer">
-    Data as of {{ as_of | ict }} · <a href="{{ request.url }}">Refresh</a>
+    Data as of <span id="as-of">{{ as_of | ict }}</span> · <a href="{{ request.url }}">Refresh</a>
   </footer>
   {% endif %}
 </body>
