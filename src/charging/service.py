@@ -14,7 +14,6 @@ from charging.models import (
     from_core_error,
 )
 from core.actor import Actor
-from core.events import EventType
 from core.domain.entities import Vehicle
 from core.domain.enums import (
     ChargingPointStatus,
@@ -26,6 +25,7 @@ from core.domain.enums import (
     VehicleState,
 )
 from core.errors import ErrorCode
+from core.events import EventType
 from core.facade import CoreFacade
 from core.providers import ProviderPort, ScheduledChargingSessionRow
 from core.repository.base import RepositoryError, VersionConflictError

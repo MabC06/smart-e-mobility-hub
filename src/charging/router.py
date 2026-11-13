@@ -1,15 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from charging import schema
 from charging.models import ChargingError, ChargingErrorCode, ChargingRequest, ChargingSessionStatus
 from charging.service import ChargingQueueService
-from core.actor import Actor
-from core.api.security import Principal, current_principal, require_operator, acting_as
-from core.domain.enums import VehicleType, HolderKind
+from core.api.security import Principal, acting_as, current_principal, require_operator
+from core.domain.enums import HolderKind, VehicleType
 from core.facade import CoreFacade
 from core.result import Err
 

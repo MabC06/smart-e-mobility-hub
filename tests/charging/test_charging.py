@@ -1,13 +1,13 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi import HTTPException, FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from charging import install
 from charging.models import ChargingSessionStatus
-from charging.service import ChargingQueueService
 from charging.router import create_charging_router
+from charging.service import ChargingQueueService
 from core.actor import Actor
 from core.api.security import Principal, current_principal, require_operator
 from core.clock import FixedClock
@@ -25,7 +25,6 @@ from core.facade import CoreFacade
 from core.providers import ProviderPort
 from core.repository.memory import InMemoryRepository
 from core.result import Ok
-from main import build_app
 
 T0 = datetime(2026, 11, 8, 8, 0, tzinfo=UTC)
 STUDENT = Actor("STU1", Role.STUDENT, "ui")
