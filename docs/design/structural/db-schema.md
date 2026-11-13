@@ -32,7 +32,7 @@ Each stored entity has a `TableSpec(entity, table, id_column, enums, versioned)`
 | `table` | The SQLAlchemy `Table`, built on `core`'s `metadata` so that foreign keys to `core`'s tables resolve |
 | `id_column` | The primary-key column |
 | `enums` | Columns whose stored text is turned back into an enum when a row is read (`sql.py:246-250`) |
-| `versioned` | The row has a `version` column for optimistic locking: an update is `UPDATE ... WHERE id = ? AND version = ?`, and no changed row is a `VersionConflictError` (`sql.py:289-317`, D-002) |
+| `versioned` | The row has a `version` column for optimistic locking: an update is `UPDATE ... WHERE id = ? AND version = ?`, and no changed row is a `VersionConflictError` (`sql.py:289-317`, D-018) |
 
 `check_spec` (`schema.py:284-315`) and `add_spec` (`schema.py:318-338`) refuse a module's spec with a `ValueError` unless:
 
