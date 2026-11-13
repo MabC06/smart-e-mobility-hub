@@ -61,7 +61,7 @@ Use the technique assignment in [`test-technique-assignment.md`](test-technique-
 - **Concurrency / conflict testing:** simultaneous claims and optimistic-version conflicts.
 - **Fault injection:** sensor errors, charger failure, provider unavailable, transaction rollback.
 - **Metamorphic / determinism testing:** same seed and ordered events produce the same generated dataset and output.
-- **Performance / load testing:** latency and throughput under DS-STD with 100 concurrent sessions.
+- **Performance measurement:** measure sequential API request latency against the seeded DS-STD dataset; report p95 and maximum latency against the applicable NFR thresholds.
 - **Static analysis / architecture checks:** import-boundary checks and CI quality gates.
 - **Exploratory / usability review:** operator status visibility and understandable rejection messages.
 
@@ -86,7 +86,7 @@ Use `docs/requirements/reference-dataset.md` as the authoritative source:
 - 250 rental vehicles; 1,000 student accounts; 5 operator accounts.
 - 100 registered private EVs.
 - Rental fleet distribution: 60% above 70% battery, 25% from 30–70%, 15% below 30%; vehicle types 50% e-bike, 30% e-scooter, 20% electric motorcycle.
-- 100 concurrent sessions for NFR-02 and NFR-03.
+- Use the seeded DS-STD dataset for sequential API performance measurements under NFR-02 and NFR-03.
 
 ### 6.2 Focused fixtures
 
@@ -147,8 +147,8 @@ A failed test must not be silently changed to pass. If the expected behavior is 
 | NFR | Verification approach | Evidence |
 |---|---|---|
 | NFR-01 | Timestamp accepted update and subsequent Core read; UI refresh timing | Integration timing log |
-| NFR-02 | Read API load test, DS-STD, 100 concurrent sessions; p95 ≤500 ms, max ≤2 s | Raw results + summary |
-| NFR-03 | Write API load test; p95 ≤1 s | Raw results + summary |
+| NFR-02 | Measure sequential Read API request latency against seeded DS-STD; p95 ≤500 ms and max ≤2 s per endpoint, over at least 100 sequential requests | Raw results + summary |
+| NFR-03 | Measure sequential Write API request latency against seeded DS-STD; p95 ≤1 s per operation over at least 100 sequential operations | Raw results + summary |
 | NFR-04 | Time charging schedule ≤3 s/Hub and network redistribution ≤5 s | Benchmark output |
 | NFR-05 | Time each of five M6 scenarios ≤30 s | Scenario benchmark output |
 | NFR-06 | 20–50 simultaneous requests for same resource; repeat 100 runs | Conflict/concurrency report |
