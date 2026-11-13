@@ -1,48 +1,31 @@
-from datetime import datetime
+from datetime import timedelta
 from typing import Any
 
 from charging.service import ChargingQueueService
-from core.errors import ErrorCode
-from core.providers import ProviderPort, ScheduledChargingSessionRow
-from core.result import Err, Ok, Result
-
-__all__ = [
-    "ChargingDemandProvider",
-    "ChargingQueueService",
-    "ProviderPort",
-    "install",
-]
+from core.facade import CoreFacade
+from core.providers import ChargingDemand, ProviderPort, ScheduledChargingSessionRow
+from core.result import Result
 
 
-class ChargingDemandProvider:
-    """Provider adapter for Module M3 Charging Demand (D-020)."""
+class _ChargingDemandProvider(ChargingDemand):
+    """Adapter exposing M3 scheduled charging demand over D-020 provider port."""
 
     def __init__(self, service: ChargingQueueService) -> None:
-        self.service = service
+        self._service = service
 
     def scheduled_sessions(
-        self, hub_id: str, horizon: datetime
+        self, hub_id: str, horizon: timedelta
     ) -> Result[list[ScheduledChargingSessionRow]]:
-        """Expose scheduled charging sessions to other modules via Core (D-020)."""
-        try:
-            requests = self.service.get_scheduled_sessions(hub_id, horizon)
-            rows = [
-                ScheduledChargingSessionRow(
-                    session_id=str(r.request_id),
-                    vehicle_id=str(r.vehicle_id),
-                    charger_id=str(getattr(r, "charger_id", "default_charger")),
-                    energy_kwh=float(getattr(r, "target_soc", 100.0) - r.current_soc),
-                    start_time=r.requested_at,
-                    end_time=r.requested_at,
-                )
-                for r in requests
-            ]
-            return Ok(rows)
-        except Exception as e:
-            return Err(ErrorCode.INTERNAL_ERROR, str(e))
+        return self._service.get_scheduled_sessions(hub_id, horizon)
 
 
-def install(core: Any, app: Any) -> None:
-    service = ChargingQueueService(core=core)
-    provider = ChargingDemandProvider(service)
-    core.register_provider(ProviderPort.CHARGING_DEMAND, provider)
+def install(core: CoreFacade, app: Any = None) -> ChargingQueueService:
+    """Register M3 tables and ChargingDemand provider with Core (D-013, D-020)."""
+    service = ChargingQueueService(core)
+    core.register_provider(ProviderPort.CHARGING_DEMAND, _ChargingDemandProvider(service))
+    if app is not None and hasattr(app, "state"):
+        app.state.charging = service
+    return service
+
+
+__all__ = ["ChargingQueueService", "install"]

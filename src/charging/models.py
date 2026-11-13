@@ -1,19 +1,72 @@
+"""Domain models and error types for Module M3 Charging Request & Priority Queue v1."""
+
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
+from typing import ClassVar
+
+from core.errors import ErrorCode
+from core.result import Err, Ok
 
 
-@dataclass
+class ChargingErrorCode(StrEnum):
+    INVALID_INPUT = "INVALID_INPUT"
+    FORBIDDEN = "FORBIDDEN"
+    NOT_FOUND = "NOT_FOUND"
+    CONFLICT = "CONFLICT"
+    INVALID_STATE = "INVALID_STATE"
+    RESOURCE_UNAVAILABLE = "RESOURCE_UNAVAILABLE"
+    INTERNAL_ERROR = "INTERNAL_ERROR"
+
+
+@dataclass(frozen=True, slots=True)
+class ChargingError:
+    code: ChargingErrorCode
+    message: str
+
+
+type ChargingResult[T] = Ok[T] | ChargingError
+
+
+def from_core_error(err: Err) -> ChargingError:
+    mapping = {
+        ErrorCode.INVALID_INPUT: ChargingErrorCode.INVALID_INPUT,
+        ErrorCode.FORBIDDEN: ChargingErrorCode.FORBIDDEN,
+        ErrorCode.NOT_FOUND: ChargingErrorCode.NOT_FOUND,
+        ErrorCode.INVALID_STATE: ChargingErrorCode.INVALID_STATE,
+        ErrorCode.RESOURCE_UNAVAILABLE: ChargingErrorCode.RESOURCE_UNAVAILABLE,
+    }
+    return ChargingError(mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message)
+
+
+class ChargingSessionStatus(StrEnum):
+    QUEUED = "QUEUED"
+    SCHEDULED = "SCHEDULED"
+    CHARGING = "CHARGING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+@dataclass(slots=True)
 class ChargingRequest:
+    """Persisted charging request & session entity (D-017, D-018)."""
+
+    ID_FIELD: ClassVar[str] = "request_id"
+    VERSIONED: ClassVar[bool] = True
+
     request_id: str
     vehicle_id: str
     station_id: str
     current_soc: float
-    target_soc: float = 100.0
-    requested_at: datetime | None = None
+    target_soc: float
+    requested_at: datetime
     is_emergency: bool = False
-
-    def __post_init__(self) -> None:
-        if not (0.0 <= self.current_soc <= 100.0):
-            raise ValueError("current_soc must be between 0.0 and 100.0")
-        if not (0.0 <= self.target_soc <= 100.0):
-            raise ValueError("target_soc must be between 0.0 and 100.0")
+    energy_kwh: float = 0.0
+    charger_id: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    point_claim_id: str | None = None
+    vehicle_claim_id: str | None = None
+    status: ChargingSessionStatus = ChargingSessionStatus.QUEUED
+    user_id: str | None = None
+    version: int = 1

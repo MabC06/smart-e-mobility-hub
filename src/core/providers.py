@@ -12,10 +12,8 @@ must not assume an answer.
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
-
-# Add protocol for type checking
 from typing import Any, Protocol
 
 from core.errors import ErrorCode
@@ -53,9 +51,7 @@ class ProviderRegistry:
         provider = self._providers.get(port)
         if provider is None:
             return Err(
-                ErrorCode.RESOURCE_UNAVAILABLE,
-                f"no provider is registered for {port.value}",
-            )
+                ErrorCode.RESOURCE_UNAVAILABLE, f"no provider is registered for {port.value}")
         try:
             return work(provider)
         except Exception:
@@ -63,21 +59,21 @@ class ProviderRegistry:
             return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ScheduledChargingSessionRow:
     """Typed row representing exposed scheduled charging sessions (D-020)."""
 
     session_id: str
     vehicle_id: str
-    charger_id: str
+    charger_id: str | None
     energy_kwh: float
     start_time: datetime
     end_time: datetime
 
 
-class ChargingDemandProtocol(Protocol):
+class ChargingDemand(Protocol):
     """The provider port for Module M3 Charging Demand (D-020)."""
 
     def scheduled_sessions(
-        self, hub_id: str, horizon: datetime
+        self, hub_id: str, horizon: timedelta
     ) -> Result[list[ScheduledChargingSessionRow]]: ...

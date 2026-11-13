@@ -1,130 +1,177 @@
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+"""Boundary-value & priority queue v1 unit tests for Module M3."""
 
-from charging import ChargingDemandProvider
-from charging.models import ChargingRequest
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+from charging import install
+from charging.models import ChargingSessionStatus
 from charging.service import ChargingQueueService
+from core.actor import Actor
+from core.clock import FixedClock
 from core.config import CoreConfig
-from core.providers import ScheduledChargingSessionRow
+from core.domain.entities import ChargingPoint, Hub, ParkingSpace, UserAccount, Vehicle
+from core.domain.enums import (
+    ChargingPointStatus,
+    Ownership,
+    Role,
+    SpaceStatus,
+    VehicleState,
+    VehicleType,
+)
+from core.facade import CoreFacade
+from core.providers import ProviderPort
+from core.repository.memory import InMemoryRepository
 from core.result import Ok
 
-
-def test_battery_boundary_below_threshold():
-    # Test SOC <= 15% triggers emergency mode when created via service or configured
-    config = CoreConfig()
-    mock_core = MagicMock()
-    mock_core.queries.get_config.return_value = config
-
-    service = ChargingQueueService(core=mock_core)
-
-    req_below = ChargingRequest(
-        request_id="REQ-001", vehicle_id="EV-101", station_id="ST-01", current_soc=14.9
-    )
-    service.add_request(req_below)
-    assert req_below.is_emergency is True
-
-    req_exact = ChargingRequest(
-        request_id="REQ-002", vehicle_id="EV-102", station_id="ST-01", current_soc=15.0
-    )
-    service.add_request(req_exact)
-    assert req_exact.is_emergency is True
+T0 = datetime(2026, 11, 8, 8, 0, tzinfo=UTC)
+STUDENT = Actor("STU1", Role.STUDENT, "ui")
 
 
-def test_battery_boundary_above_threshold():
-    # Test SOC > 15% does not trigger emergency mode
-    config = CoreConfig()
-    mock_core = MagicMock()
-    mock_core.queries.get_config.return_value = config
+def _setup(
+    config: CoreConfig | None = None,
+) -> tuple[CoreFacade, FixedClock, ChargingQueueService]:
+    repo = InMemoryRepository()
+    repo.add(Hub("H1", "Hub 1", "Z1", 5, 1))
+    repo.add(UserAccount("STU1", "2452030", Role.STUDENT))
+    repo.add(ParkingSpace("H1-S001", "H1", "S1", SpaceStatus.OCCUPIED, "V-DOCKED"))
+    repo.add(ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE))
 
-    service = ChargingQueueService(core=mock_core)
+    vehicles = [
+        ("V-DOCKED", "P-00", 50.0, "H1-S001"),
+        ("V-149", "P-149", 14.9, None),
+        ("V-150", "P-150", 15.0, None),
+        ("V-151", "P-151", 15.1, None),
+        ("V-400", "P-400", 40.0, None),
+    ]
+    for vid, plate, soc, space_id in vehicles:
+        repo.add(
+            Vehicle(
+                vid,
+                plate,
+                Ownership.FLEET,
+                VehicleType.E_BIKE,
+                soc,
+                2.0,
+                state=VehicleState.AVAILABLE,
+                hub_id="H1",
+                parking_space_id=space_id,
+            )
+        )
 
-    req_above = ChargingRequest(
-        request_id="REQ-003", vehicle_id="EV-103", station_id="ST-01", current_soc=15.1
-    )
-    service.add_request(req_above)
-    assert req_above.is_emergency is False
-
-
-def test_priority_queue_sorting_order():
-    mock_core = MagicMock()
-    mock_core.queries.get_config.return_value = CoreConfig()
-    service = ChargingQueueService(core=mock_core)
-
-    req1 = ChargingRequest(request_id="R1", vehicle_id="V1", station_id="S1", current_soc=50.0)
-    req2 = ChargingRequest(request_id="R2", vehicle_id="V2", station_id="S1", current_soc=30.0)
-    req3 = ChargingRequest(request_id="R3", vehicle_id="V3", station_id="S1", current_soc=60.0)
-
-    service.add_request(req1)
-    service.add_request(req2)
-    service.add_request(req3)
-
-    first = service.pop_next_request()
-    second = service.pop_next_request()
-    third = service.pop_next_request()
-
-    assert first is not None and first.request_id == "R2"
-    assert second is not None and second.request_id == "R1"
-    assert third is not None and third.request_id == "R3"
-
-
-def test_priority_queue_fifo_tie_breaker():
-    mock_core = MagicMock()
-    mock_core.queries.get_config.return_value = CoreConfig()
-    service = ChargingQueueService(core=mock_core)
-
-    t1 = datetime.now(UTC)
-    t2 = t1 + timedelta(seconds=10)
-
-    req1 = ChargingRequest(
-        request_id="R1",
-        vehicle_id="V1",
-        station_id="S1",
-        current_soc=40.0,
-        requested_at=t1,
-    )
-    req2 = ChargingRequest(
-        request_id="R2",
-        vehicle_id="V2",
-        station_id="S1",
-        current_soc=40.0,
-        requested_at=t2,
-    )
-
-    service.add_request(req2)
-    service.add_request(req1)
-
-    first = service.pop_next_request()
-    second = service.pop_next_request()
-
-    assert first is not None and first.request_id == "R1"
-    assert second is not None and second.request_id == "R2"
+    clock = FixedClock(T0)
+    core = CoreFacade(repo, clock, config)
+    return core, clock, install(core)
 
 
-def test_charging_demand_provider_scheduled_sessions():
-    mock_config = MagicMock()
-    mock_config.as_of = datetime.now(UTC)
-    mock_config.low_battery_threshold = 15.0
+@pytest.mark.parametrize(
+    ("vehicle_id", "expected_emergency"),
+    [
+        ("V-149", True),
+        ("V-150", True),
+        ("V-151", False),
+        ("V-400", False),
+    ],
+)
+def test_battery_threshold_bva(vehicle_id: str, expected_emergency: bool) -> None:
+    """BVA around 15.0% threshold: 14.9% and 15.0% are emergency; 15.1% is not."""
+    _, _, service = _setup()
+    res = service.submit_charging_request(f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT)
+    assert isinstance(res, Ok)
+    assert res.value.status is ChargingSessionStatus.QUEUED
+    assert res.value.is_emergency is expected_emergency
 
-    mock_core = MagicMock()
-    mock_core.queries.get_config.return_value = mock_config
-    service = ChargingQueueService(core=mock_core)
 
-    req = ChargingRequest(
-        request_id="REQ-100",
-        vehicle_id="EV-200",
-        station_id="ST-01",
-        current_soc=20.0,
+def test_priority_queue_ordering() -> None:
+    """Priority queue v1 puts <= 15.0% first, then orders by lowest SoC and FIFO."""
+    _, clock, service = _setup()
+    submissions = [
+        ("R-151", "V-151"),
+        ("R-400", "V-400"),
+        ("R-150", "V-150"),
+        ("R-149", "V-149"),
+    ]
+    for rid, vid in submissions:
+        assert isinstance(service.submit_charging_request(rid, vid, "H1", STUDENT), Ok)
+        clock.advance(timedelta(minutes=1))
+
+    ranked = service.compute_priority_queue("H1")
+    assert [r.vehicle_id for r in ranked] == ["V-149", "V-150", "V-151", "V-400"]
+
+
+def test_threshold_reads_from_core_config() -> None:
+    """Custom CoreConfig low_battery_threshold overrides the 15.0% default (D-005)."""
+    _, _, service = _setup(CoreConfig(low_battery_threshold=20.0))
+    res = service.submit_charging_request("R-151", "V-151", "H1", STUDENT)
+    assert isinstance(res, Ok)
+    assert res.value.is_emergency is True
+
+
+def test_charging_lifecycle_and_d020_provider() -> None:
+    """Immediate request starts/finishes charging; D-020 provider returns scheduled sessions."""
+    core, _, service = _setup()
+    started = service.submit_charging_request("REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
+    assert isinstance(started, Ok)
+    assert started.value.status is ChargingSessionStatus.CHARGING
+
+    finished = service.finish_charging("REQ-NOW", STUDENT, final_soc=90.0)
+    assert isinstance(finished, Ok)
+    assert finished.value.status is ChargingSessionStatus.COMPLETED
+
+    scheduled = service.submit_charging_request(
+        "REQ-FUT",
+        "V-149",
+        "H1",
+        STUDENT,
         target_soc=80.0,
+        start_at=T0 + timedelta(minutes=30),
+        duration_minutes=30,
     )
-    service.add_request(req)
+    assert isinstance(scheduled, Ok)
 
-    provider = ChargingDemandProvider(service)
-    horizon = datetime.now(UTC) + timedelta(hours=2)
-    result = provider.scheduled_sessions("hub-01", horizon)
+    demand = core.providers.call(
+        ProviderPort.CHARGING_DEMAND,
+        lambda p: p.scheduled_sessions("H1", timedelta(hours=2)),
+    )
+    assert isinstance(demand, Ok)
+    assert [row.session_id for row in demand.value] == ["REQ-FUT"]
 
-    assert isinstance(result, Ok)
-    sessions = result.value
-    assert len(sessions) == 1
-    assert isinstance(sessions[0], ScheduledChargingSessionRow)
-    assert sessions[0].session_id == "REQ-100"
-    assert sessions[0].vehicle_id == "EV-200"
+
+def test_modify_and_cancel_schedule() -> None:
+    """Scheduled request can be modified to a new time slot or cancelled."""
+    core, clock, service = _setup()
+
+    start_t = T0 + timedelta(hours=1)
+    scheduled = service.submit_charging_request(
+        "REQ-MOD",
+        "V-149",
+        "H1",
+        STUDENT,
+        target_soc=80.0,
+        start_at=start_t,
+        duration_minutes=30,
+    )
+    assert isinstance(scheduled, Ok)
+    assert scheduled.value.status is ChargingSessionStatus.SCHEDULED
+
+    new_start_t = T0 + timedelta(hours=2)
+    modified = service.modify_charging_schedule("REQ-MOD", new_start_t, 45, STUDENT)
+    assert isinstance(modified, Ok)
+    assert modified.value.start_time == new_start_t
+
+    cancelled = service.cancel_charging_schedule("REQ-MOD", STUDENT)
+    assert isinstance(cancelled, Ok)
+    assert cancelled.value.status is ChargingSessionStatus.CANCELLED
+
+
+def test_interrupt_charging_session() -> None:
+    """Active charging session can be prematurely interrupted and cancelled."""
+    core, _, service = _setup()
+
+    started = service.submit_charging_request("REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
+    assert isinstance(started, Ok)
+    assert started.value.status is ChargingSessionStatus.CHARGING
+    interrupted = service.interrupt_charging("REQ-INT", STUDENT, current_soc=60.0)
+    assert isinstance(interrupted, Ok)
+    assert interrupted.value.status is ChargingSessionStatus.CANCELLED
+    assert interrupted.value.current_soc == 60.0
