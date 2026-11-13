@@ -70,3 +70,17 @@ repository, including **131 M2 tests**. Core line coverage: **98.68%**; M2 line
 coverage: **96.46%**. `ruff check .`, `ruff format --check .` and strict `mypy`
 (44 source files) pass. The CI link is recorded in the submission PR. M8's human
 signoff and the student's personal review remain pending.
+
+## November 11 lifecycle follow-up (TC-M2-023)
+
+Verifies: FR-03, UC-M2-03, BR-M2-04/05, NFR-06/09/16, D-017.
+`tests/reservation/test_lifecycle.py` runs on both repositories. It checks owner
+cancellation, deadline -1 ms/equality/+1 ms, terminal retries, quota release,
+disabled-account expiry, no expiry of active Trips, preservation of Maintenance
+and physical occupancy, pickup/cancel contention, and injected failures at claim
+release, vehicle transition, M2 persistence and commit. Maintenance is explicit;
+no scheduler or public expiry API is claimed. Run `pytest -m tc_m2_023 -q`.
+
+Follow-up local verification (2026-11-11): 1,218 passed, 1 skipped overall;
+159 M2 tests; M2 coverage 96.01%, lifecycle coverage 92.86%. Lint, format
+and strict mypy (47 files) pass. CI and human review remain separate checks.
