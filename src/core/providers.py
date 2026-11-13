@@ -51,7 +51,8 @@ class ProviderRegistry:
         provider = self._providers.get(port)
         if provider is None:
             return Err(
-                ErrorCode.RESOURCE_UNAVAILABLE, f"no provider is registered for {port.value}")
+                ErrorCode.RESOURCE_UNAVAILABLE, f"no provider is registered for {port.value}"
+                )
         try:
             return work(provider)
         except Exception:
