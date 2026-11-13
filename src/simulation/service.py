@@ -8,12 +8,9 @@ class SimulationService:
         self.core = core
 
     def run_simulation(self, config: SimulationConfig) -> SimulationReport:
-        if not hasattr(self.core, "snapshots"):
-            raise RuntimeError("Core facade does not provide 'snapshots' module.")
-
-        # Lấy isolated sandbox chuẩn từ CoreFacade theo yêu cầu M6-11
         snapshot = self.core.snapshots.export_snapshot()
         sandbox_core = CoreFacade(snapshot.to_repository())
 
-        engine = SimulationEngine(config, sandbox_core)
+        # Truyền cả sandbox_core và snapshot vào engine theo mục 1 của MabC06
+        engine = SimulationEngine(config, sandbox_core, snapshot)
         return engine.run_demand_surge()

@@ -1,7 +1,11 @@
 import unittest
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
 
-from simulation.engine import SimulationEngine
+from core.clock import FixedClock
+from core.domain.entities import Hub, Vehicle
+from core.domain.enums import Ownership, VehicleState, VehicleType
+from core.facade import CoreFacade
+from core.repository.memory import InMemoryRepository
 from simulation.models import (
     DemandSurgeParams,
     ScenarioType,
@@ -10,40 +14,57 @@ from simulation.models import (
 from simulation.service import SimulationService
 
 
-class TestSimulationEngineAndService(unittest.TestCase):
+class TestSimulationEngineIntegration(unittest.TestCase):
     def setUp(self) -> None:
-        # Giả lập sandbox core theo đúng spec của MabC06 (M6-12)
-        self.mock_sandbox = MagicMock()
+        self.repo = InMemoryRepository()
+        self.clock = FixedClock(datetime(2026, 11, 13, 20, 0, 0, tzinfo=UTC))
 
-        # Mock metadata snapshot
-        mock_meta = MagicMock()
-        mock_meta.snapshot_id = "SNAP_TEST_42"
-        mock_meta.taken_at = "2026-11-13T20:00:00Z"
-        self.mock_sandbox.snapshots.get_metadata.return_value = mock_meta
+        # Create two hubs with deterministic IDs.
+        hub1 = Hub(
+            hub_id="H01",
+            name="Hub 1",
+            zone_code="ZONE_01",
+            parking_capacity=20,
+            charging_point_count=0,
+        )
 
-        # Mock danh sách Hubs
-        mock_hub_1 = MagicMock()
-        mock_hub_1.id = "H01"
-        mock_hub_2 = MagicMock()
-        mock_hub_2.id = "H02"
-        self.mock_sandbox.queries.list_hubs.return_value = [mock_hub_1, mock_hub_2]
+        hub2 = Hub(
+            hub_id="H02",
+            name="Hub 2",
+            zone_code="ZONE_01",
+            parking_capacity=20,
+            charging_point_count=0,
+        )
 
-        # Mock danh sách Xe của từng Hub
-        def mock_find_vehicles(hub_id: str):
-            vehicles = []
-            count = 2 if hub_id == "H01" else 10
-            for _ in range(count):  # Đã đổi 'i' thành '_'
-                v = MagicMock()
-                v.state = "AVAILABLE"
-                v.soc = 0.9
-                vehicles.append(v)
-            return vehicles
+        self.repo.add(hub1)
+        self.repo.add(hub2)
 
-        self.mock_sandbox.queries.find_vehicles.side_effect = mock_find_vehicles
+        # H01 has 2 available fleet vehicles.
+        self._add_vehicles("H01", 2)
 
-    def test_run_demand_surge_engine(self) -> None:
-        config = SimulationConfig(
-            simulation_id="SIM_SURGE_001",
+        # H02 has 10 available fleet vehicles.
+        self._add_vehicles("H02", 10)
+
+        self.core = CoreFacade(self.repo, clock=self.clock)
+        self.service = SimulationService(self.core)
+
+    def _add_vehicles(self, hub_id: str, count: int) -> None:
+        for i in range(count):
+            vehicle = Vehicle(
+                vehicle_id=f"V_{hub_id}_{i:02d}",
+                plate_or_code=f"CODE_{hub_id}_{i:02d}",
+                ownership=Ownership.FLEET,
+                vehicle_type=VehicleType.E_BIKE,
+                battery_pct=90.0,
+                battery_capacity_kwh=1.5,
+                state=VehicleState.AVAILABLE,
+                hub_id=hub_id,
+            )
+            self.repo.add(vehicle)
+
+    def _create_config(self) -> SimulationConfig:
+        return SimulationConfig(
+            simulation_id="SIM_SURGE_TEST",
             scenario_id=ScenarioType.DEMAND_SURGE,
             parameters=DemandSurgeParams(
                 target_hub_ids=["H01"],
@@ -52,32 +73,62 @@ class TestSimulationEngineAndService(unittest.TestCase):
             ),
         )
 
-        engine = SimulationEngine(config, self.mock_sandbox)
-        report = engine.run_demand_surge()
+    def test_run_demand_surge_integration(self) -> None:
+        config = self._create_config()
 
-        self.assertEqual(report.simulation_id, "SIM_SURGE_001")
-        self.assertEqual(report.snapshot_id, "SNAP_TEST_42")
-        self.assertGreater(len(report.hub_metrics), 0)
+        # Capture the original Core state.
+        hubs_before = self.core.queries.list_hubs()
+        vehicles_before = self.core.queries.find_vehicles()
 
-    def test_simulation_service_integration(self) -> None:
-        mock_core = MagicMock()
-        mock_core.snapshots.export_snapshot.return_value.to_repository.return_value = (
-            self.mock_sandbox
+        # Run the same simulation twice.
+        report1 = self.service.run_simulation(config)
+        report2 = self.service.run_simulation(config)
+
+        # Verify simulation identity.
+        self.assertEqual(report1.simulation_id, "SIM_SURGE_TEST")
+        self.assertEqual(report1.scenario_id, ScenarioType.DEMAND_SURGE.value)
+
+        # Verify deterministic results.
+        self.assertEqual(report1, report2)
+        self.assertEqual(report1.snapshot_id, report2.snapshot_id)
+
+        # Verify shortage metrics.
+        self.assertGreater(len(report1.hub_metrics), 0)
+
+        # Verify vehicle redistribution recommendation.
+        self.assertGreater(len(report1.recommendations), 0)
+
+        rec = report1.recommendations[0]
+
+        self.assertEqual(
+            rec["recommendation_type"],
+            "VEHICLE_REDISTRIBUTION",
         )
+        self.assertEqual(rec["source_hub_id"], "H02")
+        self.assertEqual(rec["destination_hub_id"], "H01")
+        self.assertGreaterEqual(rec["batch_size"], 5)
+        self.assertLessEqual(rec["batch_size"], 20)
 
-        service = SimulationService(mock_core)
-        config = SimulationConfig(
-            simulation_id="SIM_SURGE_002",
-            scenario_id=ScenarioType.DEMAND_SURGE,
-            parameters=DemandSurgeParams(
-                target_hub_ids=["H01"],
-                surge_multiplier=2.0,
-                duration_minutes=30,
-            ),
-        )
+        # Verify that simulation does not modify the live Core state.
+        hubs_after = self.core.queries.list_hubs()
+        vehicles_after = self.core.queries.find_vehicles()
 
-        report = service.run_simulation(config)
-        self.assertEqual(report.simulation_id, "SIM_SURGE_002")
+        self.assertEqual(hubs_before, hubs_after)
+        self.assertEqual(vehicles_before, vehicles_after)
+
+    def test_snapshot_isolation(self) -> None:
+        config = self._create_config()
+
+        original_version = self.repo.version()
+        original_hubs = self.core.queries.list_hubs()
+        original_vehicles = self.core.queries.find_vehicles()
+
+        self.service.run_simulation(config)
+
+        # Simulation must not change the original repository.
+        self.assertEqual(self.repo.version(), original_version)
+        self.assertEqual(self.core.queries.list_hubs(), original_hubs)
+        self.assertEqual(self.core.queries.find_vehicles(), original_vehicles)
 
 
 if __name__ == "__main__":

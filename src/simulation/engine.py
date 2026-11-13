@@ -1,5 +1,8 @@
 import random
+from typing import Any
 
+from core.facade import CoreFacade
+from core.views import VehicleFilter, VehicleState
 from simulation.models import (
     HubImpactMetrics,
     SimulationConfig,
@@ -8,9 +11,15 @@ from simulation.models import (
 
 
 class SimulationEngine:
-    def __init__(self, config: SimulationConfig, sandbox_core: object) -> None:
+    def __init__(
+        self,
+        config: SimulationConfig,
+        sandbox: CoreFacade,
+        snapshot: Any,
+    ) -> None:
         self.config = config
-        self.sandbox = sandbox_core
+        self.sandbox = sandbox
+        self.snapshot = snapshot
         self.rng = random.Random(config.random_seed)
 
     def run_demand_surge(self) -> SimulationReport:
@@ -18,27 +27,27 @@ class SimulationEngine:
         multiplier = self.config.parameters.surge_multiplier
 
         hub_metrics: list[HubImpactMetrics] = []
-        recommendations: list[dict[str, object]] = []
+        recommendations: list[dict[str, Any]] = []
 
         total_shortage = 0
         total_requests_all = 0
 
         hubs = self.sandbox.queries.list_hubs()
-        hubs_map = {h.id: h for h in hubs}
+        hubs_map = {h.hub_id: h for h in hubs}
 
         for hub_id in target_hubs:
             hub = hubs_map.get(hub_id)
             if not hub:
                 continue
 
-            hub_vehicles = self.sandbox.queries.find_vehicles(hub_id=hub_id)
-            available_vehicles = len(
-                [
-                    v
-                    for v in hub_vehicles
-                    if getattr(v, "state", "") == "AVAILABLE" and getattr(v, "soc", 0.0) >= 0.2
-                ]
+            available_vehicles_list = self.sandbox.queries.find_vehicles(
+                VehicleFilter(
+                    hub_id=hub_id,
+                    state=VehicleState.AVAILABLE,
+                    min_battery=20.0,
+                )
             )
+            available_vehicles = len(available_vehicles_list)
 
             base_requests = max(10, available_vehicles * 2)
             simulated_requests = int(base_requests * multiplier)
@@ -59,7 +68,7 @@ class SimulationEngine:
             )
 
             if unmet > 0:
-                donor_hub_id = self._find_donor_hub(hub_id, hubs_map)
+                donor_hub_id = self._find_donor_hub(hub_id)
                 if donor_hub_id:
                     batch_size = min(20, max(5, unmet))
                     recommendations.append(
@@ -78,26 +87,21 @@ class SimulationEngine:
             else 0.0
         )
 
-        snapshot_meta = self.sandbox.snapshots.get_metadata()
-        report_time = snapshot_meta.taken_at
-
         return SimulationReport(
             simulation_id=self.config.simulation_id,
             scenario_id=self.config.scenario_id.value,
-            snapshot_id=snapshot_meta.snapshot_id,
-            executed_at=report_time,
+            snapshot_id=getattr(self.snapshot, "snapshot_id", "UNKNOWN"),
+            executed_at=getattr(self.snapshot, "taken_at", None),
             baseline_shortage_rate_pct=baseline_pct,
             hub_metrics=hub_metrics,
             recommendations=recommendations,
         )
 
-    def _find_donor_hub(self, target_hub_id: str, hubs_map: dict[str, object]) -> str | None:
-        candidates = []
-        for hid in hubs_map:
-            if hid != target_hub_id:
-                vehs = self.sandbox.queries.find_vehicles(hub_id=hid)
-                if len(vehs) > 5:
-                    candidates.append(hid)
+    def _find_donor_hub(self, target_hub_id: str) -> str | None:
+        all_hubs = sorted(self.sandbox.queries.list_hubs(), key=lambda h: h.hub_id)
+        candidates = [
+            h.hub_id for h in all_hubs if h.hub_id != target_hub_id and h.available_vehicles > 5
+        ]
         if not candidates:
             return None
         return self.rng.choice(candidates)
