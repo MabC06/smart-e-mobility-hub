@@ -23,7 +23,6 @@ class SimulationEngine:
         total_shortage = 0
         total_requests_all = 0
 
-        # Lấy danh sách hub từ sandbox core queries
         hubs = self.sandbox.queries.list_hubs()
         hubs_map = {h.id: h for h in hubs}
 
@@ -32,7 +31,6 @@ class SimulationEngine:
             if not hub:
                 continue
 
-            # Lấy xe của hub thông qua find_vehicles
             hub_vehicles = self.sandbox.queries.find_vehicles(hub_id=hub_id)
             available_vehicles = len(
                 [
@@ -80,7 +78,6 @@ class SimulationEngine:
             else 0.0
         )
 
-        # Lấy report time từ snapshot.taken_at chuẩn (không dùng datetime.now fallback)
         snapshot_meta = self.sandbox.snapshots.get_metadata()
         report_time = snapshot_meta.taken_at
 
