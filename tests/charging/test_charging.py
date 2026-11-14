@@ -905,3 +905,66 @@ def test_private_vehicle_can_reserve_slot() -> None:
     req = schema.read(core, "R-PRIV-1")
     assert req.user_id == "STU1"
     assert req.vehicle_id == reg.json()["vehicle_id"]
+
+
+def _queued_three(service: ChargingQueueService) -> list[str]:
+    ids = ["R-149", "R-150", "R-151"]
+    for rid, vid in zip(ids, ("V-149", "V-150", "V-151"), strict=True):
+        res = service.submit_charging_request(rid, vid, "H1", STUDENT)
+        assert isinstance(res, Ok)
+        assert res.value.status is ChargingSessionStatus.QUEUED
+    return ids
+
+
+def test_optimize_queue_binds_three_requests_on_two_bays_without_overlap() -> None:
+    """Three QUEUED requests, two bays: all SCHEDULED, no overlap on one point (M3-13)."""
+    core, _, service = _setup()
+    ids = _queued_three(service)
+
+    res = service.optimize_queue("H1", OPERATOR)
+
+    assert isinstance(res, Ok)
+    assert [r.request_id for r in res.value] == ids  # priority order: 14.9, 15.0, 15.1
+    bound = [schema.read(core, rid) for rid in ids]
+    assert all(r.status is ChargingSessionStatus.SCHEDULED for r in bound)
+    assert {r.charger_id for r in bound} == {"H1-CP01", "H1-CP02"}
+    for i, first in enumerate(bound):
+        assert first.point_claim_id in _claim_ids(
+            core, first.charger_id, first.start_time, first.end_time
+        )
+        for second in bound[i + 1 :]:
+            if first.charger_id == second.charger_id:
+                assert first.end_time <= second.start_time or second.end_time <= first.start_time
+
+
+def test_optimize_endpoint_binds_three_queued_requests() -> None:
+    """POST /schedule/optimize returns 200 with all three requests SCHEDULED."""
+    core, _, service = _setup()
+    ids = _queued_three(service)
+    client = _client(core, service, OPERATOR_P, operator=OPERATOR_P)
+
+    res = client.post("/charging/schedule/optimize?hub_id=H1")
+
+    assert res.status_code == 200
+    assert [(s["request_id"], s["status"]) for s in res.json()] == [
+        (rid, "SCHEDULED") for rid in ids
+    ]
+    assert all(schema.read(core, rid).status is ChargingSessionStatus.SCHEDULED for rid in ids)
+
+
+def test_optimize_queue_leaves_requests_queued_when_no_slot() -> None:
+    """With no free slot in the 2-hour window a request stays QUEUED, no error."""
+    core, _, service = _setup()
+    for rid, vid in (("BLK-1", "V-DOCKED"), ("BLK-2", "V-400")):
+        blocker = service.submit_charging_request(
+            rid, vid, "H1", STUDENT, target_soc=100.0, start_at=T0, duration_minutes=240
+        )
+        assert isinstance(blocker, Ok)
+        assert blocker.value.status is ChargingSessionStatus.SCHEDULED
+    assert isinstance(service.submit_charging_request("R-Q", "V-149", "H1", STUDENT), Ok)
+
+    res = service.optimize_queue("H1", OPERATOR)
+
+    assert isinstance(res, Ok)
+    assert res.value == []
+    assert schema.read(core, "R-Q").status is ChargingSessionStatus.QUEUED

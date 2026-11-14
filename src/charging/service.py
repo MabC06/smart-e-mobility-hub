@@ -200,39 +200,48 @@ class ChargingQueueService:
 
     def optimize_queue(self, hub_id: str, actor: Actor) -> ChargingResult[list[ChargingRequest]]:
         """Bind QUEUED requests to the earliest free slot by priority (UC-M3-07)."""
+        if not _id_valid(hub_id):
+            return _err(ChargingErrorCode.INVALID_INPUT, "Invalid hub_id.")
 
-        def _op(uow, caller: Actor) -> ChargingResult[list[ChargingRequest]]:
-            queued = self.compute_priority_queue(hub_id)
-            updated = []
-            config = uow.queries.get_config()
-            now = config.as_of
-
-            for req in queued:
-                if req.status is not ChargingSessionStatus.QUEUED:
-                    continue
+        def _bind_one(
+            request_id: str,
+        ) -> Callable[..., ChargingResult[ChargingRequest | None]]:
+            def _op(uow, caller: Actor) -> ChargingResult[ChargingRequest | None]:
+                req = schema.read(self.core, request_id)
+                if req is None or req.status is not ChargingSessionStatus.QUEUED:
+                    return Ok(None)
                 duration = (
                     round((req.end_time - req.start_time).total_seconds() / 60)
                     if req.end_time and req.start_time
                     else DEFAULT_SESSION_MINUTES
                 )
+                now = uow.queries.get_config().as_of
                 bay, slot_start = self._earliest_slot(uow, hub_id, now, duration)
-                if bay is not None and slot_start is not None:
-                    slot_end = slot_start + timedelta(minutes=duration)
-                    res = self._bind_bay(
-                        uow,
-                        req,
-                        bay,
-                        slot_start,
-                        slot_end,
-                        caller,
-                        start_now=False,
-                        is_new=False,
-                    )
-                    if isinstance(res, Ok):
-                        updated.append(res.value)
-            return Ok(updated)
+                if bay is None or slot_start is None:
+                    return Ok(None)
+                return self._bind_bay(
+                    uow,
+                    req,
+                    bay,
+                    slot_start,
+                    slot_start + timedelta(minutes=duration),
+                    caller,
+                    start_now=False,
+                    is_new=False,
+                )
 
-        return self._run(_op, actor)
+            return _op
+
+        bound: list[ChargingRequest] = []
+        for queued in self.compute_priority_queue(hub_id):
+            res = self._run(_bind_one(queued.request_id), actor)
+            if isinstance(res, ChargingError):
+                if res.code is ChargingErrorCode.FORBIDDEN:
+                    return res
+                continue
+            if res.value is not None:
+                bound.append(res.value)
+        return Ok(bound)
 
     def _bind_bay(
         self,
