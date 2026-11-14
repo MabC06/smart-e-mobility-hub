@@ -1,0 +1,29 @@
+@startuml
+left to right direction
+skinparam state {
+    BackgroundColor #E8F4F8
+    BorderColor #2980B9
+}
+
+[*] --> CHARGING : start (vehicle already in a free bay)
+[*] --> SCHEDULED : start (start_at given)
+[*] --> QUEUED : start (no free bay)
+
+state QUEUED as "QUEUED"
+state SCHEDULED as "SCHEDULED"
+state CHARGING as "CHARGING"
+state COMPLETED as "COMPLETED"
+state INTERRUPTED as "INTERRUPTED"
+state CANCELLED as "CANCELLED"
+
+QUEUED --> SCHEDULED : optimize_queue
+QUEUED --> CANCELLED : cancel
+SCHEDULED --> CANCELLED : cancel
+SCHEDULED --> CHARGING : start_scheduled_session
+CHARGING --> COMPLETED : finish
+CHARGING --> INTERRUPTED : interrupt or point failure
+
+COMPLETED --> [*]
+INTERRUPTED --> [*]
+CANCELLED --> [*]
+@enduml
