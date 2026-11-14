@@ -11,8 +11,10 @@ must not assume an answer.
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from core.errors import ErrorCode
 from core.result import Err, Result
@@ -56,3 +58,23 @@ class ProviderRegistry:
         except Exception:
             logger.exception("provider %s failed", port.value)
             return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduledChargingSessionRow:
+    """Typed row representing exposed scheduled charging sessions (D-020)."""
+
+    session_id: str
+    vehicle_id: str
+    charger_id: str | None
+    energy_kwh: float
+    start_time: datetime
+    end_time: datetime
+
+
+class ChargingDemand(Protocol):
+    """The provider port for Module M3 Charging Demand (D-020)."""
+
+    def scheduled_sessions(
+        self, hub_id: str, horizon: timedelta
+    ) -> Result[list[ScheduledChargingSessionRow]]: ...
