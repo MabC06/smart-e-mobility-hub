@@ -121,8 +121,8 @@ Recommendations are hypothetical and advisory. Operator approval does not guaran
 The formal UML use-case diagram for M6 is maintained as source and rendered
 artefacts in `docs/requirements/use-case-diagrams/`:
 
-- [PlantUML source](../../requirements/use-case-diagrams/uc-m6-simulation.puml)
-- [SVG diagram](../../requirements/use-case-diagrams/uc-m6-simulation.svg)
+- **PlantUML source:** [uc-m6-simulation.puml](./use-case-diagrams/uc-m6-simulation.puml)
+- **SVG diagram:** [uc-m6-simulation.svg](./use-case-diagrams/uc-m6-simulation.svg)
 
 The diagram shows the Operator's interaction with the M6 simulation capability
 and the supporting M1, M2, M3, M4, and M7 modules. The PlantUML file is the
@@ -772,7 +772,7 @@ Where:
 - \\(V\\): Set of vehicles included in the simulation.
 
 - `battery_pct(v)`: Battery percentage from the Core vehicle state, represented on a 0–100 scale.
-- `LOW_BATTERY_THRESHOLD`: Value read from `get_config()`; Core defines it as 0.15 (15%).
+- `LOW_BATTERY_THRESHOLD`: Value read from `get_config()`; Core defines it as 15.0 (%).
 
 - \\(State(v)\\): Simulated vehicle state at the end of the measurement period.
 
@@ -1038,11 +1038,13 @@ from core.domain.entities import OperationalSnapshot
 class CoreSnapshotInterface(Protocol):
     """Snapshot interface supplied by M1 CoreFacade."""
 
-    def export_snapshot(self) -> OperationalSnapshot:
+    def export_snapshot(self):
         """
-        Return a consistent, read-only OperationalSnapshot object.
-        The snapshot exposes version, to_dict(), and to_repository().
-        It is not returned as a plain dict.
+        Return the snapshot object produced by
+        core.snapshots.export_snapshot().
+
+        The returned snapshot exposes version, to_dict(),
+        and to_repository(). It is not a plain dict.
         """
         ...
 ```
@@ -1090,20 +1092,13 @@ class CoreSnapshotInterface(Protocol):
   ],
 
   "charging_points": [
-
-    {
-
-      "point_id": "CP_01",
-
-      "hub_id": "H01",
-
-      "status": "AVAILABLE",
-
-      "power_kw": 11.0
-
-    }
-
-  ]
+  {
+    "charging_point_id": "CP_01",
+    "hub_id": "H01",
+    "status": "AVAILABLE",
+    "power_rate_kw": 11.0
+  }
+]
 
 }
 ```
