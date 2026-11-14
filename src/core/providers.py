@@ -179,8 +179,8 @@ class ChargingDemand(Protocol):
     def scheduled_sessions(
         self, hub_id: str, horizon: timedelta
     ) -> Result[list[ScheduledChargingSessionRow]]: ...
-      
-      
+
+
 # ------------------------------------------------------------------ allocation ports (M4, D-020)
 
 
