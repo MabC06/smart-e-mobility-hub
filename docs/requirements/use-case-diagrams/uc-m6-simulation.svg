@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="690" viewBox="0 0 1180 690" role="img" aria-labelledby="title desc">
+<title id="title">M6 What-if Simulation Use-Case Diagram</title>
+<desc id="desc">Operator interacts with simulation configuration, execution, review, and approval use cases. M1 provides the snapshot, M2 reservation demand, M3 charging demand, M4 validates redistribution, and M7 provides the dashboard.</desc>
+<defs>
+  <style>
+    .actor{fill:#fff;stroke:#243447;stroke-width:2}.sys{fill:#f8fafc;stroke:#64748b;stroke-width:2}
+    .uc{fill:#fff;stroke:#2563eb;stroke-width:2}.ext{stroke:#475569;stroke-width:1.8;fill:none}
+    .txt{font:16px Arial,sans-serif;fill:#172033}.small{font:13px Arial,sans-serif;fill:#334155}
+    .head{font:bold 21px Arial,sans-serif;fill:#172033}.link{stroke:#334155;stroke-width:1.8;fill:none}
+  </style>
+</defs>
+<text x="590" y="34" text-anchor="middle" class="head">M6 — What-if Simulation Use-Case Diagram</text>
+<rect x="250" y="65" width="650" height="560" rx="12" class="sys"/>
+<text x="575" y="94" text-anchor="middle" class="head">Smart E-Mobility Hub</text>
+
+<!-- Operator actor -->
+<circle cx="100" cy="285" r="17" class="actor"/>
+<path d="M100 302 V360 M70 325 H130 M100 360 L75 400 M100 360 L125 400" class="link"/>
+<text x="100" y="425" text-anchor="middle" class="txt">Operator</text>
+
+<!-- Use cases -->
+<ellipse cx="470" cy="160" rx="145" ry="34" class="uc"/>
+<text x="470" y="166" text-anchor="middle" class="txt">Configure Simulation</text>
+<ellipse cx="470" cy="245" rx="145" ry="34" class="uc"/>
+<text x="470" y="251" text-anchor="middle" class="txt">Run What-if Simulation</text>
+<ellipse cx="470" cy="330" rx="155" ry="38" class="uc"/>
+<text x="470" y="326" text-anchor="middle" class="txt">Review Metrics and</text><text x="470" y="346" text-anchor="middle" class="txt">Recommendations</text>
+<ellipse cx="470" cy="430" rx="145" ry="34" class="uc"/>
+<text x="470" y="436" text-anchor="middle" class="txt">Approve Recommendation</text>
+
+<ellipse cx="760" cy="165" rx="105" ry="32" class="uc"/>
+<text x="760" y="161" text-anchor="middle" class="txt">Retrieve</text><text x="760" y="181" text-anchor="middle" class="txt">Snapshot</text>
+<ellipse cx="760" cy="255" rx="105" ry="32" class="uc"/>
+<text x="760" y="251" text-anchor="middle" class="txt">Read Reservation</text><text x="760" y="271" text-anchor="middle" class="txt">Demand</text>
+<ellipse cx="760" cy="345" rx="105" ry="32" class="uc"/>
+<text x="760" y="341" text-anchor="middle" class="txt">Read Charging</text><text x="760" y="361" text-anchor="middle" class="txt">Demand</text>
+<ellipse cx="760" cy="455" rx="112" ry="38" class="uc"/>
+<text x="760" y="451" text-anchor="middle" class="txt">Validate Redistribution</text><text x="760" y="471" text-anchor="middle" class="txt">Proposal</text>
+
+<!-- Operator associations -->
+<path d="M130 325 L325 160 M130 330 L325 245 M130 340 L315 330 M130 350 L325 430" class="link"/>
+<!-- Includes and extension -->
+<path d="M615 245 L655 165 M615 245 L655 255 M615 255 L655 345 M615 430 L650 455" class="ext"/>
+<text x="632" y="190" class="small">&lt;&lt;include&gt;&gt;</text>
+<text x="632" y="238" class="small">&lt;&lt;include&gt;&gt;</text>
+<text x="632" y="305" class="small">&lt;&lt;include&gt;&gt;</text>
+<text x="632" y="425" class="small">&lt;&lt;extend&gt;&gt;</text>
+
+<!-- External systems -->
+<rect x="35" y="500" width="175" height="42" rx="6" class="sys"/><text x="122" y="526" text-anchor="middle" class="txt">M1 — Core</text>
+<rect x="245" y="650" width="210" height="1" fill="none"/>
+<rect x="260" y="560" width="190" height="42" rx="6" class="sys"/><text x="355" y="586" text-anchor="middle" class="txt">M2 — Reservation &amp; Trip</text>
+<rect x="475" y="560" width="210" height="42" rx="6" class="sys"/><text x="580" y="586" text-anchor="middle" class="txt">M3 — Charging</text>
+<rect x="710" y="560" width="190" height="42" rx="6" class="sys"/><text x="805" y="586" text-anchor="middle" class="txt">M4 — Allocation</text>
+<rect x="950" y="250" width="190" height="42" rx="6" class="sys"/><text x="1045" y="276" text-anchor="middle" class="txt">M7 — Dashboard</text>
+<path d="M210 521 L655 165 M450 581 L655 255 M580 560 L655 345 M805 560 L650 455 M950 271 L900 271" class="link"/>
+<text x="590" y="670" text-anchor="middle" class="small">M6 owns the simulation; operational modules remain authoritative for live state and execution.</text>
+</svg>

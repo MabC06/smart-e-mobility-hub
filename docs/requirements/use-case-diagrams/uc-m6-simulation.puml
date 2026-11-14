@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor Operator
+
+rectangle "Smart E-Mobility Hub" {
+  usecase "Configure Simulation" as UC1
+  usecase "Run What-if Simulation" as UC2
+  usecase "Review Metrics and\nRecommendations" as UC3
+  usecase "Approve Recommendation" as UC4
+  usecase "Retrieve Operational\nSnapshot" as UC5
+  usecase "Read Reservation\nDemand" as UC6
+  usecase "Read Charging\nDemand" as UC7
+  usecase "Validate Redistribution\nProposal" as UC8
+}
+
+Operator --> UC1
+Operator --> UC2
+Operator --> UC3
+Operator --> UC4
+
+UC2 .> UC5 : <<include>>
+UC2 .> UC6 : <<include>>
+UC2 .> UC7 : <<include>>
+UC2 .> UC3 : <<include>>
+UC4 .> UC8 : <<extend>>
+
+rectangle "M1 - Core" as M1
+rectangle "M2 - Reservation & Trip" as M2
+rectangle "M3 - Charging & Smart Scheduling" as M3
+rectangle "M4 - Allocation & Dispatching" as M4
+rectangle "M7 - Operator Dashboard" as M7
+
+M1 -- UC5
+M2 -- UC6
+M3 -- UC7
+M4 -- UC8
+M7 -- UC1
+M7 -- UC2
+M7 -- UC3
+M7 -- UC4
+@enduml
