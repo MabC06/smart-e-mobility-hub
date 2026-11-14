@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .box { fill: #f8f9fa; stroke: #343a40; stroke-width: 1.5; rx: 6; }
+      .actor { fill: #0d6efd; stroke: #0b5ed7; stroke-width: 2; }
+      .usecase { fill: #e7f1ff; stroke: #0d6efd; stroke-width: 2; rx: 20; ry: 20; }
+      .ext-usecase { fill: #f3f4f6; stroke: #6c757d; stroke-width: 1.5; rx: 15; ry: 15; }
+      .text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #212529; text-anchor: middle; }
+      .title { font-weight: bold; font-size: 14px; fill: #0d6efd; }
+      .line { stroke: #495057; stroke-width: 1.5; fill: none; }
+      .dash-line { stroke: #6c757d; stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+      .arrow { fill: #495057; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow" />
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" class="bg" />
+  
+  <!-- System Boundary -->
+  <rect x="140" y="20" width="640" height="460" class="box" />
+  <text x="160" y="45" class="text title" text-anchor="start">System: Smart E-Mobility Hub (M6 Module)</text>
+
+  <!-- Actor -->
+  <g transform="translate(40, 210)">
+    <circle cx="20" cy="15" r="12" class="actor" />
+    <path d="M 20 27 L 20 60 M 5 38 L 35 38 M 20 60 L 5 90 M 20 60 L 35 90" stroke="#0d6efd" stroke-width="3" fill="none" />
+    <text x="20" y="110" class="text" font-weight="bold">Operator</text>
+  </g>
+
+  <!-- Main Use Case -->
+  <g transform="translate(180, 200)">
+    <rect x="0" y="0" width="260" height="70" class="usecase" />
+    <text x="130" y="30" class="text" font-weight="bold">UC-M6-01: Run What-if Simulation</text>
+    <text x="130" y="48" class="text" font-weight="bold">& Review Recommendations</text>
+  </g>
+
+  <!-- Supporting Use Cases -->
+  <g transform="translate(500, 60)">
+    <rect x="0" y="0" width="240" height="45" class="ext-usecase" />
+    <text x="120" y="27" class="text">M1: Operational Snapshot</text>
+  </g>
+  <g transform="translate(500, 150)">
+    <rect x="0" y="0" width="240" height="45" class="ext-usecase" />
+    <text x="120" y="27" class="text">M2: Trip & Return Constraints</text>
+  </g>
+  <g transform="translate(500, 240)">
+    <rect x="0" y="0" width="240" height="45" class="ext-usecase" />
+    <text x="120" y="27" class="text">M3: Charging Demand & Queues</text>
+  </g>
+  <g transform="translate(500, 330)">
+    <rect x="0" y="0" width="240" height="45" class="ext-usecase" />
+    <text x="120" y="27" class="text">M4: Dispatch Proposals</text>
+  </g>
+  <g transform="translate(500, 410)">
+    <rect x="0" y="0" width="240" height="45" class="ext-usecase" />
+    <text x="120" y="27" class="text">M7: UI Dashboard</text>
+  </g>
+
+  <!-- Connectors -->
+  <path d="M 80 245 L 180 235" class="line" marker-end="url(#arrow)" />
+  
+  <path d="M 310 200 L 500 82" class="dash-line" marker-end="url(#arrow)" />
+  <path d="M 440 215 L 500 172" class="dash-line" marker-end="url(#arrow)" />
+  <path d="M 440 245 L 500 262" class="dash-line" marker-end="url(#arrow)" />
+  <path d="M 310 270 L 500 352" class="dash-line" marker-end="url(#arrow)" />
+  <path d="M 310 270 L 500 432" class="dash-line" marker-end="url(#arrow)" />
+
+</svg>
