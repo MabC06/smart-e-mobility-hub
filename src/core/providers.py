@@ -11,8 +11,10 @@ must not assume an answer.
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from typing import Any, Protocol
 
 from core.errors import ErrorCode
 from core.result import Err, Result
@@ -29,6 +31,106 @@ class ProviderPort(StrEnum):
     ALTERNATIVE_HUB = "AlternativeHubProvider"
     ALTERNATIVE_CHARGING = "AlternativeChargingProvider"
     HOLD_CONSUMER = "HoldConsumer"
+
+
+class BookingDemandKind(StrEnum):
+    """Resource demand at a Hub, not M2's persisted lifecycle enum."""
+
+    RENTAL_PICKUP = "RENTAL_PICKUP"
+    PRIVATE_PARKING = "PRIVATE_PARKING"
+    RENTAL_RETURN = "RENTAL_RETURN"
+
+
+@dataclass(frozen=True, slots=True)
+class BookingDemand:
+    """One confirmed booking overlapping the requested half-open UTC window."""
+
+    reservation_id: str
+    kind: BookingDemandKind
+    hub_id: str
+    vehicle_id: str
+    resource_id: str
+    claim_id: str
+    start_at: datetime
+    end_at: datetime
+    hold_expires_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class UpcomingBookings:
+    """Sorted by reservation_id, read at as_of; an empty tuple is a valid answer."""
+
+    as_of: datetime
+    horizon_end: datetime
+    bookings: tuple[BookingDemand, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class OpenTripDemand:
+    """Due-time data absent from Core snapshots; planned destination is not a hold."""
+
+    trip_id: str
+    reservation_id: str
+    vehicle_id: str
+    origin_hub_id: str
+    destination_hub_id: str | None
+    picked_up_at: datetime
+    expected_return_at: datetime
+    is_overdue: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OpenTrips:
+    """Open trips touching the Hub (origin or planned destination), sorted by trip_id.
+
+    A caller aggregating several Hubs must deduplicate by trip_id. A missing
+    destination must not be counted as a promised return at the origin.
+    """
+
+    as_of: datetime
+    trips: tuple[OpenTripDemand, ...]
+
+
+class ReservationDemand(Protocol):
+    """M2 read port (D-020). Definitions now; registration/implementation in Phase 3.
+
+    Times are aware UTC. Reads never expire records or mutate claims. Unknown
+    Hub -> NOT_FOUND; non-positive horizon -> INVALID_INPUT; missing provider
+    -> RESOURCE_UNAVAILABLE through the registry, never an invented empty answer.
+    """
+
+    def upcoming_bookings(self, hub_id: str, horizon: timedelta) -> Result[UpcomingBookings]:
+        """Confirmed demand overlapping [as_of, as_of + horizon), including live holds."""
+        ...
+
+    def open_trips(self, hub_id: str) -> Result[OpenTrips]:
+        """IN_PROGRESS/OVERDUE trips touching the Hub, with immutable expected return time."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class HoldConsumption:
+    """M2 record/claim IDs consumed by a coordinated operation; not a commit receipt.
+
+    The enclosing caller still decides whether to commit. Repeated consumption
+    returns the original IDs and consumed_at without releasing another hold.
+    """
+
+    holder_ref: str
+    claim_ids: tuple[str, ...]
+    consumed_at: datetime
+
+
+class HoldConsumer(Protocol):
+    """M2 mutation port, called only inside the caller's existing unit of work.
+
+    The provider verifies the M2 holder, lifecycle and compatible resource change;
+    rejects invalid/expired holders with an Err; writes only its own records and
+    calls Core for claim release. It must never begin or commit another transaction.
+    No provider is registered until the Phase 3 implementation is ready.
+    """
+
+    def consume_hold(self, holder_ref: str) -> Result[HoldConsumption]: ...
 
 
 class ProviderRegistry:

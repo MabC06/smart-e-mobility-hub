@@ -1,12 +1,14 @@
 # Core API Specification
 
 **Owner:** M1 — Đoàn Nhật Minh (2452738)
-**Version:** v1.1 · 2026-11-04 — D-020 splits the port `DemandSource` into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by their owners (§6.1, §10 point 10). v1.0 (2026-11-04) was the first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
+**Version:** v1.2 proposed (M2 port types and persisted-ID recovery; M1/caller approval pending, D-021/D-022). Last released: v1.1 · 2026-11-04 — D-020 splits the port `DemandSource` into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by their owners (§6.1, §10 point 10). v1.0 (2026-11-04) was the first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
 **Related:** `class-diagram-core.md`, `vehicle-state-machine.md`, `docs/requirements/fr-01-core.md`, D-003, D-005, D-006
 
 ## 1. Purpose
 
 The only way for other modules to read or change Hub, vehicle, parking-space and charging-point state (D-003). Modules call it in-process (modular monolith, A-08) through `CoreFacade`. A small part is also exposed as REST for the UI (section 7). The interface is written as Python protocols with Pydantic types, so M2–M6 can code against stubs until the real `core` lands.
+
+The v1.2 proposal also fixes default ID generation when reopening a persisted repository: Core resumes sequential counters from stored Core IDs (D-022). Fresh-store ordering and explicitly injected generators remain unchanged. This is not a promise of durable in-process event delivery.
 
 ## 2. Conventions
 
@@ -163,7 +165,7 @@ Subscribers use `events.subscribe(type, handler)`; they do not import the publis
 
 ### 6.1 Provider ports
 
-Interfaces defined in `core`, implemented by other modules and registered through `core.register_provider(port, impl)`. They are read-only and return `Result[T]`. One module implements one port (D-020); the argument and result types of a port are defined in `core.providers`, written by its owner and reviewed by its callers. If no provider is registered or it fails, the caller gets `RESOURCE_UNAVAILABLE` and must not assume an answer.
+Interfaces defined in `core`, implemented by other modules and registered through `core.register_provider(port, impl)`. Demand/alternative queries are read-only and return `Result[T]`; `HoldConsumer` is a mutation participant in the existing unit of work. One module implements one port (D-020); the argument and result types of a port are defined in `core.providers`, written by its owner and reviewed by its callers. If no provider is registered or it fails, the caller gets `RESOURCE_UNAVAILABLE` and must not assume an answer.
 
 | Port | Operation | Implemented by | Used in |
 |---|---|---|---|
@@ -172,6 +174,16 @@ Interfaces defined in `core`, implemented by other modules and registered throug
 | `AlternativeHubProvider` | `suggest_alternative_hubs(request) -> (candidates, as_of)` | M4 (`UC-M4-05`) | M2 `s3-return`, `s4-alt-hubs` |
 | `AlternativeChargingProvider` | `find_alternative_charging(requests, hub_id)` | M4 (`UC-M4-07`) | M3 `s5-alt-charging` (`UC-M3-08`, D-012) |
 | `HoldConsumer` | `consume_hold(holder_ref)`, called inside the unit of work | M2 | M4 `s3-execute` |
+
+### 6.2 M2 port types (v1.2 proposal, D-021)
+
+Definitions are in `core.providers`; they do not register an implementation. The released registry behavior and other owners' ports are unchanged. M1 and callers M4/M6 review these signatures under D-020 before merge.
+
+- `ReservationDemand.upcoming_bookings(hub_id: str, horizon: timedelta) -> Result[UpcomingBookings]`: positive relative horizon; provider reads its Core clock once and returns `as_of`, `horizon_end`, and immutable `BookingDemand` rows sorted by reservation ID. Include Confirmed live holds/booking intervals overlapping `[as_of, horizon_end)`, not cancelled/expired/consumed demand. Rows identify booking kind (rental pickup/private parking/rental return), Hub/vehicle/resource/claim, interval and arrival deadline. All times are aware UTC. Unknown Hub returns NOT_FOUND; invalid horizon returns INVALID_INPUT.
+- `ReservationDemand.open_trips(hub_id: str) -> Result[OpenTrips]`: IN_PROGRESS/OVERDUE trips whose origin or planned destination is the Hub. Return `as_of` and `OpenTripDemand` rows sorted by trip ID, including reservation/vehicle IDs, origin, optional planned destination, pickup and expected-return times, and overdue flag. Callers aggregating Hubs deduplicate trip IDs. A missing planned destination must not be counted as a promised return to the origin. These are advisory demand rows, not a complete restorable M2 database snapshot.
+- `HoldConsumer.consume_hold(holder_ref: str) -> Result[HoldConsumption]`: the caller already holds the unit of work. M2 validates the holder/lifecycle against the coordinated resource operation, writes only its records and asks Core to release its claims; it never starts/commits another transaction. Return holder reference, the tuple of consumed claim IDs, and original consumption time. A matching retry returns the existing M2 outcome. Unknown, incompatible or expired holders fail, rather than releasing arbitrary reservations. Exact Phase 3 orchestration must be reviewed with M4; the Phase 2 service does not register a placeholder implementation.
+
+A missing provider still returns RESOURCE_UNAVAILABLE, not an empty successful answer. There is no M2 reservation-read callback or command-result store (D-015).
 
 ## 7. Snapshot — `SnapshotService` (for M6 and M4)
 
