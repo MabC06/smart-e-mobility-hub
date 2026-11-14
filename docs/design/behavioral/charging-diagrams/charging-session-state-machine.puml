@@ -5,26 +5,25 @@ skinparam state {
     BorderColor #2980B9
 }
 
-[*] --> REQUESTED : submit_charging_request
+[*] --> CHARGING : start (vehicle already in a free bay)
+[*] --> SCHEDULED : start (start_at given)
+[*] --> QUEUED : start (no free bay)
 
-state REQUESTED as "REQUESTED"
+state QUEUED as "QUEUED"
 state SCHEDULED as "SCHEDULED"
 state CHARGING as "CHARGING"
 state COMPLETED as "COMPLETED"
 state INTERRUPTED as "INTERRUPTED"
-state FAILED as "FAILED"
+state CANCELLED as "CANCELLED"
 
-REQUESTED --> CHARGING : Bay available & start
-REQUESTED --> SCHEDULED : Future schedule created
-REQUESTED --> FAILED : Request validation error
-
-SCHEDULED --> CHARGING : Scheduled time reached
-SCHEDULED --> INTERRUPTED : Schedule cancelled
-
-CHARGING --> COMPLETED : Target SoC reached
-CHARGING --> INTERRUPTED : Session interrupted
+QUEUED --> SCHEDULED : optimize_queue
+QUEUED --> CANCELLED : cancel
+SCHEDULED --> CANCELLED : cancel
+SCHEDULED --> CHARGING : start_scheduled_session
+CHARGING --> COMPLETED : finish
+CHARGING --> INTERRUPTED : interrupt or point failure
 
 COMPLETED --> [*]
 INTERRUPTED --> [*]
-FAILED --> [*]
+CANCELLED --> [*]
 @enduml
