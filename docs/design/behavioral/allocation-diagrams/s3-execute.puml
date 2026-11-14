@@ -1,0 +1,44 @@
+@startuml
+title S3 - Carry out or cancel a dispatch task (UC-M4-03, UC-M4-04): DISPATCH_TASK claim interaction contract
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Operator
+participant "Sensor / iot_sim" as Sensor
+boundary UI
+control Allocation
+control Core
+Operator -> UI: Confirm pick-up at source Hub
+UI -> Allocation: carry_out_pickup(task_id)
+Allocation -> Allocation: Check task is APPROVED (BR-M4-08)
+group Atomic unit of work (NFR-09, D-016, D-017)
+  Allocation -> Core: transition_vehicle(RESERVE -> PICKUP)\nwith DISPATCH_TASK vehicle claim_id
+  Core --> Allocation: Vehicle IN_USE, source space freed
+  Allocation -> Allocation: Task IN_PROGRESS; log
+end
+Operator -> UI: Confirm return at destination Hub
+UI -> Allocation: carry_out_return(task_id, battery_pct?)
+group Atomic unit of work (NFR-09, D-016, D-017)
+  Allocation -> Core: transition_vehicle(RETURN -> MARK_READY)\nwith DISPATCH_TASK destination space + claim_id
+  Core --> Allocation: Destination space claim released;\nVehicle RETURNED -> AVAILABLE
+  Allocation -> Core: release_claim for remaining active DISPATCH_TASK claims
+  Allocation -> Allocation: Task COMPLETED; log
+end
+Allocation --> UI: COMPLETED
+== Alternative paths (instead of the normal flow above) ==
+alt Vehicle missing, faulty, or task timed out
+  Sensor -> Core: Fault event (or clock tick past timeout)
+  Core -> Allocation: Domain event
+  Allocation -> Core: release_claim for active DISPATCH_TASK vehicle & space claims
+  Allocation -> Allocation: Task FAILED; start re-plan (UC-M4-08)
+else Operator cancels (task APPROVED or IN_PROGRESS)
+  Operator -> UI: Cancel with reason
+  UI -> Allocation: cancel_task(task_id, reason)
+  alt Vehicle already at destination
+    Allocation -> Allocation: Complete the task for that vehicle (no move back)
+  else Vehicle not yet delivered
+    Allocation -> Core: release_claim for active DISPATCH_TASK vehicle & space claims
+    Allocation -> Allocation: Task CANCELLED; log
+  end
+end
+@enduml

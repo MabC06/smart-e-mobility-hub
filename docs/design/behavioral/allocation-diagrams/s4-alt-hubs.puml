@@ -1,0 +1,28 @@
+@startuml
+title S4 - Suggest alternative Hubs (UC-M4-05): called by Reservation through Core
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+control Allocation
+Student -> UI: Reserve or return at Hub X
+UI -> Reservation: Reserve or return request
+Reservation -> Reservation: No vehicle or no parking space at Hub X
+Reservation -> Core: Ask for alternatives (request type, Hub X, time)
+Core -> Allocation: suggest_alternative_hubs(request) [read-only]
+Allocation -> Core: Read network snapshot
+Core --> Allocation: Snapshot with as_of
+Allocation -> Allocation: Keep Hubs with the needed resource\nRank by closeness, remaining resources, battery, Hub ID\nKeep the top N
+alt At least one Hub qualifies
+  Allocation --> Core: Ranked list with as_of
+else No Hub qualifies
+  Allocation --> Core: Reason code NO_VEHICLE / NO_PARKING / ALL_HUBS_FULL (BR-M4-10)
+end
+Core --> Reservation: Result
+Reservation --> UI: Error plus alternatives, or the reason
+UI --> Student: Show message (nothing is reserved)
+note over Allocation: Read-only: no resource is held.\nHolding an alternative is done later by Reservation.
+@enduml
