@@ -1,14 +1,28 @@
-# M2 rental service — Phase 2
+# M2 rental service and lifecycle
 
 This contribution implements the November 8 booking-service scope: reserve,
 pickup and return against the released Core. The November 6 design is reviewed
 separately in [PR #11](https://github.com/MabC06/smart-e-mobility-hub/pull/11).
 It is an in-process service, not a completed UI or REST API.
 
+The November 11 follow-up adds explicit rental cancellation and expiry maintenance.
+`app.state.reservation_lifecycle.cancel(reservation_id, actor)` cancels an owned
+Confirmed rental before its deadline; at/after the deadline it records Expired.
+Cancelled/Expired retries return the existing record. Active Trips cannot be
+cancelled or expired. `expire(reservation_id)` and `expire_due()` are internal
+maintenance entry points using Core time, including for disabled account owners.
+There is **no background scheduler or public expiry endpoint**: the application
+must invoke maintenance explicitly. Every booking release is a separate atomic
+transaction; batch expiry returns each booking's result so failures remain visible.
+The release keeps actual parking occupancy and does not restore a faulty vehicle
+from Maintenance. See [lifecycle.py](lifecycle.py) and its
+[tests](../../tests/reservation/test_lifecycle.py).
+
 ## Entry points
 
 `install(core, app)` registers `rental_reservations` and `rental_trips` through
 `core.register_entity` and sets `app.state.reservation` to a `BookingService`.
+It also sets `app.state.reservation_lifecycle` to a `RentalLifecycle`.
 The composition root calls this automatically. The caller must supply an
 authenticated Core `Actor`; never construct it from untrusted request fields.
 The service rechecks the stored account and fixes the command module to
@@ -53,6 +67,7 @@ shared Core low-battery lockout, one live rental per student, planned duration
 | [__init__.py](__init__.py) | `install` registers tables and wires the service into the application. It does not register unfinished providers. |
 | [models.py](models.py) | `ReserveRequest` and the M2-owned `RentalReservation` / `RentalTrip` dataclasses, with stable persisted statuses. Pending validation is transient. |
 | [service.py](service.py) | Public workflow methods above; `_actor` checks account authorization, `_execute` maps repository failures after rollback, private operation methods own the transaction. Small ID/version helpers reject invalid inputs. |
+| [lifecycle.py](lifecycle.py) | `cancel` ends an owned unused rental; `expire` settles a due booking; `expire_due` selects due bookings and returns each result. `_settle` handles input/repository failures; `_transaction` checks ownership, time, claim and vehicle before atomic release. No background scheduler is installed. |
 | [storage.py](storage.py) | SQL table definitions and `register_tables`; `read` / `all_reservations` read through Core; `add` / `update` use the caller's UOW repository. Local casts bridge Core v1.1's closed Entity type annotation, without changing runtime storage rules. |
 | [results.py](results.py) | `BookingErrorCode` / `BookingError`; `from_core` maps Core failures and removes other holders' details from responses. |
 | [Core providers](../core/providers.py) | M2-owned `ReservationDemand` / `HoldConsumer` Protocols and immutable result dataclasses under D-020/D-021. These are contract definitions only. |
@@ -66,12 +81,12 @@ defines M2 provider argument/result shapes for M1/M4/M6 review. The service does
 not install successful-empty placeholders. Until Phase 3 registration, the Core
 registry correctly reports RESOURCE_UNAVAILABLE for an absent provider.
 
-The following are **not implemented by this Phase 2 slice**: search/UI routes,
-cancellation and expiry sweeps, fault-before-pickup invalidation, parking lifecycle
+The following are **not implemented yet**: search/UI routes,
+automatic expiry scheduling, fault-before-pickup invalidation, parking lifecycle
 and return holds, M3 charging bundles, M4 alternatives/hold consumption, overdue
 processing, provider implementations and full simulation integration. Expired
-pickup is rejected without mutation; until M2 expiry processing is implemented,
-the Confirmed record/Reserved vehicle still require lifecycle cleanup. Core never
+pickup is rejected without mutation; the Confirmed record/Reserved vehicle require
+an explicit `reservation_lifecycle.expire_due()` maintenance call. Core never
 performs that cleanup automatically (D-017). This is not a complete production
 rental feature.
 

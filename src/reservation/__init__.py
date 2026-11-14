@@ -11,8 +11,10 @@ from core.facade import CoreFacade
 
 def install(core: CoreFacade, app: FastAPI) -> None:
     """Register M2 tables and expose the booking service to the composition root."""
+    from reservation.lifecycle import RentalLifecycle
     from reservation.service import BookingService
     from reservation.storage import register_tables
 
     register_tables(core)
     app.state.reservation = BookingService(core)
+    app.state.reservation_lifecycle = RentalLifecycle(core)
