@@ -1,0 +1,44 @@
+@startuml
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide footbox
+actor Student
+boundary UI
+control Reservation
+control Core
+title S2 - Pickup (Core API v1.1, D-015/D-017)
+Student -> UI: Confirm pickup at origin
+UI -> Reservation: Reservation ID, origin, vehicle version
+Reservation -> Reservation: Validate actor; read owned Reservation / Trip first
+alt Existing matching Trip
+  Reservation --> UI: Same Trip ID and recorded pickup / due time
+else New pickup
+  Reservation -> Core: Enter core.unit_of_work()
+  group One repository transaction under Core lock
+    Reservation -> Reservation: Reread booking / Trip; check owner and origin
+    Reservation -> Core: get_config().as_of; get_vehicle()
+    Core --> Reservation: Authoritative time and vehicle state/version
+    alt Confirmed and now < expiry, eligible own Reserved vehicle
+      Reservation -> Core: transition_vehicle(PICKUP, version, claim_id)
+      Core -> Core: Validate own vehicle claim; free source space\nVehicle InUse; clear Hub / space
+      Core --> Reservation: Vehicle result or Err
+      Reservation -> Core: release_claim(booking.claim_id, actor)
+      Reservation -> Reservation: Add unique Trip; due = now + planned duration\nUpdate Reservation to Active via uow.repository
+      Reservation -> Core: uow.commit() only on success
+    else Expired, invalid owner/state/version or unavailable
+      Reservation -> Reservation: Reject pickup; no Trip or pickup writes
+      note right of Reservation
+        Expiry / incident maintenance is a separate M2 operation.
+        M2 releases its own claim and requests the permitted
+        Core transition; Core does not run an expiry sweep.
+      end note
+    end
+  end
+  Reservation --> UI: Trip or error; reread M2 record after race conflict
+end
+UI --> Student: Pickup / due time or recovery guidance
+note over Reservation,Core
+  Explicit commit includes M2 and Core writes; otherwise rollback.
+  The deadline is exclusive: pickup at expiry is rejected.
+end note
+@enduml
