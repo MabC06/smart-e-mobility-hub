@@ -40,6 +40,7 @@ PUBLIC_CORE = frozenset(
         "core.sensors",
         "core.seed",
         "core.providers",
+        "core.api.security",
         "core.domain.enums",
         "core.domain.entities",
         "core.domain.invariants",
