@@ -9,7 +9,7 @@ DS-STD is the **reference configuration** of the system. It is a set of design p
 
 | Used by | For |
 |---|---|
-| M1, M8 | Quality targets in `docs/requirements/nfr.md` (NFR-01 to NFR-05, NFR-15) and load tests |
+| M1, M8 | Quality targets in `docs/requirements/nfr.md` (NFR-01 to NFR-05, NFR-15) and timed performance tests |
 | M8 | Implementing the seed configuration and event feed of `src/iot_sim/` (this document is the specification; the numbers are not duplicated in code) |
 | M6 | Building the 5 standard What-if scenarios on a realistic starting state |
 | M2 to M5 | Unit and integration test data (boundary and conflict cases) |
@@ -83,9 +83,9 @@ The main flow carries 60% to 70% of trips in its period (starting value, configu
 
 | Parameter | Value | Used in |
 |---|---|---|
-| Concurrent sessions for performance targets | 100 | NFR-02, NFR-03 |
+| Sequential requests per endpoint in the timed performance tests | at least 100 | NFR-02, NFR-03 (D-024) |
 | Simultaneous requests on one vehicle or Hub in conflict tests | 20 to 50 | NFR-06 |
-| DS-STRESS | 2x DS-STD: 20 Hubs repeating the DS-STD profiles with small seeded variation; 800 parking spaces, 122 charging points, 500 rental vehicles, 2,000 student accounts, 200 private EVs, 200 concurrent sessions (D-010) | NFR-15 |
+| DS-STRESS | 2x DS-STD: 20 Hubs repeating the DS-STD profiles with small seeded variation; 800 parking spaces, 122 charging points, 500 rental vehicles, 2,000 student accounts, 200 private EVs (D-010) | NFR-04 timing only (M4); no pass/fail target |
 
 ## 7. Sanity checks (for M8 to assert in tests)
 
@@ -103,7 +103,7 @@ All are proposals in `docs/DECISIONS.md` until confirmed.
 | 1 | Is a charging point attached to a parking space? | Yes: a charging bay is a parking space with a charging point; 61 of 400 spaces. Bay-related rules are left to the Requirements Analysis. | D-007 | M1 with the team |
 | 2 | Direction of vehicle flows per period | Defined in section 5; main flow 60% to 70% of trips. | D-008 | M6, M8 |
 | 3 | Meaning of "active private EV" and its distribution | Holds a reservation in the peak window or is at a Hub; about 30 distributed in proportion to parking spaces; 50% request charging. | D-009 | M3 |
-| 4 | How DS-STRESS is built | 20 Hubs repeating the DS-STD profiles, 2x totals. | D-010 | M8 |
+| 4 | How DS-STRESS is built | 20 Hubs repeating the DS-STD profiles, 2x totals. | D-010 | — (accepted 2026-11-12) |
 
 ## 9. Handoff
 
