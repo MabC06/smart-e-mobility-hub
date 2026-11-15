@@ -1,19 +1,196 @@
 # 2. Requirements Analysis
 
-> **Status:** Draft v1.0 · **Lead Consolidator:** M2 · **Contributors:** Whole Team  
-> This document compiles the stakeholders, functional requirements (`FR-01` to `FR-12`), non-functional requirements (`NFR`), business rules (`BR`), and use-case specifications for the Smart E-Mobility Hub system.
+<!-- BEGIN M2: Reservation & Trip -->
+## M2 contribution - Reservation & Trip
+
+> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**.
+> This section contains only M2's contribution. Other modules' requirements and the consolidated system-wide Phase 0 artifacts are not claimed complete.
+
+### Actors, goals and scope
+
+The Student searches for fleet vehicles, reserves an immediate pickup, starts a trip and returns to an accepting Mobility Hub. A Private EV Owner is a Student role that reserves parking, arrives and departs without creating a rental Trip. Operator is an external actor for incident recovery; the simulated sensor/event source crosses the boundary through Core. Internal modules and the expiry scheduler are implementation components, not use-case actors.
+
+M2 covers FR-02 (search and battery/availability), FR-03 (reserve/cancel), FR-04 (pickup/return), FR-05 (parking), and FR-07's private-parking slice. M3 owns charging and private charging-profile registration. Core owns shared resource state. Allocation supplies advisory alternatives and resource priorities; Monitoring owns incident handling; UI presents user actions and authoritative results. Payment, fines, GPS, route planning and physical hardware operation are excluded.
+
+### Functional requirements and use cases
+
+The [M2 requirements baseline](../requirements/fr-02-05-07-reservation.md) is authoritative for input/output contracts, acceptance criteria (§4), business rules (§5) and complete use-case specifications (§6). It supplies the missing M2 Phase 0 foundation specifically for Phase 1 review.
+
+| Requirement | Student goal / use cases | Observable acceptance outcome |
+|---|---|---|
+| FR-02 | UC-M2-01 Find suitable vehicles | Filtered fleet candidates with battery/state/as_of; invalid inputs rejected; empty results and alternatives explained |
+| FR-03 | UC-M2-02 Reserve; UC-M2-03 Cancel | One exclusive ten-minute hold, concurrency/quota checks, owner-only cancellation before pickup |
+| FR-04 | UC-M2-04 Pick up; UC-M2-05 Return | Exactly one Trip, atomic origin release/destination occupancy; failed return keeps Trip open |
+| FR-05 | UC-M2-06 Reserve parking; UC-M2-07 Cancel; UC-M2-08 Arrive/depart; UC-M2-05 consumes rental return hold | Exclusive interval/space claim and no overcapacity; expiry/cancellation never erases actual occupancy |
+| FR-07 parking | UC-M2-06/07/08 with private ownership | Private profile validated, no rental Trip, joint bay/charger confirmation counts one space |
+
+![M2 rental use cases](../requirements/use-case-diagrams/uc-m2-rental.svg)
+
+![M2 parking use cases](../requirements/use-case-diagrams/uc-m2-parking.svg)
+
+Editable PlantUML sources accompany each SVG. These scoped diagrams feed the [draft system overview](../requirements/use-case-diagrams/uc-overview.svg). The [actor analysis](../requirements/stakeholder-actor-analysis.md) records current participation and UI-view overlap. The overview groups module goals; the actor analysis specifies individual participation.
+
+### Business constraints and parameter rationale
+
+The **canonical parameter register is baseline §3**. The proposed rental is immediate with a ten-minute hold and zero grace: M2 allows pickup only at `t < hold_expires_at`; equality means expiry. Each student may hold one live rental and one live parking reservation. Rental confirmation does not automatically reserve a destination space; an Active renter may separately request a ten-minute immediate return-space hold.
+
+Private parking can start within 24 hours, with a default two-hour stay (30..240 minutes), and arrival in `[start,start+10 min)`. Intervals use half-open overlap rules; actual occupancy overrides calendar optimism. Overstay keeps occupancy and triggers monitoring instead of an automatic release. A rental's planned duration defaults to 30 minutes (5..120); expected return is calculated at actual pickup. M5's overdue condition is strictly more than 60 minutes beyond that time, without fines or forced completion.
+
+Rental minimum battery is proposed at 20%, distinct from M5's <=15% rental-pool lockout and <=15% low-battery incident, M3's <=15% charging urgency and M6's <20% depletion metric. UTC storage/ICT display follows D-005; server time at the serialized command boundary is authoritative.
+
+The rules prioritize consistency over pretending that future arrivals or departures are certain. A charging point requires its associated parking bay; one vehicle is counted once. M3 urgency reorders eligible waiting requests, never takes a confirmed student's resource. RedistributionTask and student Reservation share the released Core ResourceClaim mechanism (D-017) while retaining separate ownership and lifecycles.
+
+### Quality requirements and traceability
+
+This design addresses NFR-06/07/08/09 (uniqueness, capacity, valid transitions, atomicity), NFR-12/13 (simulation isolation/determinism), NFR-16/18 (authorization/validation), NFR-21/22 (clear errors/module boundaries), and NFR-25/26 (audit/traceability). NFR-02/03 latency remain implementation/measurement targets, not demonstrated results.
+
+Baseline §9 provides FR -> UC -> BR -> diagram -> V-M2 scenario traceability, with equivalence partitions, boundary values, race conditions, retries, failures, shared bays and simulation isolation. M8 assigns official TC IDs and execution evidence later. UC-M2/BR-M2 identifiers are stable; retired BR numbers are not reused.
+
+<!-- END M2: Reservation & Trip -->
+
+<!-- BEGIN M3: Charging & Smart Scheduling -->
+
+## M3 contribution - Charging & Smart Scheduling
+
+> **Author:** Võ Thanh An (M3)  
+> **Date:** 2026-11-06  
+> **Status:** Phase 1 Draft for Integration Review
 
 ---
 
-## 2.1 Stakeholders and System Actors
+### Problem Analysis & Operational Needs
+
+The charging infrastructure at Mobility Hubs faces two primary engineering challenges: **operational disruptions caused by resource contention** and **the risk of local electrical grid overload** during peak hours. The requirements analysis for Module M3 addresses these technical bottlenecks through three core dimensions:
+
+1. **User Demographics & Access Control (Fleet vs. Private):**
+   Internal rental electric vehicles serving students require immediate, plug-and-play charging (`FR-06.1`) to optimize vehicle turnaround time. Conversely, private EV owners (`FR-07.M3`) demand guaranteed access and reserved power slots (`FR-07.M3.2`). Failing to separate these user models creates queuing congestion that disrupts fleet availability.
+
+2. **Hardware Interoperability & Safety Interlocks:**
+   Private EVs feature diverse connector standards (CCS2, Type 2), battery capacities, and maximum C-rates. Without a registration and parameter validation mechanism (`FR-07.M3.1`), connecting an incompatible vehicle risks equipment damage or circuit breaker trips. Parameter verification prior to energy transfer is therefore a mandatory system constraint.
+
+3. **Grid Capacity Limits & Dynamic Scheduling Algorithms:**
+   Traditional First-Come, First-Served (FCFS) queuing fails in EV charging environments: a vehicle at 80% SoC should not block a port required by a vehicle at 5% SoC needed for an upcoming trip. Consequently, requirements `FR-11.M3.1` and `FR-11.M3.2` replace FCFS with dynamic priority scoring.
+
+---
+
+### Requirements Rationale & Structural Mapping
+
+#### 1. Session Control Requirements (`FR-06`, `FR-07`)
+
+- **Risk of Omission:** Allowing users to occupy charging bays indefinitely without validation or time bounds leads to stalled sessions (fully charged vehicles remaining plugged in).
+- **Analytical Resolution:** `FR-06.3` enforces strict reservation modification and cancellation thresholds, immediately releasing unused capacity back to the available Hub pool (`AVAILABLE`).
+
+#### 2. Planning & Conflict Resolution Requirements (`FR-11`)
+
+- **Risk of Omission:** When a charging port faults (`FAULTED`), failing to trigger automated reassignment (`FR-11.M3.3`) stalls active sessions and breaks the downstream travel schedule.
+- **Analytical Resolution:** A 3-tiered fault resolution cascade is established (local port reallocation $\rightarrow$ time-window shifting $\rightarrow$ cross-Hub routing via M4).
+
+---
+
+### Requirements Traceability & Behavioral Mapping
+
+Functional requirements are systematically mapped to the system's Use-Case architecture to ensure complete coverage:
+
+![M3 Use-Case Diagram](../requirements/use-case-diagrams/uc-m3-charging.svg)
+
+- **Traceability Matrix:**
+
+| Requirement (FR) | Solved Technical Problem                                        | Mapped Use Case | Enforced Business Rule (BR)                         |
+| :--------------- | :-------------------------------------------------------------- | :-------------- | :-------------------------------------------------- |
+| **FR-06.1**      | Immediate session initialization for returned rental EVs.       | `UC-M3-01`      | `BR-M3-01` (Port availability verification)         |
+| **FR-06.2**      | Mitigating peak-hour station congestion via advance scheduling. | `UC-M3-02`      | `BR-M3-01` (Future capacity reservation)            |
+| **FR-06.3**      | Preventing power capacity waste when travel plans change.       | `UC-M3-03`      | N/A (Releasing allocated capacity)                  |
+| **FR-07.M3.1**   | Preventing voltage and connector mismatch for private EVs.      | `UC-M3-04`      | N/A (Persisting hardware specs)                     |
+| **FR-07.M3.2**   | Segmenting dedicated charging ports for private EV users.       | `UC-M3-05`      | `BR-M3-01` (Securing private bay allocation)        |
+| **FR-11.M3.1**   | Overcoming FCFS limitations; prioritizing depleted batteries.   | `UC-M3-06`      | `BR-M3-03` (Dynamic priority scoring)               |
+| **FR-11.M3.2**   | Preventing voltage sags and transformer overloads at Hubs.      | `UC-M3-07`      | `BR-M3-03` (Load regulation and schedule smoothing) |
+| **FR-11.M3.3**   | Ensuring high availability during hardware point failures.      | `UC-M3-08`      | `BR-M3-02` (3-tier flexible reallocation)           |
+
+---
+
+### Analysis of Business Rules Rationale
+
+#### BR-M3-01: Port Approval & Faulty Equipment Isolation
+
+- **Analytical Rationale:** From an electrical safety standpoint, closing high-power relays when a charging bay reports thermal warnings or ground faults can cause severe equipment damage. `BR-M3-01` forces the system to isolate ports flagged as `OUT_OF_SERVICE` or `FAULTED` directly at the database query level, excluding them from scheduler allocation pools.
+
+#### BR-M3-02: Three-Tiered Conflict Resolution Strategy (Fallback Cascade)
+
+- **Analytical Rationale:** Station overload cannot be resolved through outright service rejection. The fallback mechanism escalates operational costs progressively:
+  1. _Local Port Swap (Zero transit cost):_ Reassigning to an idle port of matching rating within the same Hub.
+  2. _Time Window Shift (Low operational impact):_ Adjusting the charging start time if the vehicle has no immediate departure requirement.
+  3. _M4 Delegation (High cost - physical vehicle relocation):_ Invoking `UC-M4-07` to route the vehicle to an adjacent Hub when the current station reaches maximum capacity.
+
+#### BR-M3-03: Dynamic Priority Scoring & Low Battery Override
+
+- **Analytical Rationale:** Priority weighting evaluates remaining State of Charge (% SoC) alongside proximity to scheduled trip departures.
+- **Emergency Override Threshold:** The rule defines a critical threshold at $\text{SoC} \le 15\%$ (`LOW_BATTERY_THRESHOLD`). When battery levels drop below this boundary, deep discharge risks escalate sharply, triggering an immediate priority override flag that places the vehicle at the front of the active charging queue.
+
+---
+
+### Quality Attribute Trade-offs
+
+- **Performance vs. Complexity (NFR-04):** Recalculating queue rankings within **5 seconds** requires priority algorithms to maintain low computational complexity ($\mathcal{O}(N \log N)$), preventing database table lock contention during peak concurrent requests.
+- **Safety vs. Availability (NFR-08/09):** Tripping high-voltage power relays within **100 ms** upon detecting electrical or thermal faults (`FAULTED`) may interrupt user charging sessions, but this is a mandatory trade-off to ensure absolute infrastructure and vehicle safety.
+<!-- END M3: Charging & Smart Scheduling -->
+
+<!-- BEGIN M4: Resource Allocation & Dispatching -->
+## M4 contribution - Resource Allocation & Dispatching
+
+> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> This section contains only M4's contribution (FR-10 and the allocation side of FR-11).
+
+### Actors, goals and scope
+
+The **Operator** keeps every Hub supplied with vehicles and free parking: the operator reviews recommended moves, approves or rejects them and confirms pick-up and return. The **Student** never calls allocation directly; the reservation module asks for alternative Hubs on the student's behalf. The **System / Scheduler** settles competing requests and re-plans after events. The **Sensor / event source** (simulated by `iot_sim`) reports movements and failures. The **Charging module (M3)** asks for an alternative charging point when a Hub has none free.
+
+Out of scope for this module: reservations (M2), charging sessions and the handling of a failed charging point (M3, D-012), incidents (M5), what-if simulation (M6), route planning and payment. Staff move the vehicles in real life; the system records it.
+
+### Functional requirements and use cases
+
+The [M4 requirements file](../requirements/fr-10-11-allocation.md) is authoritative for the requirement text, the eight business rules (BR-M4-01 to BR-M4-06, BR-M4-08 and BR-M4-10; the other numbers are not used) and the nine use-case specifications.
+
+| Requirement | Goal / use cases | Observable outcome |
+|---|---|---|
+| FR-10.1 to FR-10.3 | UC-M4-01 View redistribution recommendations | Hub balance and a list of dispatch tasks with quantity, priority and reason |
+| FR-10.4, FR-10.5 | UC-M4-02 Approve, reject or adjust; UC-M4-03 Carry out; UC-M4-04 Cancel | Vehicle and destination space held atomically, or nothing held; everything released on cancel or failure |
+| FR-10.6 | UC-M4-05 Suggest alternative Hubs | Ranked Hubs, or a reason code when none qualifies |
+| FR-10.7 | UC-M4-08 Re-plan after an event | Task list matches the new state; no duplicate tasks |
+| FR-11.M4.1 | UC-M4-06 Settle competing requests | Exactly one request gets the resource; others get a reason |
+| FR-11.M4.2 | UC-M4-07 Find an alternative charging point | Alternative Hub or bay for requests displaced in UC-M3-08 |
+| FR-11.M4.3 | UC-M4-02, UC-M4-03 | Capacity is never exceeded |
+
+![M4 redistribution use cases](../requirements/use-case-diagrams/uc-m4-dispatch.svg)
+
+![M4 alternatives and competing requests](../requirements/use-case-diagrams/uc-m4-allocation.svg)
+
+### Business rules and constraints
+
+The central rule is BR-M4-01, the priority order between classes of requests (operator incident order, confirmed reservation soon, vehicle that must return, charging, rebalancing, walk-in); inside the charging class M3's BR-M3-03 decides. The other rules protect shared resources: a confirmed reservation is never cancelled for a lower class (BR-M4-02), only suitable vehicles are moved (BR-M4-03), the destination space is held first (BR-M4-04), the source keeps a safety stock (BR-M4-05), one vehicle cannot be in two overlapping claims (core rule BR-M1-01), and a task follows a fixed life cycle (BR-M4-08).
+
+### Quality requirements and traceability
+
+Relevant quality requirements are NFR-04 (network plan within 5 s), NFR-06 (no double allocation), NFR-07 (capacity), NFR-08 and NFR-09 (valid and atomic changes), NFR-13 (same input, same result) and NFR-25 (logging). Each use case carries a `Trace:` line to its requirements and rules, and each rule carries the requirements that cite it.
+
+### Evidence, uncertainties and review ownership
+
+Rule IDs and use-case IDs follow D-011. Key interface and architectural uncertainties were settled with the release of Core API spec v1.0 and decisions D-016, D-017 and D-020: provider ports (`ReservationDemand`, `ChargingDemand`, `AlternativeHubProvider`, `AlternativeChargingProvider`), dispatch claims (`HolderKind.DISPATCH_TASK`), and the vehicle transition lifecycle. Full traceability between requirements, business rules and test cases is maintained in `docs/requirements/fr-10-11-allocation.md`.
+<!-- END M4: Resource Allocation & Dispatching -->
+
+<!-- BEGIN M5: Monitoring & Incident Handling -->
+## M5 contribution - Monitoring & Incident Handling
+
+> Author: 2453413 Đỗ Hoàng Việt. Date: 2026-11-06. **Proposed for team review**.
+
+### Stakeholders and System Actors
 
 *(Consolidated by M2 from module specifications)*
 
 ---
 
-## 2.2 Functional Requirements
+### Functional Requirements
 
-### 2.2.5 Monitoring & Incident Handling (Module M5 — Đỗ Hoàng Việt)
+#### Monitoring & Incident Handling (Module M5 — Đỗ Hoàng Việt)
 
 - **FR-08: System Monitoring**
   - **FR-08.1 (Real-Time Resource Tracking):** Ingests live telemetry streams from `iot_sim` covering vehicle states, battery percentages ($SoC\%$), space occupancy, and charger operational health.
@@ -29,15 +206,15 @@
 
 ---
 
-## 2.3 Non-Functional Requirements
+### Non-Functional Requirements
 
 *(Consolidated by M1 in `docs/requirements/nfr.md`)*
 
 ---
 
-## 2.4 Business Rules & Constraints
+### Business Rules & Constraints
 
-### 2.4.5 Monitoring & Escalation Rules (Module M5)
+#### Monitoring & Escalation Rules (Module M5)
 
 - **`BR-M5-01` (Capacity Warning Threshold):** When a Hub's parking occupancy reaches $\ge 90\%$, the system sets the Hub status to `WARNING` and dispatches a notification to the operator console.  
   *Trace: FR-08.3, NFR-01, NFR-20*
@@ -52,17 +229,17 @@
 
 ---
 
-## 2.5 Use-Case Modeling
+### Use-Case Modeling
 
-### 2.5.5 Module M5 Use Cases
+#### Module M5 Use Cases
 
-#### UC-M5-01: Monitor Mobility Hub Network Status
+##### UC-M5-01: Monitor Mobility Hub Network Status
 - **Actor:** System Operator (Primary), IoT Sensor (Secondary)
 - **Description:** Allows operators to oversee network-wide resource utilization, inspect granular Hub metrics, and monitor capacity alerts.
 - **Trace:** `FR-08.1`, `FR-08.2`, `FR-08.3`, `FR-08.4`; `BR-M5-01`, `BR-M5-02`
 
-#### UC-M5-02: Process and Resolve Operational Incident
+##### UC-M5-02: Process and Resolve Operational Incident
 - **Actor:** System Operator (Primary), Duty Supervisor, Field Technician
 - **Description:** Manages the full incident lifecycle from automated detection and safety isolation to operator triage, remote soft-reset or technician dispatch, and verified ticket closure.
 - **Trace:** `FR-09.1`, `FR-09.2`, `FR-09.3`, `FR-09.4`; `BR-M5-03`, `BR-M5-04`, `BR-M5-05`
-
+<!-- END M5: Monitoring & Incident Handling -->

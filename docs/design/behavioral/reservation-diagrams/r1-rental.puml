@@ -1,0 +1,29 @@
+@startuml
+title R1 - Rental reservation (proposed)
+skinparam shadowing false
+skinparam defaultFontName Arial
+hide empty description
+[*] --> Pending : submit
+Pending --> Confirmed : confirm [eligible + quota + atomic claim]
+Pending --> [*] : reject / no record persisted
+Confirmed --> Active : pickup [owner + eligible + t < expiry]\n/ start Trip; release source occupancy
+Confirmed --> Cancelled : cancel [owner + t < expiry]\n/ release claim only
+Confirmed --> Cancelled : resource invalidated\n/ keep parked occupancy
+Confirmed --> Expired : expire [t >= expiry]\n/ release claim only
+Active --> Completed : return [Hub accepts]\n/ finish Trip; occupy destination
+Active --> Completed : verified recovery [operator + Hub accepts]\n/ Trip INCIDENT_ABORTED
+Active : incident / record flag, keep Trip open
+Active : overdue / mark Trip OVERDUE
+Active : full-Hub return / reject, keep state
+Completed --> [*]
+Cancelled --> [*]
+Expired --> [*]
+note right of Pending
+  Transient request, not a durable booking.
+end note
+note left of Active
+  No cancel or pickup-deadline expiry.
+  Retry returns existing Trip / receipt.
+  Completed does not mean Vehicle Available.
+end note
+@enduml

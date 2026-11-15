@@ -1,0 +1,108 @@
+{#
+  O2. Hub detail and resource control (wireframes-operator.md), UC-M7-02. Reads are shown;
+  the actions (report_fault, repair, point and Hub status) are Planned: a ui route calling
+  core.commands with the operator's Actor (operator rule 10).
+#}
+{% extends "base.html" %}
+{% block title %}{{ hub.hub_id }} {{ hub.name }} · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set use = (hub.occupied * 100 / hub.parking_capacity) | round | int if hub.parking_capacity else 0 %}
+<p><a href="{{ url_for('operator_overview') }}">&lt; Overview</a></p>
+<h1>
+  {{ hub.hub_id }} {{ hub.name }}
+  <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ hub.status }} {{ use }}%</span>
+  <small>zone {{ hub.zone_code }}</small>
+</h1>
+
+<nav class="tabs">
+  <a href="#vehicles">Vehicles</a>
+  <a href="#spaces">Parking spaces</a>
+  <a href="#points">Charging points</a>
+</nav>
+
+<section id="vehicles">
+  <h2>Vehicles</h2>
+  <p>
+    <label>Type <select disabled><option>all</option></select></label>
+    <label>State <select disabled><option>all</option></select></label>
+    <label>Owner <select disabled><option>all</option></select></label>
+    <span class="planned">Planned</span> Filters (Phase 3).
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Type</th><th>Owner</th><th>State</th><th>Battery</th><th>Fault</th><th>Space</th></tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+        <tr>
+          <td>{{ vehicle.plate_or_code }}</td>
+          <td>{{ vehicle.vehicle_type | type_label }}</td>
+          <td>{{ "fleet" if vehicle.ownership == "FLEET" else "private" }}</td>
+          <td>{{ vehicle.state }}</td>
+          <td>{{ vehicle.battery_pct | round | int }}%</td>
+          <td>{{ "✖" if vehicle.fault_flag else "–" }}</td>
+          <td>{{ vehicle.parking_space_id or "–" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No vehicle at this Hub.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <span class="planned">Planned</span> Actions on a vehicle (report fault, repair) and its last
+    changes (Phase 3).
+  </p>
+</section>
+
+<section id="spaces">
+  <h2>Parking spaces</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Space</th><th>Status</th><th>Vehicle</th></tr></thead>
+      <tbody>
+        {% for space in spaces %}
+        <tr>
+          <td>{{ space.label }}</td>
+          <td>{{ space.status }}</td>
+          <td>{{ space.occupant_vehicle_id or "–" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">No parking space to show.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="points">
+  <h2>Charging points</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Point</th><th>Space</th><th>Power</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for point in charging_points %}
+        <tr>
+          <td>{{ point.charging_point_id }}</td>
+          <td>{{ point.parking_space_id }}</td>
+          <td>{{ point.power_rate_kw }} kW</td>
+          <td>{{ point.status }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No charging point to show.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <span class="planned">Planned</span> Set a point OUT_OF_SERVICE, MAINTENANCE or AVAILABLE, and
+    the Hub MAINTENANCE or ACTIVE (Phase 3).
+  </p>
+</section>
+
+<p>
+  <a class="button" href="{{ url_for('operator_dispatch') }}">Dispatch</a>
+  <a class="button" href="{{ url_for('operator_simulation') }}">Simulate</a>
+</p>
+{% endblock %}
