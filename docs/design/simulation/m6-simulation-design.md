@@ -121,11 +121,13 @@ Recommendations are hypothetical and advisory. Operator approval does not guaran
 The formal UML use-case diagram for M6 is maintained as source and rendered
 artefacts in `docs/requirements/use-case-diagrams/`:
 
-- **PlantUML source:** [uc-m6-simulation.puml](./use-case-diagrams/uc-m6-simulation.puml)
-- **SVG diagram:** [uc-m6-simulation.svg](./use-case-diagrams/uc-m6-simulation.svg)
+- **PlantUML source:** [uc-m6-simulation.puml](../../requirements/use-case-diagrams/uc-m6-simulation.puml)
+- **SVG diagram:** [uc-m6-simulation.svg](../../requirements/use-case-diagrams/uc-m6-simulation.svg)
 
-The diagram shows the Operator's interaction with the M6 simulation capability
-and the supporting M1, M2, M3, M4, and M7 modules. The PlantUML file is the
+The diagram shows the Operator's interaction with the M6 simulation capability.
+M1 to M4 appear as secondary actors: M6 reads the snapshot (M1) and the demand
+ports (M2, M3), and an approved proposal goes to M4. The Operator reaches M6
+through the M7 screens. The PlantUML file is the
 editable source of the rendered SVG.
 
 ### 2.2. Primary Use Case
@@ -750,7 +752,7 @@ If no charging session starts during the measurement period, the metric is `N/A`
 
 ### 5.4. Critical Battery Depletion Count
 
-**Purpose:** Count vehicles whose battery state of charge falls below the configured critical threshold while not charging at the end of the simulation.
+**Purpose:** Count vehicles whose battery percentage is at or below the configured critical threshold while not charging at the end of the simulation.
 
 The critical threshold is not a separate M6 design constant. M6 reads
 `LOW_BATTERY_THRESHOLD` from the Core configuration returned by `get_config()`.
@@ -761,7 +763,7 @@ hard-coded 20% or an independently configurable M6 threshold.
 N_{\mathrm{crit}}=
 \left|\left\{
 v\in V:
-\frac{battery\_pct(v)}{100}<LOW\_BATTERY\_THRESHOLD
+battery\_pct(v)\le LOW\_BATTERY\_THRESHOLD
 \land
 State(v)\neq\mathrm{Charging}
 \right\}\right|
@@ -1032,13 +1034,13 @@ Core contract.
 ```python
 from typing import Protocol
 
-from core.domain.entities import OperationalSnapshot
+from core.services.snapshot import OperationalSnapshot
 
 
 class CoreSnapshotInterface(Protocol):
     """Snapshot interface supplied by M1 CoreFacade."""
 
-    def export_snapshot(self):
+    def export_snapshot(self) -> OperationalSnapshot:
         """
         Return the snapshot object produced by
         core.snapshots.export_snapshot().

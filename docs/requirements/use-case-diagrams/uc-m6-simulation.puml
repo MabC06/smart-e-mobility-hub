@@ -2,35 +2,33 @@
 skinparam packageStyle rectangle
 skinparam shadowing false
 skinparam actorStyle awesome
+left to right direction
 
-actor "Operator" as op
+title Use Case Diagram — Module M6: What-if Simulation & Coordination\n(FR-12)
 
-rectangle "Smart E-Mobility Hub System" {
-    rectangle "M6: What-if Simulation & Coordination Design" {
-        usecase "UC-M6-01: Run What-if Simulation\nand Review Recommendations" as UC_M6_01
-    }
+actor "Operator" as op <<Human>>
+actor "M1 Core\n(operational snapshot)" as m1 <<System>>
+actor "M2 Reservation\n(ReservationDemand port)" as m2 <<System>>
+actor "M3 Charging\n(ChargingDemand port)" as m3 <<System>>
+actor "M4 Allocation\n(dispatch proposals)" as m4 <<System>>
 
-    rectangle "External System Modules" {
-        usecase "M1: Export Core Operational Snapshot" as M1_Snap
-        usecase "M2: Query Trip & Return Constraints" as M2_Res
-        usecase "M3: Query Charging Demand & Queues" as M3_Charge
-        usecase "M4: Submit & Validate Dispatch Proposal" as M4_Alloc
-        usecase "M7: Display Simulation Dashboard" as M7_UI
-    }
+rectangle "Smart E-Mobility Hub — What-if Simulation (M6)" {
+    usecase "UC-M6-01\nRun What-if Simulation\nand Review Recommendations" as UC_M6_01
+    usecase "Submit Approved\nDispatch Proposal" as UC_Dispatch
 }
 
-op --> M7_UI
-M7_UI ..> UC_M6_01 : <<include>>
-
-UC_M6_01 ..> M1_Snap : <<include>>
-UC_M6_01 ..> M2_Res : <<include>>
-UC_M6_01 ..> M3_Charge : <<include>>
-UC_M6_01 ..> M4_Alloc : <<extend>> (Operator Approves)
+op --> UC_M6_01
+UC_M6_01 --> m1
+UC_M6_01 --> m2
+UC_M6_01 --> m3
+UC_Dispatch .> UC_M6_01 : <<extend>>\n(Operator approves)
+UC_Dispatch --> m4
 
 note right of UC_M6_01
   Traces: FR-12, NFR-05, NFR-12, NFR-13
   Business Rules: BR-M6-03 (D-011)
   Scenarios: SC-01 to SC-05
+  The Operator uses this through the M7 screens.
 end note
 
 @enduml
