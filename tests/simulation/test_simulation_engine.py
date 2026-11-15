@@ -73,6 +73,34 @@ class TestSimulationEngineIntegration(unittest.TestCase):
             ),
         )
 
+    def test_a_surge_target_is_never_chosen_as_donor(self) -> None:
+        # H02 is short too when it is a target; only H03 may give vehicles.
+        self.repo.add(
+            Hub(
+                hub_id="H03",
+                name="Hub 3",
+                zone_code="ZONE_01",
+                parking_capacity=20,
+                charging_point_count=0,
+            )
+        )
+        self._add_vehicles("H03", 8)
+        config = SimulationConfig(
+            simulation_id="SIM_TWO_TARGETS",
+            scenario_id=ScenarioType.DEMAND_SURGE,
+            parameters=DemandSurgeParams(
+                target_hub_ids=["H01", "H02"],
+                surge_multiplier=2.5,
+                duration_minutes=60,
+            ),
+        )
+
+        report = self.service.run_simulation(config)
+
+        self.assertEqual(len(report.recommendations), 2)
+        for rec in report.recommendations:
+            self.assertEqual(rec["source_hub_id"], "H03")
+
     def test_run_demand_surge_integration(self) -> None:
         config = self._create_config()
 

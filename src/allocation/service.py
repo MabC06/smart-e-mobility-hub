@@ -4,9 +4,9 @@ Coordinates redistribution planning, operator approval, task execution (pickup/r
 cancellation and claim management through Core's unit of work.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Protocol, cast
+from typing import cast
 
 from core.actor import Actor
 from core.domain.entities import Entity, ResourceClaim
@@ -21,7 +21,7 @@ from core.domain.enums import (
 )
 from core.errors import ErrorCode
 from core.facade import CoreFacade
-from core.providers import ProviderPort
+from core.providers import OpenTrips, ProviderPort, ReservationDemand, UpcomingBookings
 from core.repository.base import Repository
 from core.result import Err, Ok, Result
 from core.services.transition_ctx import TransitionCtx
@@ -30,45 +30,6 @@ from core.views import SpaceView, VehicleFilter
 from .config import AllocationConfig, default_config
 from .models import DispatchTask, DispatchTaskStatus
 from .planner import HubDemandInfo, HubStateView, HubVehicleInfo, plan_redistribution
-
-
-class _BookingRow(Protocol):
-    @property
-    def reservation_id(self) -> str: ...
-    @property
-    def kind(self) -> str: ...
-    @property
-    def hub_id(self) -> str: ...
-
-
-class _UpcomingBookingsData(Protocol):
-    @property
-    def bookings(self) -> Sequence[_BookingRow]: ...
-
-
-class _OpenTripRow(Protocol):
-    @property
-    def trip_id(self) -> str: ...
-    @property
-    def reservation_id(self) -> str: ...
-    @property
-    def destination_hub_id(self) -> str | None: ...
-    @property
-    def expected_return_at(self) -> datetime: ...
-
-
-class _OpenTripsData(Protocol):
-    @property
-    def as_of(self) -> datetime: ...
-    @property
-    def trips(self) -> Sequence[_OpenTripRow]: ...
-
-
-class _ReservationDemandPort(Protocol):
-    def upcoming_bookings(
-        self, hub_id: str, horizon: timedelta
-    ) -> Result[_UpcomingBookingsData]: ...
-    def open_trips(self, hub_id: str) -> Result[_OpenTripsData]: ...
 
 
 def _get_task(core: CoreFacade, task_id: str) -> DispatchTask | None:
@@ -103,12 +64,12 @@ def _repo_update_task(repo: Repository, task: DispatchTask, expected_version: in
 
 
 def _call_upcoming_bookings(
-    provider: _ReservationDemandPort, hub_id: str, horizon: timedelta
-) -> Result[_UpcomingBookingsData]:
+    provider: ReservationDemand, hub_id: str, horizon: timedelta
+) -> Result[UpcomingBookings]:
     return provider.upcoming_bookings(hub_id, horizon)
 
 
-def _call_open_trips(provider: _ReservationDemandPort, hub_id: str) -> Result[_OpenTripsData]:
+def _call_open_trips(provider: ReservationDemand, hub_id: str) -> Result[OpenTrips]:
     return provider.open_trips(hub_id)
 
 
@@ -167,14 +128,14 @@ class AllocationService:
     def _fetch_hub_demand(
         self, hub_id: str, horizon: timedelta, seen_trip_ids: set[str]
     ) -> Result[HubDemandInfo]:
-        bookings_res: Result[_UpcomingBookingsData] = self._core.providers.call(
+        bookings_res: Result[UpcomingBookings] = self._core.providers.call(
             ProviderPort.RESERVATION_DEMAND,
             lambda p: _call_upcoming_bookings(p, hub_id, horizon),
         )
         if isinstance(bookings_res, Err):
             return bookings_res
 
-        trips_res: Result[_OpenTripsData] = self._core.providers.call(
+        trips_res: Result[OpenTrips] = self._core.providers.call(
             ProviderPort.RESERVATION_DEMAND,
             lambda p: _call_open_trips(p, hub_id),
         )

@@ -75,32 +75,32 @@ Limitations: the Core contract has not been exercised, browser-specific SVG disp
 
 ### Design overview
 
-The behavioral design of Module M3 models the complete lifecycle of electric vehicle charging operations, real-time load balancing, and dynamic queue management across Mobility Hubs. The interaction logic operates on a strict **Interlock and State-Driven Architecture**:
+M3 manages a charging session as a record of its own (D-018) and changes shared resources only through Core commands. The behavior follows the state machine in `charging-session-state-machine.md`:
 
-1. **Session Lifecycle Execution:** Every session transitions through formal charging states centered around the baseline `AVAILABLE` state. Physical cable connection, parameter validation (`FR-07.M3.1`), and hardware interlocks (`BR-M3-01`) must be satisfied before power relays close and transition the session to `CHARGING`.
-2. **Dynamic Priority & Smart Load Balancing:** The background scheduler continuously re-ranks waiting vehicles based on battery depletion urgency (% SoC) and imminent trip schedule proximity (`BR-M3-03`). Vehicles reaching $\text{SoC} \le 15\%$ trigger an immediate `LOW_BATTERY_THRESHOLD` override flag, elevating them to the head of the active queue.
-3. **3-Tier Conflict & Fault Resolution:** Hardware point failures or capacity contention (`UC-M3-08`) trigger an automated 3-tier fallback cascade (`BR-M3-02`): (1) local bay swap at zero operational cost, (2) time-slot shift, or (3) escalation to Module M4 (`UC-M4-07`) for cross-Hub alternative routing.
+1. **Session lifecycle:** a request becomes `CHARGING` at once when the vehicle already stands in a free bay, `SCHEDULED` when a start time is given, and `QUEUED` when no bay is free. `optimize_queue` turns `QUEUED` requests into `SCHEDULED` ones; `start_scheduled_session` starts a due `SCHEDULED` session; finish ends in `COMPLETED`, interrupt in `INTERRUPTED`, and cancel in `CANCELLED`.
+2. **Priority (`BR-M3-03`):** queued requests are ranked by the low-battery override first (battery at or below `low_battery_threshold` from `get_config()`, 15 % by default), then vehicles with a booking in the next hour (M2's `ReservationDemand` port; battery only when the port is unavailable), then the lowest battery, then the request time.
+3. **Point failure (`UC-M3-08`, `BR-M3-02`):** a failure reaches M3 as the Core event `ChargingPointStatusChanged`. M3 interrupts the session on that point, submits a new request for the same vehicle and owner, moves the `SCHEDULED` sessions of that point, and runs `optimize_queue`, which tries another bay in the Hub and then a later slot every 15 minutes for the next 2 hours. The third step, M4's `AlternativeChargingProvider` port (`UC-M4-07`), is not called yet.
 
 ### UML diagram index
 
-| Artifact              | IDs and Intent                                                                                                                              | Detailed Source and Discussion                                                                                                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Activity Diagram      | Activity workflow covering request validation, dynamic priority queue sorting, load balancing, and 3-tier fault resolution                  | [`charging-activity-diagram.puml`](../design/behavioral/charging-diagrams/charging-activity-diagram.puml) / [Activity Preview](../design/behavioral/charging-diagrams/charging-activity-diagram.svg)             |
-| State Machine Diagram | Session lifecycle state transitions enforcing `AVAILABLE` baseline, `PREPARING`, `CHARGING`, `SUSPENDED`, `FAULTED`, and `COMPLETED` states | [`charging-session-state-machine.puml`](../design/behavioral/charging-diagrams/charging-session-state-machine.puml) / [State Preview](../design/behavioral/charging-diagrams/charging-session-state-machine.svg) |
+| Artifact | IDs and intent | Detailed source and discussion |
+| --- | --- | --- |
+| Activity Diagram | Request handling, priority queue and the point-failure fallback | [`charging-activity-diagram.puml`](../design/behavioral/charging-diagrams/charging-activity-diagram.puml) / [Activity Preview](../design/behavioral/charging-diagrams/charging-activity-diagram.svg) |
+| State Machine Diagram | Session states `QUEUED`, `SCHEDULED`, `CHARGING`, `COMPLETED`, `INTERRUPTED`, `CANCELLED` and the claims placed or released on each transition | [`charging-session-state-machine.puml`](../design/behavioral/charging-diagrams/charging-session-state-machine.puml) / [State Preview](../design/behavioral/charging-diagrams/charging-session-state-machine.svg) |
 
 All behavioral diagrams for M3 are maintained as editable `.puml` PlantUML sources with generated `.svg` visual assets in `docs/design/behavioral/charging-diagrams/`.
 
 ### Key design decisions
 
-- **OCPP State Alignment & Port Isolation:** The charging state machine strictly adheres to standard EV charging infrastructure protocols (OCPP-compliant states). Ports marked as `OUT_OF_SERVICE` or `FAULTED` are isolated at the database query level, preventing the allocation algorithm from double-booking damaged hardware (NFR-06).
-- **Decoupled Grid Load Smoothing:** Power delivery regulation (`SUSPENDED_EVSE`) operates independently from user session state. When peak grid loads occur, energy transfer is temporarily throttled without aborting the underlying user reservation or locking state.
-- **Emergency Relay Interlocking:** High-voltage relay disconnects are decoupled from software response loops, triggering hardware-level power isolation within $<100\text{ ms}$ upon fault detection (NFR-08/09).
+- **Claims hold the bay (D-017):** when a bay is bound, for `CHARGING` or `SCHEDULED`, M3 places a claim on the charging point and on the vehicle for the session interval; `COMPLETED`, `INTERRUPTED` and `CANCELLED` release them. Two sessions therefore never overlap on one point.
+- **One unit of work per change:** each bind, start, finish, interrupt or cancel runs in its own Core unit of work, so the session record, the claims and the vehicle state commit or roll back together.
+- **No hardware model:** M3 works on the charging point status kept by Core (`AVAILABLE`, `CHARGING`, `OUT_OF_SERVICE`, `MAINTENANCE`); cable, relay and power control are out of scope.
 
 ### Interface alignment and integration
 
-1. **Module M1 (Telemetry Interlock):** M3 listens to M1 telemetry streams for connector latch verification, voltage stability, and thermal alerts before authorizing state transitions (`AVAILABLE` $\rightarrow$ `PREPARING` $\rightarrow$ `CHARGING`).
-2. **Module M4 (Cross-Hub Overflow Delegation):** When local Hub capacity is fully saturated or a hardware fault cannot be resolved locally, M3 invokes M4's `AlternativeChargingProvider` port (`UC-M4-07`) to route displaced vehicles to optimal adjacent Hubs.
-3. **State Auditability:** All session state changes, priority recalculation events, and fault redirections are written to an immutable event audit log in compliance with NFR-25.
+1. **Core (M1):** vehicle state through `transition_vehicle` (`START_CHARGING`, `FINISH_CHARGING`, `INTERRUPT_CHARGING`), point status through `set_charging_point_status`, claims through `place_claim` and `release_claim`, and the `ChargingPointStatusChanged` event.
+2. **M2 (Reservation):** M3 reads upcoming bookings through the `ReservationDemand` port for the booking factor.
+3. **M4 and M6:** M3 provides its scheduled sessions through the `ChargingDemand` port (D-020); calling M4's `AlternativeChargingProvider` is the remaining step of `BR-M3-02`.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->

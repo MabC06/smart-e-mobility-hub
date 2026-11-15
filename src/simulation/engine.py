@@ -1,8 +1,10 @@
 import random
 from typing import Any
 
+from core.domain.enums import VehicleState
 from core.facade import CoreFacade
-from core.views import VehicleFilter, VehicleState
+from core.services.snapshot import OperationalSnapshot
+from core.views import VehicleFilter
 from simulation.models import (
     HubImpactMetrics,
     SimulationConfig,
@@ -15,7 +17,7 @@ class SimulationEngine:
         self,
         config: SimulationConfig,
         sandbox: CoreFacade,
-        snapshot: Any,
+        snapshot: OperationalSnapshot,
     ) -> None:
         self.config = config
         self.sandbox = sandbox
@@ -90,17 +92,19 @@ class SimulationEngine:
         return SimulationReport(
             simulation_id=self.config.simulation_id,
             scenario_id=self.config.scenario_id.value,
-            snapshot_id=getattr(self.snapshot, "snapshot_id", "UNKNOWN"),
-            executed_at=getattr(self.snapshot, "taken_at", None),
+            snapshot_id=self.snapshot.snapshot_id,
+            executed_at=self.snapshot.taken_at,
             baseline_shortage_rate_pct=baseline_pct,
             hub_metrics=hub_metrics,
             recommendations=recommendations,
         )
 
     def _find_donor_hub(self, target_hub_id: str) -> str | None:
+        """A hub with more than 5 available vehicles that is not itself a surge target."""
+        targets = set(self.config.parameters.target_hub_ids) | {target_hub_id}
         all_hubs = sorted(self.sandbox.queries.list_hubs(), key=lambda h: h.hub_id)
         candidates = [
-            h.hub_id for h in all_hubs if h.hub_id != target_hub_id and h.available_vehicles > 5
+            h.hub_id for h in all_hubs if h.hub_id not in targets and h.available_vehicles > 5
         ]
         if not candidates:
             return None

@@ -2,7 +2,7 @@
 
 ## 7.1. Overview
 
-The M6 --- What-if Simulation & Coordination module enables system
+The M6 — What-if Simulation & Coordination module enables system
 operators to evaluate hypothetical operational situations before making
 operational decisions.
 
@@ -102,10 +102,12 @@ M6 calculates four primary metrics to evaluate operational conditions.
 Measures the percentage of valid rental requests that cannot be
 fulfilled because suitable vehicles are unavailable.
 
-\[ S_r(h)=`\frac{U_h}{R_h}`{=tex}`\times100`{=tex}% \]
+$$S_r(h)=\frac{U_h}{R_h}\times 100\%$$
 
-Where: - (U_h): Number of unmet valid rental requests at hub (h). -
-(R_h): Total valid rental requests at hub (h).
+Where:
+
+- $U_h$: number of unmet valid rental requests at hub $h$.
+- $R_h$: total valid rental requests at hub $h$.
 
 A lower shortage rate indicates better demand fulfillment. If there are
 no valid requests, the result is reported as N/A.
@@ -115,10 +117,12 @@ no valid requests, the result is reported as N/A.
 Measures the percentage of valid vehicle return attempts rejected
 because the destination hub lacks available parking capacity.
 
-\[ O_r(h)=`\frac{J_h}{A_h}`{=tex}`\times100`{=tex}% \]
+$$O_r(h)=\frac{J_h}{A_h}\times 100\%$$
 
-Where: - (J_h): Number of rejected valid return attempts. - (A_h): Total
-valid return attempts.
+Where:
+
+- $J_h$: number of rejected valid return attempts.
+- $A_h$: total valid return attempts.
 
 A lower rejection rate indicates better parking-capacity availability.
 If there are no return attempts, the result is reported as N/A.
@@ -128,14 +132,13 @@ If there are no return attempts, the result is reported as N/A.
 Measures the average time between a charging request and the start of
 its charging session.
 
-\[ W\_{`\mathrm{avg}`{=tex}}= `\frac{1}{|V_s|}`{=tex}
-`\sum`{=tex}*{v`\in `{=tex}V_s}
-(t*{`\mathrm{start}`{=tex}}(v)-t\_{`\mathrm{request}`{=tex}}(v)) \]
+$$W_{\mathrm{avg}}=\frac{1}{|V_s|}\sum_{v\in V_s}\left(t_{\mathrm{start}}(v)-t_{\mathrm{request}}(v)\right)$$
 
-Where: - (V_s): Set of vehicles whose charging sessions start during the
-measurement period. - (t\_{`\mathrm{request}`{=tex}}(v)): Time when
-vehicle (v) requests charging. - (t\_{`\mathrm{start}`{=tex}}(v)): Time
-when its charging session starts.
+Where:
+
+- $V_s$: set of vehicles whose charging sessions start during the measurement period.
+- $t_{\mathrm{request}}(v)$: time when vehicle $v$ requests charging.
+- $t_{\mathrm{start}}(v)$: time when its charging session starts.
 
 The result is expressed in minutes. If no charging session starts during
 the measurement period, the result is reported as N/A. Requests still
@@ -146,17 +149,14 @@ waiting at the end of the simulation are reported separately.
 Counts vehicles whose battery percentage is at or below the configured
 critical threshold while not charging at the end of the simulation.
 
-\[ N\_{`\mathrm{crit}`{=tex}}= `\left`{=tex}\|`\left`{=tex}{
-v`\in `{=tex}V: battery_pct(v)`\leq `{=tex}LOW_BATTERY_THRESHOLD
-`\land `{=tex}State(v)`\neq`{=tex}`\mathrm{Charging}`{=tex}
-`\right`{=tex}}`\right`{=tex}\| \]
+$$N_{\mathrm{crit}}=\left|\left\{v\in V:\ battery\_pct(v)\le LOW\_BATTERY\_THRESHOLD\ \land\ State(v)\neq \mathrm{Charging}\right\}\right|$$
 
-Where: - (V): Set of vehicles included in the simulation. -
-(battery_pct(v)): Battery percentage of vehicle (v), represented on a
-0--100 scale. - (LOW_BATTERY_THRESHOLD): Value obtained from Core
-configuration through `get_config()`. Core defines this value as 15.0
-(%). - (State(v)): Simulated vehicle state at the end of the measurement
-period.
+Where:
+
+- $V$: set of vehicles included in the simulation.
+- `battery_pct(v)`: battery percentage of vehicle $v$, on a 0–100 scale.
+- `LOW_BATTERY_THRESHOLD`: value obtained from Core configuration through `get_config()`; Core defines it as 15.0 (%).
+- $State(v)$: simulated vehicle state at the end of the measurement period.
 
 M6 must read the threshold from Core configuration at runtime rather
 than defining an independent local constant.
@@ -166,15 +166,16 @@ than defining an independent local constant.
 M6 compares baseline results with mitigated simulation results when
 feasible mitigation actions are available.
 
-The comparison includes: - Baseline metric values. - Mitigated metric
-values. - Absolute changes. - Interpretation of improvements or
-deterioration.
+The comparison includes:
+
+- Baseline metric values.
+- Mitigated metric values.
+- Absolute changes.
+- Interpretation of improvements or deterioration.
 
 For metrics where lower values are better:
 
-\[
-`\Delta `{=tex}M=M\_{`\mathrm{baseline}`{=tex}}-M\_{`\mathrm{mitigated}`{=tex}}
-\]
+$$\Delta M=M_{\mathrm{baseline}}-M_{\mathrm{mitigated}}$$
 
 A positive value indicates improvement.
 
@@ -200,12 +201,14 @@ eligible surplus vehicles.
 **Action:** Recommend transferring vehicles from surplus hubs to
 shortage hubs.
 
-**Constraints:** - Preserve the required source-hub vehicle reserve. -
-Respect destination parking capacity. - Transfer only eligible
-vehicles. - Respect transportation capacity and travel time where
-modeled.
+**Constraints:**
 
-**Target module:** M4 --- Allocation & Dispatching.
+- Preserve the required source-hub vehicle reserve.
+- Respect destination parking capacity.
+- Transfer only eligible vehicles.
+- Respect transportation capacity and travel time where modeled.
+
+**Target module:** M4 — Allocation & Dispatching.
 
 ### R2. Hub Capacity Relief
 
@@ -214,11 +217,13 @@ modeled.
 **Action:** Recommend alternative hubs for incoming vehicle returns or
 feasible vehicle redistribution.
 
-**Constraints:** - Alternative hubs must have sufficient parking
-capacity. - Operational eligibility must be checked. - Geographic
-proximity alone is insufficient.
+**Constraints:**
 
-**Target module:** M2 --- Reservation & Trip, or M4 --- Allocation &
+- Alternative hubs must have sufficient parking capacity.
+- Operational eligibility must be checked.
+- Geographic proximity alone is insufficient.
+
+**Target module:** M2 — Reservation & Trip, or M4 — Allocation &
 Dispatching, depending on the proposed action.
 
 ### R3. Charging Congestion
@@ -229,11 +234,13 @@ available charging capacity becomes insufficient.
 **Action:** Recommend charging request reassignment, prioritization,
 rescheduling, or redirection to alternative charging points.
 
-**Constraints:** - Respect charging-point availability and power
-limits. - Respect vehicle and charging-point compatibility. - Consider
-upcoming reservation requirements.
+**Constraints:**
 
-**Target module:** M3 --- Charging & Smart Scheduling.
+- Respect charging-point availability and power limits.
+- Respect vehicle and charging-point compatibility.
+- Consider upcoming reservation requirements.
+
+**Target module:** M3 — Charging & Smart Scheduling.
 
 ### R4. Charging-Point Failure Recovery
 
@@ -243,11 +250,13 @@ unavailable, delayed, or infeasible.
 **Action:** Recommend reassignment to functioning charging points and
 prioritize vehicles required for upcoming trips.
 
-**Constraints:** - Failed charging points must remain unavailable until
-modeled recovery. - Alternative charging points must be compatible and
-available. - Identify sessions at risk of delay.
+**Constraints:**
 
-**Target module:** M3 --- Charging & Smart Scheduling.
+- Failed charging points must remain unavailable until modeled recovery.
+- Alternative charging points must be compatible and available.
+- Identify sessions at risk of delay.
+
+**Target module:** M3 — Charging & Smart Scheduling.
 
 ### R5. Fleet Balance Improvement
 
@@ -257,11 +266,14 @@ shortages relative to their target levels.
 **Action:** Recommend feasible vehicle transfers between source and
 destination hubs.
 
-**Constraints:** - Respect vehicle eligibility. - Preserve source-hub
-reserves. - Respect destination capacity. - Consider transportation and
-transfer-time constraints.
+**Constraints:**
 
-**Target module:** M4 --- Allocation & Dispatching.
+- Respect vehicle eligibility.
+- Preserve source-hub reserves.
+- Respect destination capacity.
+- Consider transportation and transfer-time constraints.
+
+**Target module:** M4 — Allocation & Dispatching.
 
 ### Recommendation Priority
 
@@ -284,16 +296,19 @@ request against the current real operational state.
 M6 requires an initial operational snapshot to create an isolated
 simulation environment.
 
-M1 --- Core remains the authoritative owner of the real operational
+M1 — Core remains the authoritative owner of the real operational
 state and provides the snapshot through the `export_snapshot()`
 interface.
 
 The snapshot is obtained as an `OperationalSnapshot` object returned by
-`core.snapshots.export_snapshot()`. M6 consumes the returned object
-without importing internal types from `core.domain`.
+`core.snapshots.export_snapshot()`. Its type is `OperationalSnapshot`
+from `core.services.snapshot`, which modules may import.
 
-The returned snapshot exposes: - `version` - `to_dict()` -
-`to_repository()`
+The returned snapshot exposes:
+
+- `version`
+- `to_dict()`
+- `to_repository()`
 
 The snapshot contains operational information such as:
 
@@ -301,10 +316,13 @@ The snapshot contains operational information such as:
 -   Vehicle identifiers, locations, states, and battery percentages.
 -   Charging-point identifiers, statuses, and power ratings.
 
-The snapshot uses Core field names, including: - `parking_capacity` for
-hub capacity. - `vehicle_type` for vehicle type. - `battery_pct` for
-vehicle battery percentage. - `charging_point_id` for charging-point
-identifiers. - `power_rate_kw` for charging-point power ratings.
+The snapshot uses Core field names, including:
+
+- `parking_capacity` for hub capacity.
+- `vehicle_type` for vehicle type.
+- `battery_pct` for vehicle battery percentage.
+- `charging_point_id` for charging-point identifiers.
+- `power_rate_kw` for charging-point power ratings.
 
 Reservation demand and charging demand are obtained separately through
 the `ReservationDemand` (M2) and `ChargingDemand` (M3) interfaces. They
