@@ -1,0 +1,63 @@
+{#
+  O4. Dispatch (wireframes-operator.md), UC-M7-05, UC-M7-06. Tasks of M4 with the actions their
+  status allows: Approve on RECOMMENDED (the quantity can only be lowered), pick-up on APPROVED,
+  delivery on IN_PROGRESS, Cancel on APPROVED and IN_PROGRESS. Reject is Planned (no M4
+  endpoint). In Phase 2 every button only reloads this page.
+#}
+{% extends "base.html" %}
+{% block title %}Dispatch · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Dispatch</h1>
+<p><a class="button" href="{{ request.url }}">Update recommendations</a></p>
+
+<p>
+  <label>Status <select disabled><option>all</option></select></label>
+  <span class="planned">Planned</span> Filter (Phase 3).
+</p>
+
+{% for task in tasks %}
+<section class="card">
+  <h2>{{ task.task_id }} · {{ task.source_hub_id }} → {{ task.target_hub_id }}</h2>
+  <p>
+    {{ task.vehicle_type | type_label }} · quantity {{ task.quantity }} · priority {{ task.priority }} ·
+    <strong>{{ task.status }}</strong>
+  </p>
+  <p>Reason: {{ task.reason }}</p>
+  <p>Vehicles: {{ task.vehicle_ids | join(", ") }}</p>
+  <p>
+    {% if task.status == "RECOMMENDED" %}
+    <label>Quantity
+      <input type="number" min="1" max="{{ task.quantity }}" value="{{ task.quantity }}">
+    </label>
+    <a class="button" href="{{ request.url }}">Approve</a>
+    <button class="button" type="button" disabled>Reject</button>
+    <span class="planned">Planned</span>
+    {% elif task.status == "APPROVED" %}
+    <a class="button" href="{{ request.url }}">Confirm pick-up</a>
+    <a class="button" href="{{ request.url }}">Cancel</a>
+    {% elif task.status == "IN_PROGRESS" %}
+    <a class="button" href="{{ request.url }}">Confirm delivery</a>
+    <a class="button" href="{{ request.url }}">Cancel</a>
+    {% endif %}
+  </p>
+</section>
+{% else %}
+<p>No task is needed.</p>
+{% endfor %}
+
+<details>
+  <summary>Allocation settings</summary>
+  <p><span class="planned">Planned</span> Read and change M4's settings (Phase 3):</p>
+  <ul>
+    <li>horizon</li>
+    <li>safety stock</li>
+    <li>parking buffer</li>
+    <li>minimum dispatch battery</li>
+    <li>maximum tasks per Hub</li>
+    <li>maximum vehicles per task</li>
+    <li>task timeout</li>
+    <li>staleness limit</li>
+    <li>reservation lookahead</li>
+  </ul>
+</details>
+{% endblock %}
