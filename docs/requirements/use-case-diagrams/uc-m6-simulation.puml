@@ -1,0 +1,36 @@
+@startuml uc-m6-simulation
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Operator" as op
+
+rectangle "Smart E-Mobility Hub System" {
+    rectangle "M6: What-if Simulation & Coordination Design" {
+        usecase "UC-M6-01: Run What-if Simulation\nand Review Recommendations" as UC_M6_01
+    }
+
+    rectangle "External System Modules" {
+        usecase "M1: Export Core Operational Snapshot" as M1_Snap
+        usecase "M2: Query Trip & Return Constraints" as M2_Res
+        usecase "M3: Query Charging Demand & Queues" as M3_Charge
+        usecase "M4: Submit & Validate Dispatch Proposal" as M4_Alloc
+        usecase "M7: Display Simulation Dashboard" as M7_UI
+    }
+}
+
+op --> M7_UI
+M7_UI ..> UC_M6_01 : <<include>>
+
+UC_M6_01 ..> M1_Snap : <<include>>
+UC_M6_01 ..> M2_Res : <<include>>
+UC_M6_01 ..> M3_Charge : <<include>>
+UC_M6_01 ..> M4_Alloc : <<extend>> (Operator Approves)
+
+note right of UC_M6_01
+  Traces: FR-12, NFR-05, NFR-12, NFR-13
+  Business Rules: BR-M6-03 (D-011)
+  Scenarios: SC-01 to SC-05
+end note
+
+@enduml

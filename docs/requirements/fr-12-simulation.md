@@ -95,3 +95,8 @@
 | **Alternative Flows** | **3a. Custom Scenario:** Operator combines multiple scenarios (e.g., Demand Surge + Station Failure).<br>**10a. Dispatch Trigger:** Operator approves recommendations; system formats and forwards orders to M4 (Dispatch) / M5 (Incident). |
 | **Exception Flows** | **2a. Snapshot Unavailable:** Core domain unreachable; system alerts operator and aborts session.<br>**4a. Invalid Input Parameter:** Input outside bounds (e.g., multiplier $\le 0$); system displays inline validation error and prevents execution.<br>**6a. Simulation Timeout:** Computation exceeds configured threshold ($> 60$s by default, configurable for larger datasets); system safely terminates job and reports execution error. |
 | **Business Rules** | • **BR-M6-03 (Feasibility Check):** Generated dispatch recommendations must respect the quantity limit and physical transit time of a dispatch task. (Trace: FR-12.5, NFR-05) |
+
+### Use-Case Diagram Traceability (UC-M6-01)
+
+- **PlantUML Diagram Source:** [uc-m6-simulation.puml](./use-case-diagrams/uc-m6-simulation.puml)
+- **Rendered SVG Diagram:** [uc-m6-simulation.svg](./use-case-diagrams/uc-m6-simulation.svg)
