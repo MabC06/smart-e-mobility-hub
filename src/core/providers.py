@@ -161,6 +161,26 @@ class ProviderRegistry:
             return Err(ErrorCode.RESOURCE_UNAVAILABLE, f"the provider for {port.value} failed")
 
 
+@dataclass(frozen=True, slots=True)
+class ScheduledChargingSessionRow:
+    """Typed row representing exposed scheduled charging sessions (D-020)."""
+
+    session_id: str
+    vehicle_id: str
+    charger_id: str | None
+    energy_kwh: float
+    start_time: datetime
+    end_time: datetime
+
+
+class ChargingDemand(Protocol):
+    """The provider port for Module M3 Charging Demand (D-020)."""
+
+    def scheduled_sessions(
+        self, hub_id: str, horizon: timedelta
+    ) -> Result[list[ScheduledChargingSessionRow]]: ...
+
+
 # ------------------------------------------------------------------ allocation ports (M4, D-020)
 
 
