@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam Shadowing false
+
+actor "Student / Rental Driver" as Student
+actor "Private EV Owner" as EVOwner
+actor "System Scheduler / Operator" as Scheduler
+actor "Module M4 (Cross-Hub)" as M4System << System >>
+
+rectangle "M3 - Charging & Smart Scheduling Subsystem" {
+  
+  package "Student Rental Fleet Services" {
+    usecase "UC-M3-01: Request Immediate Charging" as UC1
+    usecase "UC-M3-02: Schedule Future Charging" as UC2
+    usecase "UC-M3-03: Cancel / Modify Charging Schedule" as UC3
+  }
+  
+  package "Private EV Services" {
+    usecase "UC-M3-04: Register Private EV Profile" as UC4
+    usecase "UC-M3-05: Reserve Private EV Charging Slot" as UC5
+  }
+
+  package "Smart Priority & Conflict Scheduling" {
+    usecase "UC-M3-06: Compute Priority Queue" as UC6
+    usecase "UC-M3-07: Execute Smart Scheduling" as UC7
+    usecase "UC-M3-08: Handle Point Failure & Conflicts" as UC8
+  }
+}
+
+Student --> UC1
+Student --> UC2
+Student --> UC3
+
+EVOwner --> UC4
+EVOwner --> UC5
+
+Scheduler --> UC6
+Scheduler --> UC7
+Scheduler --> UC8
+
+UC8 ..> M4System : <<include>> / Delegate if local Hub full (UC-M4-07)
+
+@enduml
