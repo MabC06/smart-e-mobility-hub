@@ -1,0 +1,99 @@
+{#
+  O6. What-if Simulation Lab (wireframes-operator.md), UC-M7-09, UC-M7-10. Only the demand-surge
+  scenario exists in M6's code; the other four are Planned. The form has M6's default values and
+  sets no allowed ranges, because M6's design and code differ (M6 checks the inputs). The result
+  has the fields of M6's SimulationReport. "Run" only reloads this page in Phase 2.
+#}
+{% extends "base.html" %}
+{% block title %}Simulation Lab · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Simulation Lab</h1>
+<p class="simulation-banner">SIMULATION: a copy of the state, nothing real changes</p>
+
+<form action="{{ url_for('operator_simulation') }}">
+  <p>
+    <label>Scenario
+      <select name="scenario">
+        <option value="SCENARIO_01_DEMAND_SURGE" selected>Peak-hour demand surge</option>
+        <option disabled>Hub at capacity (Planned)</option>
+        <option disabled>Charging surge (Planned)</option>
+        <option disabled>Charging-point failure (Planned)</option>
+        <option disabled>Vehicle imbalance (Planned)</option>
+      </select>
+    </label>
+  </p>
+  <fieldset>
+    <legend>Target Hubs</legend>
+    {% for hub in hubs %}
+    <label>
+      <input type="checkbox" name="target_hub_ids" value="{{ hub.hub_id }}"{% if hub.hub_id in ("H01", "H02") %} checked{% endif %}>
+      {{ hub.hub_id }}
+    </label>
+    {% endfor %}
+  </fieldset>
+  <p>
+    <label>Surge multiplier <input name="surge_multiplier" value="1.5" size="5"></label>
+    <label>Duration <input name="duration_minutes" value="60" size="5"> min</label>
+  </p>
+  <p>
+    <label>Time horizon <input name="time_horizon_minutes" value="120" size="5"> min</label>
+    <label>Time step <input name="time_step_minutes" value="5" size="5"> min</label>
+    <label>Random seed <input name="random_seed" value="{{ seed }}" size="5"></label>
+    <button class="button" type="submit">Run</button>
+  </p>
+</form>
+
+{% if result %}
+<section class="card">
+  <h2>Result</h2>
+  <p>
+    Snapshot {{ result.snapshot_id }} taken {{ result.executed_at | ict }} ·
+    scenario {{ result.scenario_id }} · simulation {{ result.simulation_id }} · seed {{ seed }}
+  </p>
+  <p>Vehicle shortage rate (baseline): <strong>{{ result.baseline_shortage_rate_pct }}%</strong></p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Hub</th><th>Requests</th><th>Unmet</th><th>Shortage rate</th></tr>
+      </thead>
+      <tbody>
+        {% for row in result.hub_metrics %}
+        <tr>
+          <td>{{ row.hub_id }}</td>
+          <td>{{ row.total_requests }}</td>
+          <td>{{ row.unmet_requests }}</td>
+          <td>{{ row.shortage_rate_pct }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <span class="planned">Planned</span> Run with the recommendations and compare the four
+    metrics of M6's design (Phase 3).
+  </p>
+
+  <h3>Recommendations</h3>
+  {% for rec in result.recommendations %}
+  <p>
+    {{ loop.index }}. Move {{ rec.batch_size }} vehicle{{ 's' if rec.batch_size != 1 }} {{ rec.source_hub_id }} → {{ rec.destination_hub_id }}
+    · {{ rec.status }} · → {{ rec.target_module }}<br>
+    reason: {{ rec.trigger_reason }}<br>
+    <button class="button" type="button" disabled>Approve</button>
+    <button class="button" type="button" disabled>Reject</button>
+    <span class="planned">Planned</span> How an approved recommendation reaches M4 is not
+    defined yet; use <a href="{{ url_for('operator_dispatch') }}">Dispatch</a> or
+    <a href="{{ url_for('operator_charging') }}">Charging</a> meanwhile.
+  </p>
+  {% else %}
+  <p>No recommendation.</p>
+  {% endfor %}
+
+  <p>
+    <button class="button" type="button" disabled>Export report</button>
+    <button class="button" type="button" disabled>Discard and reset</button>
+    <span class="planned">Planned</span>
+  </p>
+</section>
+{% endif %}
+{% endblock %}
