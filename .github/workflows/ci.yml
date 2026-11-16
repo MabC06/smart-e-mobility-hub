@@ -40,7 +40,52 @@ jobs:
       - name: Types (mypy, strict on core)
         run: mypy
 
-      # Includes the import-boundary check of NFR-22 (tests/core/test_import_boundaries.py) and,
-      # once M8 adds them, tests/integration. Core coverage must stay at or above NFR-24 (70 %).
+      # Includes the import-boundary check of NFR-22 (tests/core/test_import_boundaries.py) and
+      # tests/integration. The tests run once under coverage; the next step reads the result.
       - name: Tests
-        run: python -m pytest -q --cov=core --cov-fail-under=70
+        run: >-
+          python -m pytest -q
+          --cov=core --cov=reservation --cov=charging --cov=allocation
+          --cov=monitoring --cov=simulation --cov-report=
+
+      # NFR-24: line coverage of core at least 70 %, of each business module at least 60 %.
+      # Every module is checked even after one fails, so the table always shows all of them.
+      - name: Coverage per module (NFR-24)
+        shell: bash
+        run: |
+          status=0
+          {
+            echo "| Module | Line coverage | Minimum | Result |"
+            echo "|---|---|---|---|"
+          } > coverage-nfr24.md
+          for module in core reservation charging allocation monitoring simulation; do
+            minimum=60
+            if [ "$module" = core ]; then minimum=70; fi
+            if total=$(coverage report --include="src/$module/*" --format=total \
+                --precision=1 --fail-under="$minimum"); then
+              result=pass
+            else
+              result=FAIL
+              status=1
+            fi
+            # On a failure coverage adds a "Coverage failure" line after the number.
+            total=${total%%$'\n'*}
+            total=${total%$'\r'}
+            case "$total" in
+              '' | *[!0-9.]*) total="no data" ;;
+              *) total="$total %" ;;
+            esac
+            echo "| \`$module\` | $total | $minimum % | $result |" >> coverage-nfr24.md
+          done
+          cat coverage-nfr24.md
+          cat coverage-nfr24.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      # The table is the CI coverage artifact that test-plan-v1.md section 10 names for NFR-24.
+      - name: Upload coverage table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-nfr24
+          path: coverage-nfr24.md
+          if-no-files-found: ignore

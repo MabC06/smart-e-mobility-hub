@@ -64,3 +64,11 @@ data/generated/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ---------------------------------------------------------------
+# Loop & agent tools (code review loop)
+# ---------------------------------------------------------------
+.loop/
+.agents/
+PROJECT.md
+task.md

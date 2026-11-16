@@ -1,0 +1,41 @@
+@startuml
+skinparam DefaultTextAlignment center
+skinparam ArrowColor #2b2b2b
+skinparam ActivityBackgroundColor #f4f6f8
+skinparam ActivityBorderColor #333333
+
+title M3 - Charging Priority & Request Processing Activity Diagram
+
+start
+
+:Receive Charging Request\n(FR-06.1);
+
+:Query Mobility Hub Status & Core State\n(BR-M1-02);
+
+if (Are active charging ports available\nand not OUT_OF_SERVICE?) then (No)
+  :Reject request or place in waiting queue\n(Trigger monitoring alert);
+  stop
+else (Yes)
+  :Check schedule overlapping claims\n(BR-M1-01 / BR-M3-02);
+  
+  if (Time slot overlap detected?) then (Yes)
+    :Execute Conflict Resolution:\n* Offer alternative slot\n* Suggest alternative port in same Hub\n* Trigger cross-Hub lookup (UC-M4-07);
+    
+    if (User accepts alternative?) then (Yes)
+      :Proceed with alternative slot/port;
+    else (No)
+      :Terminate request flow;
+      stop
+    endif
+    
+  else (No)
+    :Allocate port and lock schedule slot;
+    :Initialize Charging Session state\n(Transition to PREPARING / CHARGING);
+    :Return allocation confirmation to Core;
+  endif
+  
+endif
+
+stop
+
+@enduml
