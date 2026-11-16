@@ -33,11 +33,16 @@
         <td>{{ hub.free_spaces }} of {{ hub.parking_capacity }}</td>
         <td>{{ hub.charging_in_use }} of {{ hub.charging_points }}</td>
         <td>
-          <span class="status status-{{ hub.status }}">{{ status_words[hub.status] }}</span>
-          {% if hub.status == "CRITICAL" %}<br>No new parking bookings{% endif %}
+          <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ status_words[hub.status] }}</span>
+          {% if hub.status == "CRITICAL" %}<span class="status-note">No new parking bookings</span>{% endif %}
         </td>
         <td>
-          <a class="button" href="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">Find a vehicle at this Hub</a>
+          {% if hub.status == "MAINTENANCE" or hub.available_vehicles == 0 %}
+          <span class="button" aria-disabled="true">Find a vehicle</span>
+          <span class="status-note">{{ "Hub closed" if hub.status == "MAINTENANCE" else "No vehicle here now" }}</span>
+          {% else %}
+          <a class="button primary" href="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">Find a vehicle</a>
+          {% endif %}
         </td>
       </tr>
       {% else %}
