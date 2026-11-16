@@ -9,7 +9,6 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 markers = [
-    "tc_m2_023: rental cancellation and expiry (FR-03, D-017)",
     "tc_m2_001: TC-M2-001 (docs/testing/reservation-phase2.md)",
     "tc_m2_002: TC-M2-002 (docs/testing/reservation-phase2.md)",
     "tc_m2_003: TC-M2-003 (docs/testing/reservation-phase2.md)",
@@ -32,6 +31,7 @@ markers = [
     "tc_m2_020: TC-M2-020 (docs/testing/reservation-phase2.md)",
     "tc_m2_021: TC-M2-021 (docs/testing/reservation-phase2.md)",
     "tc_m2_022: TC-M2-022 (docs/testing/reservation-phase2.md)",
+    "tc_m2_023: TC-M2-023 (docs/testing/reservation-phase2.md)",
 ]
 
 [tool.ruff]
