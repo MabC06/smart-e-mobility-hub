@@ -76,7 +76,7 @@ shared Core low-battery lockout, one live rental per student, planned duration
 
 ## Integration boundaries
 
-The [Core API v1.2 proposal](../../docs/design/architecture/core-api-spec.md#62-m2-port-types-v12-proposal-d-021)
+The [Core API v1.2](../../docs/design/architecture/core-api-spec.md#62-m2-port-types-d-021)
 defines M2 provider argument/result shapes for M1/M4/M6 review. The service does
 not install successful-empty placeholders. Until Phase 3 registration, the Core
 registry correctly reports RESOURCE_UNAVAILABLE for an absent provider.
