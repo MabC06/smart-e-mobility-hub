@@ -1,14 +1,14 @@
 # Core API Specification
 
 **Owner:** M1 — Đoàn Nhật Minh (2452738)
-**Version:** v1.2 proposed (M2 port types and persisted-ID recovery; M1/caller approval pending, D-021/D-022). Last released: v1.1 · 2026-11-04 — D-020 splits the port `DemandSource` into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by their owners (§6.1, §10 point 10). v1.0 (2026-11-04) was the first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
+**Version:** v1.2 · 2026-11-15 — released after M2's PR #24 merged: M2's port types (§6.2, D-021), Core resumes sequential IDs from persisted entity IDs (§1, D-022), and the sign-in checks that the routers of the modules import from `core.api.security` (§8.1, D-023, PR #36). v1.1 (2026-11-04): D-020 splits the port `DemandSource` into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by their owners (§6.1, §10 point 10). v1.0 (2026-11-04) was the first released version, decided by the Lead; checked against the module PRs after their round-2 fixes. From now on every change follows D-006 (entry in `DECISIONS.md`, version bump, M1 approves the PR).
 **Related:** `class-diagram-core.md`, `vehicle-state-machine.md`, `docs/requirements/fr-01-core.md`, D-003, D-005, D-006
 
 ## 1. Purpose
 
-The only way for other modules to read or change Hub, vehicle, parking-space and charging-point state (D-003). Modules call it in-process (modular monolith, A-08) through `CoreFacade`. A small part is also exposed as REST for the UI (section 7). The interface is written as Python protocols with Pydantic types, so M2–M6 can code against stubs until the real `core` lands.
+The only way for other modules to read or change Hub, vehicle, parking-space and charging-point state (D-003). Modules call it in-process (modular monolith, A-08) through `CoreFacade`. A small part is also exposed as REST for the UI (section 8). The interface is written as Python protocols with Pydantic types, so M2–M6 can code against stubs until the real `core` lands.
 
-The v1.2 proposal also fixes default ID generation when reopening a persisted repository: Core resumes sequential counters from stored Core IDs (D-022). Fresh-store ordering and explicitly injected generators remain unchanged. This is not a promise of durable in-process event delivery.
+v1.2 also fixes default ID generation when reopening a persisted repository: Core resumes sequential counters from stored Core IDs (D-022). Fresh-store ordering and explicitly injected generators remain unchanged. This is not a promise of durable in-process event delivery.
 
 ## 2. Conventions
 
@@ -175,9 +175,9 @@ Interfaces defined in `core`, implemented by other modules and registered throug
 | `AlternativeChargingProvider` | `find_alternative_charging(requests, hub_id)` | M4 (`UC-M4-07`) | M3 `s5-alt-charging` (`UC-M3-08`, D-012) |
 | `HoldConsumer` | `consume_hold(holder_ref)`, called inside the unit of work | M2 | M4 `s3-execute` |
 
-### 6.2 M2 port types (v1.2 proposal, D-021)
+### 6.2 M2 port types (D-021)
 
-Definitions are in `core.providers`; they do not register an implementation. The released registry behavior and other owners' ports are unchanged. M1 and callers M4/M6 review these signatures under D-020 before merge.
+Definitions are in `core.providers`; they do not register an implementation. The registry behavior and other owners' ports are unchanged. M1 approved these signatures under D-020 when PR #24 merged (2026-11-14); M4's allocation service has used them since PR #39.
 
 - `ReservationDemand.upcoming_bookings(hub_id: str, horizon: timedelta) -> Result[UpcomingBookings]`: positive relative horizon; provider reads its Core clock once and returns `as_of`, `horizon_end`, and immutable `BookingDemand` rows sorted by reservation ID. Include Confirmed live holds/booking intervals overlapping `[as_of, horizon_end)`, not cancelled/expired/consumed demand. Rows identify booking kind (rental pickup/private parking/rental return), Hub/vehicle/resource/claim, interval and arrival deadline. All times are aware UTC. Unknown Hub returns NOT_FOUND; invalid horizon returns INVALID_INPUT.
 - `ReservationDemand.open_trips(hub_id: str) -> Result[OpenTrips]`: IN_PROGRESS/OVERDUE trips whose origin or planned destination is the Hub. Return `as_of` and `OpenTripDemand` rows sorted by trip ID, including reservation/vehicle IDs, origin, optional planned destination, pickup and expected-return times, and overdue flag. Callers aggregating Hubs deduplicate trip IDs. A missing planned destination must not be counted as a promised return to the origin. These are advisory demand rows, not a complete restorable M2 database snapshot.
@@ -290,3 +290,4 @@ The errors use the one body of this section, because the module router lives in 
 8. **Operator override (M7 `UC-M7-02`).** Settled in the draft: `repair` goes on to `mark_ready` by itself when the readiness check passes, so the operator presses once and M7's example `Maintenance → Available` works (`vehicle-state-machine.md` §7, point 5). If the battery is at or below the threshold the vehicle stays `Returned`.
 9. **Names in the ERD.** The differences listed in `class-diagram-core.md` §2.1 are for M7 to apply in the final ERD.
 10. **Provider ports have one implementer each.** `DemandSource` had two implementers (M2 and M3), but the registry accepts one provider per port. It is split into `ReservationDemand` (M2) and `ChargingDemand` (M3), decided by the port owners (D-020). The code change is in the PR `feat/core-provider-ports`; no module uses a port before it.
+11. **What v1.2 adds.** M2 writes the argument and result types of its ports in `core.providers` (§6.2, D-021), as D-020 (3) asks of each port owner. The default ID generator resumes above the IDs already stored, so reopening a SQLite store does not reuse an ID (§1, D-022). The routers of the modules check sign-in with the dependencies in `core.api.security` instead of reading tokens themselves (§8.1, D-023).
