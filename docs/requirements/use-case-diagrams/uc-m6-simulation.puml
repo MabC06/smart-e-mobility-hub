@@ -6,25 +6,6 @@ left to right direction
 
 title Use Case Diagram — Module M6: What-if Simulation & Coordination\n(FR-12)
 
-<<<<<<< HEAD
-rectangle "Smart E-Mobility Hub System" {
-    usecase "UC-M6-01: Run What-if Simulation\nand Review Recommendations" as UC_M6_01
-}
-
-actor "M1: Core" as m1 << System >>
-actor "M2: Reservation & Trip" as m2 << System >>
-actor "M3: Charging & Smart Scheduling" as m3 << System >>
-actor "M4: Allocation & Dispatching" as m4 << System >>
-actor "M7: UI/UX" as m7 << System >>
-
-op --> UC_M6_01
-
-UC_M6_01 -- m1
-UC_M6_01 -- m2
-UC_M6_01 -- m3
-UC_M6_01 -- m4
-UC_M6_01 -- m7
-=======
 actor "Operator" as op <<Human>>
 actor "M1 Core\n(operational snapshot)" as m1 <<System>>
 actor "M2 Reservation\n(ReservationDemand port)" as m2 <<System>>
@@ -42,7 +23,6 @@ UC_M6_01 --> m2
 UC_M6_01 --> m3
 UC_Dispatch .> UC_M6_01 : <<extend>>\n(Operator approves)
 UC_Dispatch --> m4
->>>>>>> 86d763ab0eb87667d3b2af266e36ded442df55c1
 
 note right of UC_M6_01
   Traces: FR-12, NFR-05, NFR-12, NFR-13

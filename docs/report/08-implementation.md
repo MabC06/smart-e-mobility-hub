@@ -113,28 +113,17 @@ Draft points for M1:
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
-### 4.3. Module M6 — What-if Simulation & Coordination Design
-
-#### Technical Decision 1: Sandbox Isolation via CoreFacade over InMemoryRepository (NFR-12)
+#### Technical Decision 1: Sandbox Isolation via CoreFacade over OperationalSnapshot (NFR-12)
 - **Problem:** Executing hypothetical what-if scenarios could accidentally mutate live Core entities or persistent state store.
-- **Implementation:** M6 imports `OperationalSnapshot` from `M1 Core` and instantiates a standalone sandbox environment via `CoreFacade(snapshot.to_repository())`.
-- **Rationale:** Ensures strict memory isolation without complex ORM transaction rollbacks, guaranteeing zero state leakage to live operations.
-- **Traceability:** `src/simulation/service.py`, verified by `tests/simulation/test_simulation_engine.py::test_nfr12_state_isolation`.
+- **Implementation:** M6 imports `OperationalSnapshot` from `core` and instantiates a standalone sandbox environment via `CoreFacade` backed by an in-memory repository derived from the snapshot (`snapshot.to_repository()`).
+- **Rationale:** Ensures strict memory isolation without complex ORM transaction rollbacks, guaranteeing zero state leakage to operational data.
+- **Traceability:** `src/simulation/service.py`, verified by `tests/simulation/test_simulation_engine.py::TestSimulationEngineIntegration::test_nfr12_state_isolation`.
 
 #### Technical Decision 2: Deterministic Stochastic Event Generation (NFR-13)
-- **Problem:** Stochastic event simulation (e.g., random student rental requests) produced non-repeatable metrics during regression testing.
-- **Implementation:** Bound all random state transitions to an isolated instance of `random.Random(seed)` passed via `SimulationConfig`.
-- **Rationale:** Guarantees 100% deterministic outputs for auditability, benchmarking on `DS-STD`, and reproducible recommendations.
-- **Traceability:** `src/simulation/engine.py`, verified by `tests/simulation/test_simulation_engine.py::test_nfr13_reproducibility`.
-
-#### Technical Decision 3: Dynamic Threshold Reading from Core Config (D-023 Alignment)
-- **Problem:** Hardcoding low-battery thresholds locally in M6 violated centralized configuration rules across modules.
-- **Implementation:** Integrated dynamic query to `get_config().LOW_BATTERY_THRESHOLD` (15.0%) for calculating critical battery depletion counts ($N_{\mathrm{crit}}$).
-- **Rationale:** Aligns metric evaluation with Core Spec v1.1 §10 while maintaining single-source-of-truth configuration integrity.
-- **Traceability:** `src/simulation/engine.py`, verified by `tests/simulation/test_simulation_engine.py`.
-
-### 4.4. Simplified & Deferred Features (M6)
-- **SC-02 to SC-05 Scenario Simplifications:** Scenarios SC-02 through SC-05 rely on static event parameters and heuristic recommendation rules pending full dynamic integration with M2/M3 demand ports in future release phases.
+- **Problem:** Stochastic event simulation (e.g., random student rental requests) produced non-repeatable metrics during regression testing and benchmarking.
+- **Implementation:** Bound all random state transitions and demand surge generation to an isolated instance of `random.Random(seed)` initialized with `SimulationConfig.random_seed`.
+- **Rationale:** Guarantees 100% deterministic outputs for auditability, comparative benchmarking on `DS-STD`, and reproducible recommendations.
+- **Traceability:** `src/simulation/engine.py`, verified by `tests/simulation/test_simulation_engine.py::TestSimulationEngineIntegration::test_nfr13_reproducibility`.
 <!-- END M6: What-if Simulation -->
 
 ## 4.4 Deviations and Implementation Limitations
@@ -146,5 +135,6 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-01 | M1, M8 | NFR-02/03 under 100 concurrent sessions | Measured with sequential requests over DS-STD (D-024) | No load-test tool could be built before the code freeze | No figure for concurrent load; correctness under concurrency is covered by NFR-06 tests |
 | DEV-02 | M4 | Task and its vehicles in a separate table | `vehicle_ids` is one comma-separated text column (Section 3.2.2) | — (M4 fills in) | The database cannot check the vehicle IDs |
 | DEV-03 | M1 | Brief: a distributed operational environment | One process; Hubs and modules are separated logically (A-08, Section 3.1.7) | Size of the project and the team | Failures of the network between Hubs are not modelled |
+| DEV-04 | M6 | Execute standard simulation scenarios SC-01 through SC-05 | SimulationEngine only implements and executes SC-01 (Demand Surge); SC-02 to SC-05 exist as enum definitions in `models.py` but are not implemented in the engine | Time and scope constraints prior to Phase 3-4 code freeze | SC-02 to SC-05 runs fallback to baseline metric outputs; full dynamic integration deferred to future release phases |
 
 Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M5 `SensorEventRejected` and heartbeat not handled; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.
