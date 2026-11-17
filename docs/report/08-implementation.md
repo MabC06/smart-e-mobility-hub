@@ -109,7 +109,15 @@ Draft points for M1:
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->
-<!-- M5 writes here by 17/11. -->
+Draft points for M5:
+- **Decoupled incident ingestion via Core EventBus**: M5 consumes only Core's domain events (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SensorEventRejected`, `SensorHeartbeat`), never importing `iot_sim` directly (NFR-22, D-004). Telemetry liveness is tracked in an internal timestamp map (`_heartbeats`) to detect connection loss (> 30s) deterministically.
+  *File:* `src/monitoring/service.py:193-338`, `tests/monitoring/test_monitoring.py` (`TC-M5-001`, `TC-M5-002`, `TC-M5-006`).
+- **Deterministic escalation timer on injectable clock**: `BR-M5-04` requires unacknowledged `HIGH`/`CRITICAL` tickets to auto-escalate after 5 minutes. Rather than relying on OS daemon threads and wall-clock time, `check_and_escalate_unacknowledged` computes ticket age against `core.queries.get_config().as_of` (`FixedClock`, D-005), preserving deterministic replayability (NFR-13).
+  *File:* `src/monitoring/service.py:403-421`, `tests/monitoring/test_monitoring.py` (`TC-M5-008`).
+- **Concurrency-safe capacity status synchronization**: Evaluates Hub parking occupancy upon `SpaceOccupancyChanged` (`BR-M5-01`, `BR-M5-02`), transitioning Hub status through `core.commands.set_hub_status` using optimistic version checks (`expected_version`) to eliminate race conditions under concurrent returns.
+  *File:* `src/monitoring/service.py:118-176`, `tests/monitoring/test_monitoring.py` (`TC-M5-003`, `TC-M5-013`, `TC-M5-014`).
+- **Relational schema integrity fallback for sensor rejections**: Sensor intake rejections (`SensorEventRejected`) may carry unrecognized entity IDs; `_default_hub_id()` maps unresolvable sensors to the primary active Hub, preventing foreign key constraint violations in SQLite (`hubs.hub_id`, D-018, D-022) while guaranteeing complete fault audit trails.
+  *File:* `src/monitoring/service.py:74-76, 269-278`, `tests/monitoring/test_monitoring.py` (`TC-M5-002`).
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
@@ -126,4 +134,4 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-02 | M4 | Task and its vehicles in a separate table | `vehicle_ids` is one comma-separated text column (Section 3.2.2) | — (M4 fills in) | The database cannot check the vehicle IDs |
 | DEV-03 | M1 | Brief: a distributed operational environment | One process; Hubs and modules are separated logically (A-08, Section 3.1.7) | Size of the project and the team | Failures of the network between Hubs are not modelled |
 
-Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M5 `SensorEventRejected` and heartbeat not handled; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.
+Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.

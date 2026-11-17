@@ -193,14 +193,14 @@ Rule IDs and use-case IDs follow D-011. Key interface and architectural uncertai
 #### Monitoring & Incident Handling (Module M5 — Đỗ Hoàng Việt)
 
 - **FR-08: System Monitoring**
-  - **FR-08.1 (Real-Time Resource Tracking):** Ingests live telemetry streams from `iot_sim` covering vehicle states, battery percentages ($SoC\%$), space occupancy, and charger operational health.
+  - **FR-08.1 (Real-Time Resource Tracking):** Ingests verified domain events emitted by Core (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SpaceOccupancyChanged`, `SensorEventRejected`, `SensorHeartbeat`) covering vehicle states, battery percentages ($SoC\%$), space occupancy, and equipment health.
   - **FR-08.2 (Utilization & Metrics Computation):** Computes real-time capacity ratios (parking occupancy %, charger utilization %) and fleet availability metrics per Hub.
   - **FR-08.3 (Capacity Warning & Alerting):** Automatically flags Hubs approaching or exceeding warning thresholds ($\ge 90\%$) and raises visual alerts on the Operator Dashboard.
   - **FR-08.4 (Network State Synchronization):** Evaluates Hub operational health and records state changes into the core domain store using `core.set_hub_status()`.
 
 - **FR-09: Operational Incident Handling**
-  - **FR-09.1 (Automated Incident Detection):** Identifies equipment malfunctions, telemetry timeouts, and resource capacity overflows from error codes and sensor signals.
-  - **FR-09.2 (Classification & Ticket Instantiation):** Maps incidents to standardized taxonomy codes (`INC-HW-01`, `INC-CAP-01`, `INC-BAT-01`, etc.), assesses severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), and creates tickets with status `OPEN`.
+  - **FR-09.1 (Automated Incident Detection):** Identifies equipment malfunctions, telemetry timeouts (> 30s heartbeat loss), rejected sensor anomalies, and resource capacity overflows from domain event signals.
+  - **FR-09.2 (Classification & Ticket Instantiation):** Maps incidents to standardized taxonomy codes (`INC-HW-01`, `INC-HW-02`, `INC-CAP-01`, `INC-CAP-02`, `INC-BAT-01`, `INC-COMM-01`, `INC-USR-01`), assesses severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), and creates tickets with status `OPEN`.
   - **FR-09.3 (Automated Safety Interlocks):** Executes immediate protective interlocks (cuts power to faulty charging sockets, locks out depleted vehicles $\le 15\%$ from the rental pool).
   - **FR-09.4 (Incident Lifecycle Tracking):** Manages ticket transitions through `OPEN` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `ESCALATED` $\rightarrow$ `RESOLVED` $\rightarrow$ `CLOSED` with complete audit trail logging (`NFR-25`).
 

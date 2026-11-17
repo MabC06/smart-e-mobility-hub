@@ -28,9 +28,9 @@
 | M2 reservation | — | | | | | | |
 | M3 charging | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
-| M5 monitoring | — | | | | | | |
+| M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 5 | 0 | 1 | 0 | 4 | 5 | 0 |
-| **Total** | **7** | **0** | **1** | **0** | **6** | **7** | **0** |
+| **Total** | **9** | **0** | **1** | **1** | **7** | **9** | **0** |
 
 All seven entries so far were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -76,10 +76,10 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 <!-- BEGIN M5: Monitoring & Incident Handling -->
 ### M5 Monitoring & Incident Handling
 
-<!-- M5 adds rows here by 17/11. -->
-
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
+| DEF-M5-001 | Monitoring router endpoints lacked explicit operator authorization check | Medium | Security audit (TC-M5-018) | NFR-16, D-014, D-023 | Closed | Enforced `require_operator` dependency on all 11 endpoints | PR #42, `895950d` |
+| DEF-M5-002 | Incident timestamps and audit logs did not use Core's injected clock | Low | Review at integration (D-005) | D-005, NFR-13 | Closed | Switched `_now()` to `core.queries.get_config().as_of` | PR #38, `cb17a48` |
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
