@@ -109,7 +109,9 @@ class TestSimulationEngineIntegration(unittest.TestCase):
 
     @pytest.mark.tc_m6_002
     def test_run_demand_surge_integration(self) -> None:
-        """TC-M6-002: Verify execution of SC-01 demand surge scenario and recommendation generation."""
+        """TC-M6-002: Verify execution of SC-01 demand surge scenario
+        and recommendation generation.
+        """
         config = self._create_config()
 
         # Capture the original Core state.
@@ -157,7 +159,9 @@ class TestSimulationEngineIntegration(unittest.TestCase):
 
     @pytest.mark.tc_m6_003
     def test_snapshot_isolation(self) -> None:
-        """TC-M6-003: Verify in-memory repository version and state remain untouched during simulation."""
+        """TC-M6-003: Verify in-memory repository version and state
+        remain untouched during simulation.
+        """
         config = self._create_config()
 
         original_version = self.repo.version()
