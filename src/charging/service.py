@@ -34,7 +34,6 @@ from core.providers import (
 from core.repository.base import RepositoryError, VersionConflictError
 from core.result import Err, Ok, Result
 from core.services.transition_ctx import TransitionCtx
-from core.services.unit_of_work import UnitOfWork
 from core.views import ChargingPointView
 
 logger = logging.getLogger(__name__)
@@ -204,12 +203,7 @@ class ChargingQueueService:
         return None, None
 
     def _alternative_hub_bay(
-        self,
-        uow: UnitOfWork,
-        req: ChargingRequest,
-        hub_id: str,
-        start_at: datetime,
-        minutes: int,
+        self, uow, req: ChargingRequest, hub_id: str, start_at: datetime, minutes: int
     ) -> ChargingPointView | None:
         """Ask M4 for a free bay at another Hub (BR-M3-02, step 3; UC-M4-07)."""
         res = self.core.providers.call(
@@ -228,6 +222,7 @@ class ChargingQueueService:
                 or alt.alternative_hub_id is None
             ):
                 continue
+            # M4 only reads, so check the bays again under this unit of work.
             free = [
                 pt
                 for pt in uow.queries.list_charging_points(alt.alternative_hub_id)
@@ -239,6 +234,7 @@ class ChargingQueueService:
                 and not uow.queries.get_claims(pt.charging_point_id, start_at, end_at)
             ]
             if free:
+                # Prefer M4's bay; take another free one at that Hub if it is gone.
                 return next(
                     (pt for pt in free if pt.charging_point_id == alt.charging_point_id),
                     free[0],
@@ -265,6 +261,7 @@ class ChargingQueueService:
                 now = uow.queries.get_config().as_of
                 bay, slot_start = self._earliest_slot(uow, hub_id, now, duration)
                 if bay is None or slot_start is None:
+                    # No slot here within 2 hours: move the request to M4's Hub.
                     bay = self._alternative_hub_bay(uow, req, hub_id, now, duration)
                     if bay is None:
                         return Ok(None)
