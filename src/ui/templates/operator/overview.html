@@ -27,7 +27,9 @@
     </h2>
     <p>
       <label>Parking {{ hub.occupied }}/{{ hub.parking_capacity }}
-        <meter min="0" max="{{ hub.parking_capacity }}" value="{{ hub.occupied }}"></meter>
+        {# Colours follow BR-M5-01: from 90 % amber, at 100 % red. #}
+        <meter min="0" max="{{ hub.parking_capacity }}" value="{{ hub.occupied }}"
+          low="{{ hub.parking_capacity * 0.9 }}" high="{{ hub.parking_capacity - 0.5 }}" optimum="0"></meter>
       </label>
     </p>
     <p>Vehicles {{ hub.available_vehicles }} · Charging {{ hub.charging_in_use }}/{{ hub.charging_points }}</p>

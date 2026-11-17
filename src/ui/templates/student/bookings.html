@@ -19,7 +19,7 @@
     {% if left > 0 %}(time left {{ "%02d:%02d" | format(left // 60, left % 60) }}){% endif %}
   </p>
   <p>
-    <a class="button" href="{{ request.url }}">I picked up the vehicle</a>
+    <a class="button primary" href="{{ request.url }}">I picked up the vehicle</a>
     <button class="button" type="button" disabled>Cancel reservation</button>
     <span class="planned">Planned</span>
   </p>
@@ -41,7 +41,7 @@
   <p>
     <button class="button" type="button" disabled>Hold a return space for 10 min</button>
     <span class="planned">Planned</span>
-    <a class="button" href="{{ url_for('student_charging') }}">Return the vehicle</a>
+    <a class="button primary" href="{{ url_for('student_charging') }}">Return the vehicle</a>
   </p>
   {% if booking.trip_status == "OVERDUE" %}
   {% set late = ((as_of - booking.expected_return_at).total_seconds() // 60) | int %}
