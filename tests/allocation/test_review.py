@@ -1,17 +1,18 @@
-# GIẢ ĐỊNH:
-# 1. Xe cá nhân (Ownership.PRIVATE) được tạo trong NetworkSpec.private_vehicles; khi đỗ tại
-#    trạm, xe cá nhân không tham gia điều phối fleet trong plan() và không tính vào
-#    available_vehicles của AlternativeHubService.
-# 2. ReservationDemand port được truy xuất qua core.providers._providers[
-#    ProviderPort.RESERVATION_DEMAND]. Khi thiếu provider hoặc provider trả Err/ném ngoại lệ,
-#    plan() trả về Err(RESOURCE_UNAVAILABLE).
-# 3. Khi approve_task gặp lỗi tài nguyên hoặc vi phạm điều kiện, task chuyển sang FAILED
-#    và trả mã lỗi tương ứng.
-# 4. Mọi endpoint của module allocation đều yêu cầu require_operator, trả 401 khi thiếu
-#    token và 403 khi dùng token sinh viên (STUDENT) từ POST /auth/login.
+# ASSUMPTIONS:
+# 1. Private vehicles (Ownership.PRIVATE) are created in NetworkSpec.private_vehicles; when parked
+#    at a hub, they do not participate in fleet redistribution in plan() and are excluded from
+#    available_vehicles in AlternativeHubService.
+# 2. The ReservationDemand port is registered once on a fresh CoreFacade via
+#    core.register_provider(ProviderPort.RESERVATION_DEMAND, stub). When no provider is registered
+#    or the provider returns Err / raises an exception, plan() returns Err(RESOURCE_UNAVAILABLE).
+# 3. When approve_task() encounters a resource conflict or precondition violation, the task
+#    transitions to FAILED and returns the corresponding error code.
+# 4. Every allocation endpoint requires require_operator, returning 401 when no bearer token is
+#    supplied and 403 when a student (STUDENT) token from POST /auth/login is used.
 
 import dataclasses
 import inspect
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import get_type_hints
 
@@ -96,67 +97,92 @@ def operator_actor() -> Actor:
     return Actor("OP01", Role.OPERATOR, "allocation")
 
 
-@pytest.fixture
-def test_env(
-    base_now: datetime, operator_actor: Actor
-) -> tuple[CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService]:
-    clock = FixedClock(base_now)
-    core = CoreFacade(InMemoryRepository(), clock=clock, config=CoreConfig())
-    core.register_entity(DISPATCH_TASK_SPEC)
+@dataclasses.dataclass(frozen=True, slots=True)
+class AllocationEnv:
+    core: CoreFacade
+    service: AllocationService
+    alt_hub: AlternativeHubService
+    alt_charge: AlternativeChargingService
+    clock: FixedClock
 
-    spec = NetworkSpec(
-        hubs=(
-            HubSpec(
-                "H01",
-                "Hub 1",
-                "Z1",
-                10,
-                1,
-                vehicles=(
-                    VehicleSpec("V000", "PLATE-0", VehicleType.E_BIKE, 80.0),
-                    VehicleSpec("V001", "PLATE-1", VehicleType.E_BIKE, 85.0),
-                    VehicleSpec("V002", "PLATE-2", VehicleType.E_BIKE, 90.0),
-                    VehicleSpec("V003", "PLATE-3", VehicleType.E_BIKE, 75.0),
+
+_DEFAULT_DEMAND: object = object()
+EnvFactory = Callable[..., AllocationEnv]
+
+
+@pytest.fixture
+def make_env(base_now: datetime, operator_actor: Actor) -> EnvFactory:
+    def _build(
+        demand_provider: StubReservationDemand | None | object = _DEFAULT_DEMAND,
+    ) -> AllocationEnv:
+        clock = FixedClock(base_now)
+        core = CoreFacade(InMemoryRepository(), clock=clock, config=CoreConfig())
+        core.register_entity(DISPATCH_TASK_SPEC)
+
+        spec = NetworkSpec(
+            hubs=(
+                HubSpec(
+                    "H01",
+                    "Hub 1",
+                    "Z1",
+                    10,
+                    1,
+                    vehicles=(
+                        VehicleSpec("V000", "PLATE-0", VehicleType.E_BIKE, 80.0),
+                        VehicleSpec("V001", "PLATE-1", VehicleType.E_BIKE, 85.0),
+                        VehicleSpec("V002", "PLATE-2", VehicleType.E_BIKE, 90.0),
+                        VehicleSpec("V003", "PLATE-3", VehicleType.E_BIKE, 75.0),
+                    ),
+                ),
+                HubSpec("H02", "Hub 2", "Z2", 10, 1),
+                HubSpec("H03", "Hub 3", "Z3", 10, 1),
+            ),
+            users=(
+                UserSpec("OP01", "OP-01", Role.OPERATOR, hash_password("pw-op", 1000)),
+                UserSpec("STU01", "STU-01", Role.STUDENT, hash_password("pw-stu", 1000)),
+            ),
+            private_vehicles=(
+                VehicleSpec(
+                    "V_PRIV",
+                    "PLATE-PRIV",
+                    VehicleType.E_BIKE,
+                    80.0,
+                    owner_user_id="STU01",
+                    connector_type="TYPE2",
                 ),
             ),
-            HubSpec("H02", "Hub 2", "Z2", 10, 1),
-            HubSpec("H03", "Hub 3", "Z3", 10, 1),
-        ),
-        users=(
-            UserSpec("OP01", "OP-01", Role.OPERATOR, hash_password("pw-op", 1000)),
-            UserSpec("STU01", "STU-01", Role.STUDENT, hash_password("pw-stu", 1000)),
-        ),
-        private_vehicles=(
-            VehicleSpec(
-                "V_PRIV",
-                "PLATE-PRIV",
-                VehicleType.E_BIKE,
-                80.0,
-                owner_user_id="STU01",
-                connector_type="TYPE2",
-            ),
-        ),
-    )
-    assert isinstance(core.commands.load_network(spec, operator_actor), Ok)
+        )
+        assert isinstance(core.commands.load_network(spec, operator_actor), Ok)
 
-    cfg = AllocationConfig(
-        safety_stock=1,
-        parking_buffer=2,
-        min_dispatch_battery=30.0,
-        horizon_minutes=30,
-        reservation_lookahead_minutes=60,
-    )
-    service = AllocationService(core, cfg)
-    alt_hub_svc = AlternativeHubService(core, cfg)
-    alt_charge_svc = AlternativeChargingService(core, cfg)
+        cfg = AllocationConfig(
+            safety_stock=1,
+            parking_buffer=2,
+            min_dispatch_battery=30.0,
+            horizon_minutes=30,
+            reservation_lookahead_minutes=60,
+        )
+        service = AllocationService(core, cfg)
+        alt_hub_svc = AlternativeHubService(core, cfg)
+        alt_charge_svc = AlternativeChargingService(core, cfg)
 
-    core.register_provider(ProviderPort.ALTERNATIVE_HUB, alt_hub_svc)
-    core.register_provider(ProviderPort.ALTERNATIVE_CHARGING, alt_charge_svc)
-    core.register_provider(ProviderPort.RESERVATION_DEMAND, StubReservationDemand(base_now))
-    return core, service, alt_hub_svc, alt_charge_svc
+        core.register_provider(ProviderPort.ALTERNATIVE_HUB, alt_hub_svc)
+        core.register_provider(ProviderPort.ALTERNATIVE_CHARGING, alt_charge_svc)
+        if demand_provider is _DEFAULT_DEMAND:
+            core.register_provider(ProviderPort.RESERVATION_DEMAND, StubReservationDemand(base_now))
+        elif isinstance(demand_provider, StubReservationDemand):
+            core.register_provider(ProviderPort.RESERVATION_DEMAND, demand_provider)
+        return AllocationEnv(core, service, alt_hub_svc, alt_charge_svc, clock)
+
+    return _build
+
+
+@pytest.fixture
+def test_env(make_env: EnvFactory) -> AllocationEnv:
+    return make_env()
 
 
 # M4-4: Dataclass Frozen & Protocol Compliance
+@pytest.mark.tc_m4_011
 def test_m4_4_dataclasses_are_frozen() -> None:
     """M4-4: Provider dataclasses must be frozen."""
     req = AlternativeHubRequest(requested_hub_id="H01")
@@ -184,6 +210,7 @@ def test_m4_4_dataclasses_are_frozen() -> None:
         chg_res.alternatives = ()  # type: ignore[misc]
 
 
+@pytest.mark.tc_m4_011
 def test_m4_4_no_dict_any_in_provider_dataclass_annotations() -> None:
     """M4-4: Provider dataclasses must use strict typed fields and never dict[str, Any]."""
     for cls in [
@@ -198,13 +225,10 @@ def test_m4_4_no_dict_any_in_provider_dataclass_annotations() -> None:
             assert "dict" not in str(f_type).lower(), f"{cls.__name__}.{f_name} uses dict"
 
 
-def test_m4_4_services_implement_provider_protocols(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
-) -> None:
+@pytest.mark.tc_m4_011
+def test_m4_4_services_implement_provider_protocols(test_env: AllocationEnv) -> None:
     """M4-4: Alternative services implement Protocol methods and register with Core."""
-    core, _, alt_hub_svc, alt_charge_svc = test_env
+    core, alt_hub_svc, alt_charge_svc = test_env.core, test_env.alt_hub, test_env.alt_charge
     assert hasattr(alt_hub_svc, "suggest_alternative_hubs") and callable(
         alt_hub_svc.suggest_alternative_hubs
     )
@@ -226,6 +250,7 @@ def test_m4_4_services_implement_provider_protocols(
 
 
 # M4-3: Time Source via core.queries.get_config().as_of
+@pytest.mark.tc_m4_027
 def test_m4_3_services_never_access_core_clock_attribute() -> None:
     """M4-3: Allocation and alternatives modules must not read core._clock."""
     import allocation.alternatives as alt_module
@@ -235,18 +260,17 @@ def test_m4_3_services_never_access_core_clock_attribute() -> None:
     assert "._clock" not in inspect.getsource(alt_module)
 
 
+@pytest.mark.tc_m4_027
 def test_m4_3_services_use_as_of_from_queries_config(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     base_now: datetime,
 ) -> None:
     """M4-3: Services reflect simulated time updates from core.queries.get_config().as_of."""
-    core, _, alt_hub_svc, alt_charge_svc = test_env
+    core, alt_hub_svc, alt_charge_svc = test_env.core, test_env.alt_hub, test_env.alt_charge
     assert core.queries.get_config().as_of == base_now
 
     advanced_now = base_now + timedelta(hours=3)
-    core._runtime.clock.set(advanced_now)
+    test_env.clock.set(advanced_now)
     assert core.queries.get_config().as_of == advanced_now
 
     hub_res = alt_hub_svc.suggest_alternative_hubs(AlternativeHubRequest(requested_hub_id="H02"))
@@ -257,15 +281,13 @@ def test_m4_3_services_use_as_of_from_queries_config(
 
 
 # M4-1 & M4-2: ReservationDemand upcoming_bookings & open_trips & No Fallbacks
+@pytest.mark.tc_m4_023
 def test_m4_1_upcoming_bookings_counts_only_rental_pickup(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """M4-1: plan() must count only RENTAL_PICKUP kind from upcoming_bookings."""
-    core, service, _, _ = test_env
     bookings = (
         BookingDemand(
             "RES-1",
@@ -301,23 +323,19 @@ def test_m4_1_upcoming_bookings_counts_only_rental_pickup(
             base_now,
         ),
     )
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
-        base_now, bookings_by_hub={"H01": bookings}
-    )
-    plan_res = service.plan(operator_actor, "slot_test_m4_1")
+    env = make_env(StubReservationDemand(base_now, bookings_by_hub={"H01": bookings}))
+    plan_res = env.service.plan(operator_actor, "slot_test_m4_1")
     assert isinstance(plan_res, Ok)
     assert sum(t.quantity for t in plan_res.value if t.source_hub_id == "H01") == 2
 
 
+@pytest.mark.tc_m4_023
 def test_m4_2_open_trips_filtering_destination_and_horizon_and_deduplicates(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """M4-2: plan() filters trips by destination == hub_id, horizon, and deduplicates trip_id."""
-    core, service, _, _ = test_env
     trips = (
         OpenTripDemand(
             "TRIP-1",
@@ -370,73 +388,61 @@ def test_m4_2_open_trips_filtering_destination_and_horizon_and_deduplicates(
             False,
         ),
     )
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
-        base_now, trips_by_hub={"H02": trips}
-    )
-    assert isinstance(service.plan(operator_actor, "slot_test_m4_2"), Ok)
+    env = make_env(StubReservationDemand(base_now, trips_by_hub={"H02": trips}))
+    assert isinstance(env.service.plan(operator_actor, "slot_test_m4_2"), Ok)
 
 
+@pytest.mark.tc_m4_022
 def test_m4_1_m4_2_plan_fails_when_reservation_demand_missing(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     operator_actor: Actor,
 ) -> None:
     """M4-1 & M4-2: plan() returns RESOURCE_UNAVAILABLE without fallback
     when provider is missing.
     """
-    core, service, _, _ = test_env
-    core.providers._providers.pop(ProviderPort.RESERVATION_DEMAND, None)
-    res = service.plan(operator_actor, "slot_fail")
+    env = make_env(None)
+    res = env.service.plan(operator_actor, "slot_fail")
     assert isinstance(res, Err) and res.code == ErrorCode.RESOURCE_UNAVAILABLE
 
 
+@pytest.mark.tc_m4_022
 def test_m4_1_m4_2_plan_fails_when_upcoming_bookings_errors(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """M4-1: plan() returns RESOURCE_UNAVAILABLE if upcoming_bookings fails or raises."""
-    core, service, _, _ = test_env
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
-        base_now, err_on_bookings=True
-    )
-    assert service.plan(operator_actor, "slot_err").code == ErrorCode.RESOURCE_UNAVAILABLE
+    env_err = make_env(StubReservationDemand(base_now, err_on_bookings=True))
+    res_err = env_err.service.plan(operator_actor, "slot_err")
+    assert isinstance(res_err, Err) and res_err.code == ErrorCode.RESOURCE_UNAVAILABLE
 
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
-        base_now, raise_on_bookings=True
-    )
-    assert service.plan(operator_actor, "slot_crash").code == ErrorCode.RESOURCE_UNAVAILABLE
+    env_crash = make_env(StubReservationDemand(base_now, raise_on_bookings=True))
+    res_crash = env_crash.service.plan(operator_actor, "slot_crash")
+    assert isinstance(res_crash, Err) and res_crash.code == ErrorCode.RESOURCE_UNAVAILABLE
 
 
+@pytest.mark.tc_m4_022
 def test_m4_1_m4_2_plan_fails_when_open_trips_errors(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """M4-2: plan() returns RESOURCE_UNAVAILABLE if open_trips fails or raises."""
-    core, service, _, _ = test_env
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
-        base_now, err_on_trips=True
-    )
-    assert service.plan(operator_actor, "slot_err_trips").code == ErrorCode.RESOURCE_UNAVAILABLE
+    env = make_env(StubReservationDemand(base_now, err_on_trips=True))
+    res = env.service.plan(operator_actor, "slot_err_trips")
+    assert isinstance(res, Err) and res.code == ErrorCode.RESOURCE_UNAVAILABLE
 
 
 # Lifecycle & Resource Claims
+@pytest.mark.tc_m4_018
 def test_carry_out_return_passes_parking_space_and_claim_id_to_transition_ctx(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
 ) -> None:
     """Lifecycle: carry_out_return() passes space and claim_id from SPACE claim
     into TransitionCtx and completes task.
     """
-    core, service, _, _ = test_env
+    core, service = test_env.core, test_env.service
     task = service.plan(operator_actor, "slot_return_test").value[0]
     service.approve_task(task.task_id, operator_actor)
     service.carry_out_pickup(task.task_id, operator_actor)
@@ -458,14 +464,13 @@ def test_carry_out_return_passes_parking_space_and_claim_id_to_transition_ctx(
         assert veh_r.value.state in (VehicleState.AVAILABLE, VehicleState.RETURNED)
 
 
+@pytest.mark.tc_m4_018
 def test_carry_out_return_releases_all_remaining_dispatch_claims(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
 ) -> None:
     """Lifecycle: carry_out_return() must release all remaining claims associated with the task."""
-    core, service, _, _ = test_env
+    core, service = test_env.core, test_env.service
     task = service.plan(operator_actor, "slot_rel_test").value[0]
     service.approve_task(task.task_id, operator_actor)
     service.carry_out_pickup(task.task_id, operator_actor)
@@ -477,33 +482,30 @@ def test_carry_out_return_releases_all_remaining_dispatch_claims(
     assert len(active_claims) == 0
 
 
+@pytest.mark.tc_m4_025
 @pytest.mark.parametrize("invalid_qty", [0, -1, 5, 99])
 def test_approve_task_validates_adjusted_quantity_boundaries(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
     invalid_qty: int,
 ) -> None:
     """approve_task: rejects adjusted_quantity <= 0 or > len(assigned_vehicles)
     with INVALID_INPUT.
     """
-    core, service, _, _ = test_env
+    service = test_env.service
     task = service.plan(operator_actor, "slot_adj_test").value[0]
     res = service.approve_task(task.task_id, operator_actor, adjusted_quantity=invalid_qty)
     assert isinstance(res, Err) and res.code == ErrorCode.INVALID_INPUT
 
 
+@pytest.mark.tc_m4_025
 def test_approve_task_with_valid_adjusted_quantity(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    make_env: EnvFactory,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """approve_task: adjusted_quantity limits claimed vehicles and destination spaces."""
-    core, service, _, _ = test_env
-    core.providers._providers[ProviderPort.RESERVATION_DEMAND] = StubReservationDemand(
+    demand = StubReservationDemand(
         base_now,
         bookings_by_hub={
             "H02": (
@@ -532,6 +534,8 @@ def test_approve_task_with_valid_adjusted_quantity(
             )
         },
     )
+    env = make_env(demand)
+    core, service = env.core, env.service
     task = service.plan(operator_actor, "slot_adj_valid").value[0]
     assert task.quantity >= 2
 
@@ -549,15 +553,14 @@ def test_approve_task_with_valid_adjusted_quantity(
     assert len([c for c in claims if c.resource_type == ResourceType.SPACE]) == 1
 
 
+@pytest.mark.tc_m4_025
 def test_approve_task_filters_spaces_with_active_claims(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """approve_task: avoids destination spaces that already have an ACTIVE claim."""
-    core, service, _, _ = test_env
+    core, service = test_env.core, test_env.service
     task = service.plan(operator_actor, "slot_claim_conflict").value[0]
     core.commands.place_claim(
         ResourceType.SPACE,
@@ -583,16 +586,15 @@ def test_approve_task_filters_spaces_with_active_claims(
     assert "H02-S001" not in {c.resource_id for c in task_space_claims}
 
 
+@pytest.mark.tc_m4_024
 def test_approve_task_fails_and_marks_failed_on_invalid_vehicle_state_or_battery(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
 ) -> None:
     """approve_task: marks task FAILED without nested UoW error
     when vehicle condition is violated.
     """
-    core, service, _, _ = test_env
+    core, service = test_env.core, test_env.service
     task = DispatchTask(
         task_id="TASK-LOW-BATT",
         source_hub_id="H01",
@@ -620,14 +622,13 @@ def test_approve_task_fails_and_marks_failed_on_invalid_vehicle_state_or_battery
     assert saved_task is not None and saved_task.status == DispatchTaskStatus.FAILED
 
 
+@pytest.mark.tc_m4_018
 def test_approve_task_does_not_manually_increment_version(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
 ) -> None:
     """approve_task: must not manually increment task.version before repository.update."""
-    core, service, _, _ = test_env
+    service = test_env.service
     task = service.plan(operator_actor, "slot_ver_check").value[0]
     initial_version = task.version
     app_res = service.approve_task(task.task_id, operator_actor)
@@ -635,15 +636,14 @@ def test_approve_task_does_not_manually_increment_version(
 
 
 # Claims Expiration, Fleet Ownership & Alternatives Filtering
+@pytest.mark.tc_m4_014
 def test_plan_and_alternatives_filter_expired_active_claims(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """plan() and alternatives ignore claims where end_at <= now even if status is ACTIVE."""
-    core, _, alt_hub_svc, alt_charge_svc = test_env
+    core, alt_hub_svc, alt_charge_svc = test_env.core, test_env.alt_hub, test_env.alt_charge
     past_end = base_now - timedelta(minutes=10)
     core.commands.place_claim(
         ResourceType.VEHICLE,
@@ -679,14 +679,13 @@ def test_plan_and_alternatives_filter_expired_active_claims(
     )
 
 
+@pytest.mark.tc_m4_014
 def test_plan_and_alternatives_filter_fleet_ownership(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
 ) -> None:
     """plan() and suggest_alternative_hubs() only consider Ownership.FLEET vehicles."""
-    core, service, alt_hub_svc, _ = test_env
+    core, service, alt_hub_svc = test_env.core, test_env.service, test_env.alt_hub
     with core.unit_of_work() as uow:
         priv_v = uow.repository.get(Vehicle, "V_PRIV")
         assert priv_v is not None
@@ -706,17 +705,16 @@ def test_plan_and_alternatives_filter_fleet_ownership(
         assert "V_PRIV" not in task.assigned_vehicles
 
 
+@pytest.mark.tc_m4_017
 def test_find_alternative_charging_checks_space_status_and_claims(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     base_now: datetime,
     operator_actor: Actor,
 ) -> None:
     """find_alternative_charging: only suggests charging points whose
     bay space is AVAILABLE and unclaimed.
     """
-    core, _, _, alt_charge_svc = test_env
+    core, alt_charge_svc = test_env.core, test_env.alt_charge
     core.commands.place_claim(
         ResourceType.SPACE,
         "H02-S001",
@@ -731,6 +729,7 @@ def test_find_alternative_charging_checks_space_status_and_claims(
     assert isinstance(chg_res, Ok) and chg_res.value.alternatives[0].alternative_hub_id == "H03"
 
 
+@pytest.mark.tc_m4_015
 @pytest.mark.parametrize(
     ("method", "args", "expected_err"),
     [
@@ -755,16 +754,18 @@ def test_find_alternative_charging_checks_space_status_and_claims(
     ],
 )
 def test_input_validation_empty_or_invalid_inputs(
-    test_env: tuple[
-        CoreFacade, AllocationService, AlternativeHubService, AlternativeChargingService
-    ],
+    test_env: AllocationEnv,
     operator_actor: Actor,
     method: str,
     args: tuple[object, ...],
     expected_err: ErrorCode,
 ) -> None:
     """Validation: empty IDs, zero limits and invalid arguments return INVALID_INPUT."""
-    _, service, alt_hub_svc, alt_charge_svc = test_env
+    service, alt_hub_svc, alt_charge_svc = (
+        test_env.service,
+        test_env.alt_hub,
+        test_env.alt_charge,
+    )
     if method == "plan":
         res = service.plan(operator_actor, *args)  # type: ignore[arg-type]
     elif method == "suggest_alternative_hubs":
@@ -829,6 +830,7 @@ def _make_api_client(base_now: datetime) -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.tc_m4_031
 @pytest.mark.parametrize(("method", "path", "body"), ROUTER_ENDPOINTS)
 def test_m4_7_router_endpoints_reject_unauthenticated_with_401(
     base_now: datetime, method: str, path: str, body: dict[str, object] | None
@@ -841,6 +843,7 @@ def test_m4_7_router_endpoints_reject_unauthenticated_with_401(
     assert res.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
+@pytest.mark.tc_m4_032
 @pytest.mark.parametrize(("method", "path", "body"), ROUTER_ENDPOINTS)
 def test_m4_7_router_endpoints_reject_student_with_403(
     base_now: datetime, method: str, path: str, body: dict[str, object] | None
@@ -854,6 +857,7 @@ def test_m4_7_router_endpoints_reject_student_with_403(
     assert res.status_code == 403 and res.json()["error"]["code"] == "FORBIDDEN"
 
 
+@pytest.mark.tc_m4_032
 def test_m4_7_router_endpoints_allow_operator_and_use_acting_as(base_now: datetime) -> None:
     """M4-7: Operator token is accepted and endpoints construct actor
     via acting_as(principal, 'allocation').
@@ -877,6 +881,7 @@ def test_m4_7_router_endpoints_allow_operator_and_use_acting_as(base_now: dateti
 
 
 # M4-6: Direct Imports from core.providers
+@pytest.mark.tc_m4_011
 def test_m4_6_direct_imports_from_core_providers() -> None:
     """M4-6: ReservationDemand, UpcomingBookings, OpenTrips and related
     types are directly imported from core.providers.
