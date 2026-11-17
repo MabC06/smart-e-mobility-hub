@@ -74,7 +74,7 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         )
 
     def test_a_surge_target_is_never_chosen_as_donor(self) -> None:
-        # H02 is short too when it is a target; only H03 may give vehicles.
+        # Add a third hub as the only eligible donor.
         self.repo.add(
             Hub(
                 hub_id="H03",
@@ -85,6 +85,7 @@ class TestSimulationEngineIntegration(unittest.TestCase):
             )
         )
         self._add_vehicles("H03", 8)
+
         config = SimulationConfig(
             simulation_id="SIM_TWO_TARGETS",
             scenario_id=ScenarioType.DEMAND_SURGE,
@@ -98,6 +99,7 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         report = self.service.run_simulation(config)
 
         self.assertEqual(len(report.recommendations), 2)
+
         for rec in report.recommendations:
             self.assertEqual(rec["source_hub_id"], "H03")
 
@@ -114,7 +116,10 @@ class TestSimulationEngineIntegration(unittest.TestCase):
 
         # Verify simulation identity.
         self.assertEqual(report1.simulation_id, "SIM_SURGE_TEST")
-        self.assertEqual(report1.scenario_id, ScenarioType.DEMAND_SURGE.value)
+        self.assertEqual(
+            report1.scenario_id,
+            ScenarioType.DEMAND_SURGE.value,
+        )
 
         # Verify deterministic results.
         self.assertEqual(report1, report2)
@@ -137,7 +142,7 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         self.assertGreaterEqual(rec["batch_size"], 5)
         self.assertLessEqual(rec["batch_size"], 20)
 
-        # Verify that simulation does not modify the live Core state.
+        # Verify that simulation does not modify live Core state.
         hubs_after = self.core.queries.list_hubs()
         vehicles_after = self.core.queries.find_vehicles()
 
@@ -156,42 +161,45 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         # Simulation must not change the original repository.
         self.assertEqual(self.repo.version(), original_version)
         self.assertEqual(self.core.queries.list_hubs(), original_hubs)
-        self.assertEqual(self.core.queries.find_vehicles(), original_vehicles)
+        self.assertEqual(
+            self.core.queries.find_vehicles(),
+            original_vehicles,
+        )
 
-    def test_nfr12_state_isolation(simulation_service):
+    def test_nfr12_state_isolation(self) -> None:
         """NFR-12: Ensure 0 writes to live core and state hash remains unchanged."""
-        initial_snapshot = simulation_service.core.snapshots.export_snapshot()
+
+        initial_snapshot = self.core.snapshots.export_snapshot()
         initial_dict = initial_snapshot.to_dict()
 
-        config = {
-            "simulation_id": "TEST_ISO_01",
-            "scenario_id": "SCENARIO_01_DEMAND_SURGE",
-            "time_horizon_minutes": 60,
-            "time_step_minutes": 5,
-            "random_seed": 42,
-            "parameters": {"surge_multiplier": 2.0},
-        }
-        simulation_service.run_simulation(config)
+        config = self._create_config()
 
-        final_snapshot = simulation_service.core.snapshots.export_snapshot()
-        assert final_snapshot.to_dict() == initial_dict
+        self.service.run_simulation(config)
 
-    def test_nfr13_reproducibility(simulation_service):
-        """NFR-13: Identical seed and inputs produce identical output."""
-        config = {
-            "simulation_id": "TEST_REP_01",
-            "scenario_id": "SCENARIO_01_DEMAND_SURGE",
-            "time_horizon_minutes": 60,
-            "time_step_minutes": 5,
-            "random_seed": 12345,
-            "parameters": {"surge_multiplier": 1.5},
-        }
+        final_snapshot = self.core.snapshots.export_snapshot()
 
-        report_1 = simulation_service.run_simulation(config)
-        report_2 = simulation_service.run_simulation(config)
+        self.assertEqual(final_snapshot.to_dict(), initial_dict)
 
-        assert report_1.baseline_shortage_rate_pct == report_2.baseline_shortage_rate_pct
-        assert len(report_1.recommendations) == len(report_2.recommendations)
+    def test_nfr13_reproducibility(self) -> None:
+        """NFR-13: Identical inputs produce identical simulation outputs."""
+
+        config = self._create_config()
+
+        report_1 = self.service.run_simulation(config)
+        report_2 = self.service.run_simulation(config)
+
+        # Verify complete report reproducibility.
+        self.assertEqual(report_1, report_2)
+
+        self.assertEqual(
+            report_1.baseline_shortage_rate_pct,
+            report_2.baseline_shortage_rate_pct,
+        )
+
+        self.assertEqual(
+            len(report_1.recommendations),
+            len(report_2.recommendations),
+        )
 
 
 if __name__ == "__main__":
