@@ -29,10 +29,10 @@
 | M3 charging | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M5 monitoring | — | | | | | | |
-| M6 simulation | 5 | 0 | 1 | 0 | 4 | 5 | 0 |
-| **Total** | **7** | **0** | **1** | **0** | **6** | **7** | **0** |
+| M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
+| **Total** | **10** | **0** | **2** | **0** | **8** | **10** | **0** |
 
-All seven entries so far were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
+All ten entries so far were found by reviewing PRs before or at merge (inspection) and integration testing. Retest for all of them: `pytest tests/simulation/` passed with 100% success; ruff, format and mypy clean.
 
 ## 3. Defects by module
 
@@ -94,9 +94,9 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 | DEF-M6-003 | Critical-battery metric used 20 % instead of core's 15 % | Low | Review of PR #18 (M6-11) | FR-12, core-api-spec §10 point 3 | Closed | Metric reads `battery_pct(v) ≤ LOW_BATTERY_THRESHOLD` | PR #39, `8f75fab` |
 | DEF-M6-004 | Use-case diagram existed only as a Mermaid block, not as `.puml`/`.svg` | Low | Review of PR #18 (M6-14) | UC-M6-01 | Closed | `uc-m6-simulation.puml` and `.svg` added and linked | PR #39, `8f75fab` |
 | DEF-M6-005 | Formulas and lists in report section 3.5 did not render | Low | Review of PR #18 (M6-15) | FR-12 | Closed | Formulas written as `$$...$$`, lists split | PR #39, `e048c39` |
-| DEF-M6-006 | Unmerged conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) corrupted `uc-m6-simulation.puml` and `.svg` | Low | Review of PR (M6-1, M6-2) | UC-M6-01 | Closed | Restored clean diagram files directly from `origin/develop` | PR #49, `c77ce32` |
-| DEF-M6-007 | `AttributeError: 'dict' object has no attribute 'random_seed'` during NFR test execution | High | Integration testing (M6-3) | NFR-12, NFR-13 | Closed | See below | PR #49, `c77ce32` |
-| DEF-M6-008 | Trailing newline missing at the end of `pyproject.toml` | Low | Review of PR (M6-9) | NFR-22 | Closed | Appended newline to EOF in `pyproject.toml` | PR #49 |
+| DEF-M6-006 | Unmerged conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) corrupted `uc-m6-simulation.puml` and `.svg` | Low | Review of PR #47 (M6-1, M6-2) | UC-M6-01 | Closed | Restored clean diagram files directly from `origin/develop` | PR #47, `c77ce32` |
+| DEF-M6-007 | `AttributeError: 'dict' object has no attribute 'random_seed'` during NFR test execution | High | Integration testing (M6-3) | NFR-12, NFR-13 | Closed | See below | PR #47, `c77ce32` |
+| DEF-M6-008 | Trailing newline missing at the end of `pyproject.toml` | Low | Review of PR #47 (M6-9) | — | Closed | Appended newline to EOF in `pyproject.toml` | PR #47 |
 
 **DEF-M6-001** (High)
 - Steps: run the demand-surge scenario with two target Hubs, H01 and H02, and a third Hub H03 with spare vehicles (`src/simulation/engine.py`, `_find_donor_hub`, on `e612961`).
