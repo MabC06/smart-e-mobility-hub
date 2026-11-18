@@ -10,10 +10,10 @@
 | TC-M5-003 | Hub reaches 100% capacity triggers INC-CAP-01 | FR-08.3, FR-09.1, BR-M5-02, NFR-01 | Boundary / Threshold | `HUB_CAPACITY_FULL` ticket created with `HIGH` severity; Hub state transitions to `CRITICAL` |
 | TC-M5-004 | Hub rental inventory < 2 units triggers INC-CAP-02 | FR-08.2, FR-09.1, NFR-01 | BVA / Fleet inventory | `HUB_VEHICLE_DEFICIT` ticket created with `MEDIUM` severity for target Hub |
 | TC-M5-005 | Vehicle battery SoC <= 15% triggers INC-BAT-01 | FR-09.1, FR-09.3, BR-M5-05, NFR-10 | BVA / Safety interlock | `BATTERY_CRITICAL_FAULT` ticket created with `HIGH` severity and error code `ERR_BATTERY_CRITICAL` |
-| TC-M5-006 | Telemetry heartbeat loss > 30s triggers INC-COMM-01 | FR-09.1, FR-09.2, NFR-10, NFR-25 | Timeout / Heartbeat | `TELEMETRY_CONNECTION_LOSS` ticket created with `CRITICAL` severity when elapsed time > 30s |
-| TC-M5-007 | Vehicle rental trip overdue > 60m triggers INC-USR-01 | FR-09.1, FR-09.2 | Timeout / Operational | `OVERDUE_VEHICLE` ticket created with `LOW` severity and error code `WARN_RENTAL_OVERDUE` |
+| TC-M5-006 | Telemetry heartbeat loss > 30s triggers INC-COMM-01 and drives periodic checks | FR-09.1, FR-09.2, NFR-10, NFR-25 | Timeout / Heartbeat | `TELEMETRY_CONNECTION_LOSS` ticket created when heartbeat silent > 30s; `SensorHeartbeat` triggers `run_periodic_checks` |
+| TC-M5-007 | Vehicle rental trip overdue > 60m triggers INC-USR-01 via ReservationDemand port | FR-09.1, FR-09.2, D-020 | Timeout / Integration | Queries `ProviderPort.RESERVATION_DEMAND.open_trips()`; creates `OVERDUE_VEHICLE` ticket; returns empty if port unregistered |
 | TC-M5-008 | Unacknowledged HIGH/CRITICAL incident auto-escalates after 5m | BR-M5-04, FR-09.4, NFR-25 | Timeout / Escalation rule | Status changes from `OPEN` to `ESCALATED`; audit log appended; LOW tickets remain unaffected |
-| TC-M5-009 | Repeated failure events for same component deduplicate | FR-09.1, NFR-10 | Idempotency / Duplicate rejection | Exactly 1 `OPEN` ticket exists for the affected entity; no duplicate tickets created |
+| TC-M5-009 | Repeated failure events deduplicate across active statuses | FR-09.1, NFR-10 | Idempotency / Deduplication | Deduplicates against `OPEN`, `IN_PROGRESS`, and `ESCALATED` tickets; no duplicate ticket created |
 | TC-M5-010 | Complete incident lifecycle transition with audit log | FR-09.4, NFR-25 | State-transition | Sequential transitions `OPEN` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`; 4 audit log records appended |
 | TC-M5-011 | Illegal lifecycle transitions and invalid inputs are rejected | FR-09.4, NFR-18 | Error guessing / Negative | Direct jump `OPEN` -> `CLOSED` rejected; empty resolution notes raise `ValueError`; unknown ID raises `IncidentNotFoundError` |
 | TC-M5-012 | Aggregate utilization metrics across individual and network Hubs | FR-08.1, FR-08.2 | Calculation / Aggregation | Parking occupancy % and charger utilization % correctly computed from live entities |
@@ -24,9 +24,10 @@
 | TC-M5-017 | Unauthenticated requests to monitoring endpoints rejected with 401 | NFR-16, D-014, D-023 | Security / Authentication | All 11 endpoints reject unauthenticated requests with `UNAUTHENTICATED` (HTTP 401) |
 | TC-M5-018 | Student accounts calling operator endpoints rejected with 403 | NFR-16, D-014, D-023 | Security / RBAC | All 11 endpoints reject student bearer tokens with `FORBIDDEN` (HTTP 403) |
 | TC-M5-019 | Operator accounts successfully authenticate and call monitoring API | NFR-16, D-014, D-023 | Security / RBAC | Operator bearer token accepted on all endpoints; actor ID recorded in audit logs |
+| TC-M5-020 | Unmapped sensor rejection skips incident creation without foreign key violation | FR-09.1, NFR-10, NFR-18 | Negative / Schema integrity | Warning logged and ticket creation skipped when sensor entity cannot be resolved to any Hub |
 
 ## Execution record
 
 | Run date | Commit | Command | Result | Evidence |
 |---|---|---|---|---|
-| 2026-11-17 | Phase 3/4 Final | `pytest tests/monitoring/ -v` | 39 passed (16 functional + 23 security) | Coverage 88% on `src.monitoring` (exceeds 60% threshold) |
+| 2026-11-18 | Review fixes | `pytest tests/monitoring/ -v` | 40 passed (17 functional + 23 security) | Coverage 85%+ on `src.monitoring` (exceeds 60% threshold) |
