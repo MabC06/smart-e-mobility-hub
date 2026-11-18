@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 
 from core.facade import CoreFacade
-from simulation.router import router as simulation_router, set_simulation_service
+from simulation.router import router as simulation_router
+from simulation.router import set_simulation_service
 from simulation.service import SimulationService
 
 
