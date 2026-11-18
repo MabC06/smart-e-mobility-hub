@@ -32,6 +32,11 @@ markers = [
     "tc_m2_021: TC-M2-021 (docs/testing/reservation-phase2.md)",
     "tc_m2_022: TC-M2-022 (docs/testing/reservation-phase2.md)",
     "tc_m2_023: TC-M2-023 (docs/testing/reservation-phase2.md)",
+    "tc_m6_001: TC-M6-001 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_002: TC-M6-002 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_003: TC-M6-003 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_004: TC-M6-004 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_005: TC-M6-005 (docs/testing/test-cases/simulation.md)",
 ]
 
 [tool.ruff]
