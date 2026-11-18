@@ -30,9 +30,9 @@
 | M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M5 monitoring | — | | | | | | |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| **Total** | **10** | **0** | **2** | **0** | **8** | **10** | **0** |
+| **Total** | **7** | **0** | **1** | **0** | **6** | **7** | **0** |
 
-All ten entries so far were found by reviewing PRs before or at merge (inspection) and integration testing. Retest for all of them: `pytest tests/simulation/` passed with 100% success; ruff, format and mypy clean.
+All seven entries so far were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
 ## 3. Defects by module
 
