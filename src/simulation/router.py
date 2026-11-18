@@ -37,7 +37,9 @@ class RunSimulationRequest(BaseModel):
     target_hub_ids: list[str] = Field(default_factory=list, examples=[["H01"]])
     surge_multiplier: float = Field(default=2.0, ge=1.0)
     duration_minutes: int = Field(default=60, gt=0)
-    random_seed: int | None = Field(default=42)
+    time_horizon_minutes: int = Field(default=120, gt=0)
+    time_step_minutes: int = Field(default=15, gt=0)
+    random_seed: int = Field(default=42)
 
 
 @router.post("/runs", response_model=dict, status_code=status.HTTP_200_OK)
@@ -74,6 +76,8 @@ def run_simulation_endpoint(
                 surge_multiplier=req.surge_multiplier,
                 duration_minutes=req.duration_minutes,
             ),
+            time_horizon_minutes=req.time_horizon_minutes,
+            time_step_minutes=req.time_step_minutes,
             random_seed=req.random_seed,
         )
         report = service.run_simulation(config)
