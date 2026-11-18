@@ -21,25 +21,19 @@ from core.domain.entities import (
     DomainEvent,
     Hub,
     ParkingSpace,
-    ResourceClaim,
-    Vehicle,
 )
 from core.domain.enums import (
     ChargingPointStatus,
-    ClaimStatus,
-    HolderKind,
     HubStatus,
-    Ownership,
-    ResourceType,
     Role,
     SpaceStatus,
-    VehicleState,
-    VehicleType,
 )
 from core.events import EventType
 from core.facade import CoreFacade
+from core.providers import OpenTripDemand, OpenTrips, ProviderPort, UpcomingBookings
 from core.repository.memory import InMemoryRepository
 from core.repository.schema import check_spec
+from core.result import Ok, Result
 from monitoring.domain import (
     IncidentSeverity,
     IncidentStatus,
@@ -54,6 +48,28 @@ from monitoring.service import (
 )
 
 OPERATOR_ACTOR = Actor(user_id="op_viet", role=Role.OPERATOR, module="monitoring")
+
+
+class StubReservationDemand:
+    def __init__(self, trips: tuple[OpenTripDemand, ...] = ()) -> None:
+        self._trips = trips
+
+    def upcoming_bookings(self, hub_id: str, horizon: timedelta) -> Result[UpcomingBookings]:
+        return Ok(
+            UpcomingBookings(
+                as_of=datetime(2026, 11, 8, 12, 0, tzinfo=UTC),
+                horizon_end=datetime(2026, 11, 8, 12, 0, tzinfo=UTC) + horizon,
+                bookings=(),
+            )
+        )
+
+    def open_trips(self, hub_id: str) -> Result[OpenTrips]:
+        return Ok(
+            OpenTrips(
+                as_of=datetime(2026, 11, 8, 12, 0, tzinfo=UTC),
+                trips=self._trips,
+            )
+        )
 
 
 @pytest.fixture
@@ -262,7 +278,7 @@ def test_tc_m5_006_telemetry_connection_loss_incident(
     _seed_sample_hub(core, hub_id="H01")
     t0 = clock.now()
 
-    # Receive initial heartbeat
+    # Receive initial heartbeat for H01
     service.on_sensor_heartbeat(
         DomainEvent(
             event_id="EVT_HB_1",
@@ -284,10 +300,28 @@ def test_tc_m5_006_telemetry_connection_loss_incident(
 
     # Advance clock past 30s threshold (to 35s total)
     clock.advance(timedelta(seconds=15))
-    timed_out = service.check_heartbeat_timeouts(timeout_seconds=30.0)
-    assert len(timed_out) == 1
-    ticket = timed_out[0]
-    assert ticket.incident_type == IncidentType.TELEMETRY_CONNECTION_LOSS
+
+    # A subsequent heartbeat from another device runs periodic checks and catches H01 timeout
+    service.on_sensor_heartbeat(
+        DomainEvent(
+            event_id="EVT_HB_2",
+            type=EventType.SENSOR_HEARTBEAT,
+            at=clock.now(),
+            payload={
+                "source": "gateway_sp1",
+                "entity_id": "SP_H01_1",
+                "sent_at": clock.now().isoformat(),
+                "received_at": clock.now().isoformat(),
+            },
+        )
+    )
+
+    incidents = service.list_incidents(hub_id="H01", status=IncidentStatus.OPEN)
+    comm_tickets = [
+        i for i in incidents if i.incident_type == IncidentType.TELEMETRY_CONNECTION_LOSS
+    ]
+    assert len(comm_tickets) == 1
+    ticket = comm_tickets[0]
     assert ticket.severity == IncidentSeverity.CRITICAL
     assert ticket.entity_id == "H01"
     assert ticket.error_code == "ERR_TELEMETRY_TIMEOUT"
@@ -296,45 +330,39 @@ def test_tc_m5_006_telemetry_connection_loss_incident(
 def test_tc_m5_007_overdue_vehicle_incident(
     core: CoreFacade, service: MonitoringService, clock: FixedClock
 ):
-    """TC-M5-007 · TIM · Rental trip exceeding end window > 60m triggers INC-USR-01.
+    """TC-M5-007 · TIM · Overdue trip read via ReservationDemand port triggers INC-USR-01.
 
     Verifies: FR-09.1, FR-09.2.
     """
     _seed_sample_hub(core, hub_id="H01")
     t0 = clock.now()
 
-    # Seed an in-use vehicle with a rental claim
-    v = Vehicle(
-        vehicle_id="V_OVERDUE",
-        plate_or_code="51A-99999",
-        ownership=Ownership.FLEET,
-        vehicle_type=VehicleType.E_BIKE,
-        battery_pct=80.0,
-        battery_capacity_kwh=50.0,
-        state=VehicleState.IN_USE,
-        hub_id="H01",
-    )
-    claim = ResourceClaim(
-        claim_id="CLM_RENTAL_1",
-        resource_type=ResourceType.VEHICLE,
-        resource_id="V_OVERDUE",
-        holder_kind=HolderKind.RESERVATION,
-        holder_ref="RES_001",
-        start_at=t0 - timedelta(hours=3),
-        end_at=t0 - timedelta(hours=2),  # ended 2 hours ago (> 60m overdue)
-        status=ClaimStatus.ACTIVE,
-    )
-    with core.unit_of_work() as uow:
-        uow.repository.add(v)
-        uow.repository.add(claim)
-        uow.commit()
+    # 1. When ReservationDemand is not registered, returns empty list without error
+    assert service.check_overdue_vehicles() == []
 
-    overdue_tickets = service.check_overdue_vehicles(max_overdue_minutes=60)
+    # 2. Register mock provider with an overdue trip
+    trip = OpenTripDemand(
+        trip_id="TRIP_OVERDUE_1",
+        reservation_id="RES_001",
+        vehicle_id="V_OVERDUE",
+        origin_hub_id="H01",
+        destination_hub_id="H01",
+        picked_up_at=t0 - timedelta(hours=3),
+        expected_return_at=t0 - timedelta(hours=2),
+        is_overdue=True,
+    )
+    core.register_provider(
+        ProviderPort.RESERVATION_DEMAND,
+        StubReservationDemand(trips=(trip,)),
+    )
+
+    overdue_tickets = service.check_overdue_vehicles()
     assert len(overdue_tickets) == 1
     ticket = overdue_tickets[0]
     assert ticket.incident_type == IncidentType.OVERDUE_VEHICLE
     assert ticket.severity == IncidentSeverity.LOW
     assert ticket.entity_id == "V_OVERDUE"
+    assert ticket.hub_id == "H01"
     assert ticket.error_code == "WARN_RENTAL_OVERDUE"
 
 
@@ -394,7 +422,7 @@ def test_tc_m5_008_unacknowledged_escalation_rule(
 
 
 def test_tc_m5_009_incident_deduplication(core: CoreFacade, service: MonitoringService):
-    """TC-M5-009 · ISO · Duplicate failure events for same component do not create multiple tickets.
+    """TC-M5-009 · ISO · Duplicate events in OPEN, IN_PROGRESS or ESCALATED do not duplicate.
 
     Verifies: FR-09.1, NFR-10.
     """
@@ -412,11 +440,43 @@ def test_tc_m5_009_incident_deduplication(core: CoreFacade, service: MonitoringS
         },
     )
 
+    # 1. Dedup on OPEN status
     service.on_charging_point_status_changed(evt)
     service.on_charging_point_status_changed(evt)
-
-    incidents = service.list_incidents(hub_id="H01", status=IncidentStatus.OPEN)
+    incidents = service.list_incidents(hub_id="H01")
     assert len(incidents) == 1
+    t = incidents[0]
+    assert t.status == IncidentStatus.OPEN
+
+    # 2. Dedup on IN_PROGRESS status
+    service.acknowledge_incident(t.incident_id, "op_viet")
+    service.on_charging_point_status_changed(evt)
+    assert len(service.list_incidents(hub_id="H01")) == 1
+
+    # 3. Dedup on ESCALATED status
+    t2 = service.create_incident(
+        incident_type=IncidentType.BATTERY_CRITICAL_FAULT,
+        severity=IncidentSeverity.HIGH,
+        hub_id="H01",
+        entity_type="Vehicle",
+        entity_id="V_BAT_ESC",
+        description="Low battery",
+        reported_by="SYSTEM",
+    )
+    service.escalate_incident(t2.incident_id, reason="Unacknowledged")
+    bat_evt = DomainEvent(
+        event_id="EVT_BAT_ESC",
+        type=EventType.VEHICLE_BATTERY_CHANGED,
+        at=now,
+        payload={
+            "vehicle_id": "V_BAT_ESC",
+            "hub_id": "H01",
+            "new": 10.0,
+            "low": True,
+        },
+    )
+    service.on_vehicle_battery_changed(bat_evt)
+    assert len(service.list_incidents(hub_id="H01")) == 2
 
 
 def test_tc_m5_010_incident_full_lifecycle(core: CoreFacade, service: MonitoringService):
@@ -487,7 +547,7 @@ def test_tc_m5_011_invalid_incident_transitions(core: CoreFacade, service: Monit
 
 
 # ====================================================================================
-# TC-M5-012 to TC-M5-016: Metrics, Capacity Alerting, API and Installation
+# TC-M5-012 to TC-M5-020: Metrics, Capacity Alerting, API, Installation, Fallback
 # ====================================================================================
 
 
@@ -657,3 +717,30 @@ def test_tc_m5_016_module_install():
     check_spec(AUDIT_SPEC)
     assert fresh_core.query_entities(IncidentTicket) == []
     assert any(getattr(r, "original_router", None) is not None for r in app.routes)
+
+
+def test_tc_m5_020_unmapped_entity_skips_incident_creation(
+    core: CoreFacade, service: MonitoringService
+):
+    """TC-M5-020 · NEG · Sensor event for unresolvable Hub entity logs warning and skips ticket.
+
+    Verifies: FR-09.1, NFR-18.
+    """
+    _seed_sample_hub(core, hub_id="H01")
+    now = core.queries.get_config().as_of
+
+    event = DomainEvent(
+        event_id="EVT_GHOST",
+        type=EventType.SENSOR_EVENT_REJECTED,
+        at=now,
+        payload={
+            "event_id": "RAW_GHOST_1",
+            "source": "iot_sim",
+            "type": "UNKNOWN_SIGNAL",
+            "entity_id": "NON_EXISTENT_DEVICE_999",
+            "code": "INVALID_INPUT",
+            "reason": "Ghost sensor signal",
+        },
+    )
+    service.on_sensor_event_rejected(event)
+    assert len(service.list_incidents()) == 0
