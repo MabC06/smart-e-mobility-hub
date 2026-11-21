@@ -1,6 +1,6 @@
 # Wireframes: Student Interface
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-21 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`.
 > Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `origin/feat/reservation-booking-flow`; M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text) and M3's code on `origin/feat/charging-phase2`; `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
 
@@ -13,7 +13,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 3. **Fleet only.** A student never sees other students' private vehicles.
 4. **Slow answers (Planned).** M2 proposes that if no answer comes in 5 seconds, the screen says "Outcome unknown, checking status" and reads the booking again. A retry uses the same reservation ID. The screen creates that ID once per attempt.
 5. **Refresh (NFR-01).** A change must appear within 5 seconds. Pages re-read by polling every 3 seconds, the interval used in M5's sequence diagram.
-6. **How pages get data.** The `ui` module renders HTML with Jinja2 and HTMX. It may call `core` directly and keeps the login token in a cookie (`architecture-diagram.md`, Section 11, point 2). The REST routes named below return the same data.
+6. **How pages get data.** The `ui` module renders HTML with Jinja2 and HTMX. It may call `core` directly and keeps the login token in a cookie (`architecture-diagram.md`, Section 11, point 2). The REST routes named below return the same data. For the other modules (M3 here) a page calls their REST routes with the student's token through the internal client in `src/ui/api.py`, because `ui` may not import another module (NFR-22).
 7. **Empty, loading and error states.** M8 tests these. Every list and form shows "Loading…" while loading, a message with the next step when empty, and the error block of S9 with Retry when the backend fails.
 
 ## 2. Screens
@@ -83,7 +83,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Planned (M2 search): order by battery, highest first, then by vehicle ID (`FR-02`); hide vehicles that are not eligible (`BR-M2-02`); never offer a vehicle at or below 15% (`BR-M5-05`); when nothing matches, show nearby Hubs that have vehicles (`NO_VEHICLE`).
 - Why: the note "Not a reservation" stops the student from thinking a return space is held.
 
-### S4. Confirm the reservation (Implemented) · `UC-M2-02`, `FR-03`
+### S4. Confirm the reservation (Hub and vehicle from `core`; reservation not connected, M2 has no router) · `UC-M2-02`, `FR-03`
 
 ```
 +--------------------------------------------------------------------------+
@@ -105,7 +105,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Refusals keep the student here and hold nothing: `CONFLICT` "Someone else just reserved this vehicle"; `RESOURCE_UNAVAILABLE` "This vehicle can no longer be rented"; `LIMIT_REACHED` "You already have a rental"; `INVALID_INPUT` shows the field message.
 - Why: the 10-minute deadline, the planned time and the missing return space are shown before the student commits.
 
-### S5. My bookings: pick up, cancel, return (pick up and return Implemented) · `UC-M2-03` to `UC-M2-05`
+### S5. My bookings: pick up, cancel, return (sample data: M2 has no router and no list of a student's bookings) · `UC-M2-03` to `UC-M2-05`
 
 ```
 +--------------------------------------------------------------------------+
@@ -160,7 +160,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Refusals: `HUB_CRITICAL` (Hub full, other Hubs suggested); no free space in that period; stay outside 30 to 240 minutes; `LIMIT_REACHED` (one parking booking at a time).
 - After the planned end the booking stays active; there is no automatic release or fine.
 
-### S7. Register a private EV (Planned screen, `core` command Implemented) · `UC-M3-04`
+### S7. Register a private EV (Implemented) · `UC-M3-04`
 
 ```
 +--------------------------------------------------------------------------+
@@ -177,11 +177,11 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 ```
 
 - Fields are the ones `FR-07.M3.1` lists (capacity, connector, current charge) plus plate and type, which `register_vehicle` in `core` needs.
-- Only the charging module (M3), an operator or `iot_sim` may call `register_vehicle` (`permissions.py`). So the form goes to an M3 route (Planned).
+- Only the charging module (M3), an operator or `iot_sim` may call `register_vehicle` (`permissions.py`). So the form posts to M3's route `POST /charging/private/vehicles`, called through `ui/api.py`. The saved vehicles are read from `core` (only the student's own).
 - A new private EV starts as `IN_USE`, away from every Hub, shown as "Away". `AVAILABLE` is shown as "Parked" and `CHARGING` as "Charging".
-- A duplicate plate gives `INVALID_INPUT` "This plate is already registered".
+- A duplicate plate should give `INVALID_INPUT` "This plate is already registered". Today M3's route fails on a refused `core` command, so the page shows `INTERNAL_ERROR` with a fixed message instead.
 
-### S8. Request or schedule charging (Planned) · `UC-M3-01` to `UC-M3-03`, `UC-M3-05`
+### S8. Request or schedule charging (Implemented for a private EV; change and cancel Planned) · `UC-M3-01` to `UC-M3-03`, `UC-M3-05`
 
 ```
 +--------------------------------------------------------------------------+
@@ -201,11 +201,11 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M3's code keeps only an in-memory queue, with no status and no route, so this screen follows M3's requirements. In them, `FR-06` is a student's charging request for a rental vehicle returned at a Hub (now or scheduled, with change and cancel), and `FR-07.M3.2` is a charging slot for a private EV.
+- The form calls M3's routes `POST /charging/requests/immediate` and `/charging/requests/schedule`, and the list "Your charging requests" comes from `GET /charging/sessions` (a student sees only their own), all through `ui/api.py`. The screen offers a private EV only: a returned rental vehicle needs a route of M2. In M3's requirements, `FR-06` is a student's charging request for a rental vehicle returned at a Hub (now or scheduled, with change and cancel), and `FR-07.M3.2` is a charging slot for a private EV.
 - Change and Cancel are allowed up to a time limit before the slot. M3 gives no value for that limit.
 - `UC-M3-01` says the student selects an available charging port. The REST route for charging points is for operators only, but a page can read them directly (`core.queries.list_charging_points`).
-- M3's documents list different session states (see `erd.md`, Section 5). The status words (Waiting, Scheduled, Charging, Done, Cancelled, Interrupted, Failed) are provisional.
-- If no port is free, M3 offers another time, another port in the same Hub, or another Hub (`BR-M3-02`).
+- The status words are the session states of M3's code: Queued, Scheduled, Charging, Completed, Interrupted, Cancelled.
+- If no port is free, M3 offers another time, another port in the same Hub, or another Hub (`BR-M3-02`). The screen shows M3's refusal and does not offer these alternatives yet.
 - Students do not see the priority score or the queue length; the operator does (O3).
 
 ### S9. Error block · `NFR-21`
@@ -242,7 +242,7 @@ The M2 documents also use `HUB_CRITICAL`, `NO_VEHICLE`, `ALREADY_CANCELLED` and 
 
 ## 4. Open points
 
-1. How a page reaches the services of M2 and M3. `architecture-diagram.md` says `ui` "talks HTTP" (Section 4) and also that it "may call `core` in-process" (Section 11, point 2). Proposed: `app.state.<module>` (M2's `install` sets `app.state.reservation`). To settle with M1.
+1. Settled with M1: a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`. S4 (the reservation step) and S5 wait for a router of M2.
 2. The 5-second rule is M2's proposal and asks M1 and M7 to review. This file uses it.
-3. Charging screen: status words depend on M3.
+3. Settled: the charging screens use the session states of M3's code (see S8).
 4. M3's branch holds report text in `fr-06-07-11-charging.md`. The `FR-06` and `UC-M3` text used here is the version on `develop`.
