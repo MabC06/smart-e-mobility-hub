@@ -2,7 +2,7 @@
   O5. Incident management (wireframes-operator.md), UC-M7-08. Tickets of M5, most severe first,
   then oldest. Actions follow the status: Acknowledge on OPEN or ESCALATED, Resolve (notes
   required) on IN_PROGRESS or ESCALATED, Close on RESOLVED. The screen never sets ESCALATED.
-  In Phase 2 every button only reloads this page.
+  Each button posts to routes.incident_action, which calls M5's route.
 #}
 {% extends "base.html" %}
 {% block title %}Incidents · Smart E-Mobility Hub{% endblock %}
@@ -62,20 +62,23 @@
     assigned to {{ incident.assigned_operator_id or "nobody yet" }}
   </p>
   <p><span class="planned">Planned</span> History of the ticket (Phase 3).</p>
-  <p>
-    <label>Notes <textarea rows="2" cols="60"></textarea></label>
-  </p>
-  <p>
-    {% if incident.status in ("OPEN", "ESCALATED") %}
-    <a class="button primary" href="{{ request.url }}">Acknowledge</a>
-    {% endif %}
-    {% if incident.status in ("IN_PROGRESS", "ESCALATED") %}
-    <a class="button primary" href="{{ request.url }}">Resolve</a>
-    {% endif %}
-    {% if incident.status == "RESOLVED" %}
-    <a class="button" href="{{ request.url }}">Close</a>
-    {% endif %}
-  </p>
+  {% if incident.resolution_notes %}<p>Resolution notes: {{ incident.resolution_notes }}</p>{% endif %}
+  {% if incident.status in ("OPEN", "ESCALATED") %}
+  <form action="{{ url_for('incident_action', incident_id=incident.incident_id, action='acknowledge') }}" method="post">
+    <button class="button primary" type="submit">Acknowledge</button>
+  </form>
+  {% endif %}
+  {% if incident.status in ("IN_PROGRESS", "ESCALATED") %}
+  <form action="{{ url_for('incident_action', incident_id=incident.incident_id, action='resolve') }}" method="post">
+    <label>Notes (required) <textarea name="notes" rows="2" cols="60" required></textarea></label>
+    <button class="button primary" type="submit">Resolve</button>
+  </form>
+  {% endif %}
+  {% if incident.status == "RESOLVED" %}
+  <form action="{{ url_for('incident_action', incident_id=incident.incident_id, action='close') }}" method="post">
+    <button class="button" type="submit">Close</button>
+  </form>
+  {% endif %}
 </section>
 {% endfor %}
 {% endblock %}
