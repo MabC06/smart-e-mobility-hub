@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | M2 reservation | — | | | | | | |
-| M3 charging | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
+| M3 charging | 6 | 0 | 3 | 1 | 2 | 6 | 0 |
 | M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M5 monitoring | — | | | | | | |
 | M6 simulation | 5 | 0 | 1 | 0 | 4 | 5 | 0 |
@@ -61,6 +61,26 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
 | DEF-M3-001 | Report section 3.3 (M3) listed session states (`AVAILABLE`, `PREPARING`, `SUSPENDED`, `FAULTED`) that the code does not have | Low | Review of the report at merge (M1) | UC-M3-08, BR-M3-02 | Closed | M3 block rewritten to match the code and `charging-session-state-machine.md` | PR #39, `deac134` |
+| DEF-M3-002 | `optimize_queue` bound all requests in one unit of work; the second bind failed with `RuntimeError` and `/schedule/optimize` returned HTTP 500 | High | Review of PR #32 (M3-13) | FR-11.M3.2, UC-M3-07, TC-M3-024, TC-M3-025 | Closed | See below | PR #32, `31914f5` |
+| DEF-M3-003 | `/queue` and `/demand` were open to students and `/sessions` returned other users' sessions | High | Review of PR #32 (M3-14) | NFR-16, TC-M3-031, TC-M3-032, TC-M3-033 | Closed | See below | PR #32 |
+| DEF-M3-004 | Start-session, private-vehicle and optimize endpoints did not follow the agreed flow (start logic outside the service, owner not taken from the token) | Medium | Review of PR #32 (M3-15) | FR-06.2, FR-07.M3.1, UC-M3-02, UC-M3-04, TC-M3-008 to TC-M3-013, TC-M3-019, TC-M3-020 | Closed | `start_scheduled_session` moved into the service (owner/operator check, due-time check, Core `START_CHARGING` transition); owner of a private EV comes from the token | PR #32 |
+| DEF-M3-005 | Claims column of the charging state-machine document did not match the code for `SCHEDULED` transitions | Low | Review of PR #28 (M3-12) | UC-M3-02, UC-M3-03 | Closed | Claims column and section 3 wording corrected | PR #28, `2925a23` |
+| DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #51 |
+
+**DEF-M3-002** (High)
+- Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
+- Expected: all three requests become `SCHEDULED`, no two overlap on one charging point. Actual: `_bind_bay` commits, a commit closes the unit of work, so the second bind raised `RuntimeError: the unit of work is not open`; only the first request was `SCHEDULED`, the endpoint returned 500 and the point-status handler stopped.
+- Resolution: the priority queue is computed first, then each request is bound in its own unit of work (one `self._run` per request). Retest: `test_optimize_queue_binds_three_requests_on_two_bays_without_overlap` and `test_optimize_endpoint_binds_three_queued_requests` pass.
+
+**DEF-M3-003** (High)
+- Steps: log in as a student, call `GET /charging/queue`, `GET /charging/demand` and `GET /charging/sessions`.
+- Expected: 403 on `/queue` and `/demand`; `/sessions` lists only the caller's sessions. Actual: students could read the queue and the demand, and `/sessions` returned other users' sessions.
+- Resolution: `/queue`, `/demand` and `/schedule/optimize` use `require_operator`; `/sessions` filters by `user_id` for students. Retest: `test_student_gets_403_on_operator_endpoints_through_app` and `test_student_sees_only_own_sessions` pass.
+
+**DEF-M3-006** (High)
+- Steps: register a private EV with `POST /charging/private/vehicles`, then register another one with the same `plate_or_code` (TC-M7-024).
+- Expected: core refuses the second one with `INVALID_INPUT` and the route answers 400. Actual: building the mapping in `from_core_error` (`src/charging/models.py`) read `ErrorCode.INVALID_STATE`, which does not exist, so the route raised `AttributeError` and answered 500. The same happened for every refused core command.
+- Resolution: the mapping names only codes that exist in `core.errors.ErrorCode`, written directly instead of `getattr(..., None)`. Retest: `test_second_registration_of_same_plate_is_400_not_500` passes.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->

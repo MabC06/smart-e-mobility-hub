@@ -26,7 +26,7 @@ from core.domain.enums import (
 )
 from core.errors import ErrorCode
 from core.facade import CoreFacade
-from core.providers import ProviderPort
+from core.providers import AlternativeChargingResult, ChargingAlternative, ProviderPort
 from core.repository.memory import InMemoryRepository
 from core.result import Err, Ok
 
@@ -39,9 +39,15 @@ OPERATOR = Actor("OP1", Role.OPERATOR, "ui")
 
 def _build_core(
     config: CoreConfig | None = None,
+    *,
+    second_hub: bool = False,
 ) -> tuple[CoreFacade, FixedClock]:
     repo = InMemoryRepository()
     repo.add(Hub("H1", "Hub 1", "Z1", 5, 1))
+    if second_hub:
+        repo.add(Hub("H2", "Hub 2", "Z2", 5, 1))
+        repo.add(ParkingSpace("H2-S001", "H2", "S1", SpaceStatus.AVAILABLE, None))
+        repo.add(ChargingPoint("H2-CP01", "H2", "H2-S001", 10.0, ChargingPointStatus.AVAILABLE))
     repo.add(UserAccount("STU1", "2452030", Role.STUDENT, password_hash=PW_HASH))
     repo.add(UserAccount("STU2", "2452031", Role.STUDENT, password_hash=PW_HASH))
     repo.add(UserAccount("OP1", "OP-01", Role.OPERATOR, password_hash=PW_HASH))
@@ -78,8 +84,10 @@ def _build_core(
 
 def _setup(
     config: CoreConfig | None = None,
+    *,
+    second_hub: bool = False,
 ) -> tuple[CoreFacade, FixedClock, ChargingQueueService]:
-    core, clock = _build_core(config)
+    core, clock = _build_core(config, second_hub=second_hub)
     return core, clock, install(core)
 
 
@@ -968,3 +976,102 @@ def test_optimize_queue_leaves_requests_queued_when_no_slot() -> None:
     assert isinstance(res, Ok)
     assert res.value == []
     assert schema.read(core, "R-Q").status is ChargingSessionStatus.QUEUED
+
+
+class _StubAlternativeCharging:
+    """ALTERNATIVE_CHARGING stub: suggests one bay at `hub_id` for every request."""
+
+    def __init__(
+        self, status: str = "FOUND", hub_id: str = "H2", point_id: str = "H2-CP01"
+    ) -> None:
+        self.status = status
+        self.hub_id = hub_id
+        self.point_id = point_id
+        self.calls: list[tuple[list[str], str]] = []
+
+    def find_alternative_charging(self, requests, hub_id: str):
+        self.calls.append(([r.request_id for r in requests], hub_id))
+        found = self.status == "FOUND"
+        return Ok(
+            AlternativeChargingResult(
+                alternatives=tuple(
+                    ChargingAlternative(
+                        request_id=r.request_id,
+                        alternative_hub_id=self.hub_id if found else None,
+                        charging_point_id=self.point_id if found else None,
+                        closeness=1 if found else 99,
+                        status=self.status,
+                    )
+                    for r in requests
+                ),
+                as_of=T0,
+            )
+        )
+
+
+def _full_hub_with_queued_request() -> tuple[CoreFacade, ChargingQueueService]:
+    """Both H1 bays are taken for 4 hours and R-Q (V-149) waits in H1's queue; H2 is free."""
+    core, _, service = _setup(second_hub=True)
+    for rid, vid in (("BLK-1", "V-DOCKED"), ("BLK-2", "V-400")):
+        blocker = service.submit_charging_request(
+            rid, vid, "H1", STUDENT, target_soc=100.0, start_at=T0, duration_minutes=240
+        )
+        assert isinstance(blocker, Ok)
+        assert blocker.value.status is ChargingSessionStatus.SCHEDULED
+    queued = service.submit_charging_request("R-Q", "V-149", "H1", STUDENT)
+    assert isinstance(queued, Ok)
+    assert queued.value.status is ChargingSessionStatus.QUEUED
+    return core, service
+
+
+def test_optimize_queue_moves_request_to_m4_hub_when_hub_is_full() -> None:
+    """No slot at H1 within 2 hours: M4 suggests H2, the request is SCHEDULED there (BR-M3-02)."""
+    core, service = _full_hub_with_queued_request()
+    m4 = _StubAlternativeCharging()
+    core.register_provider(ProviderPort.ALTERNATIVE_CHARGING, m4)
+
+    res = service.optimize_queue("H1", OPERATOR)
+
+    assert isinstance(res, Ok)
+    assert [r.request_id for r in res.value] == ["R-Q"]
+    assert m4.calls == [(["R-Q"], "H1")]
+    req = schema.read(core, "R-Q")
+    assert req.status is ChargingSessionStatus.SCHEDULED
+    assert req.station_id == "H2"
+    assert req.charger_id == "H2-CP01"
+    assert req.start_time == T0
+    assert req.end_time == T0 + timedelta(minutes=60)
+    assert req.point_claim_id in _claim_ids(core, "H2-CP01", req.start_time, req.end_time)
+    assert service.compute_priority_queue("H1") == []
+
+
+def test_optimize_queue_keeps_request_queued_when_m4_finds_no_charger() -> None:
+    core, service = _full_hub_with_queued_request()
+    core.register_provider(
+        ProviderPort.ALTERNATIVE_CHARGING, _StubAlternativeCharging(status="NO_CHARGER")
+    )
+
+    res = service.optimize_queue("H1", OPERATOR)
+
+    assert isinstance(res, Ok)
+    assert res.value == []
+    req = schema.read(core, "R-Q")
+    assert req.status is ChargingSessionStatus.QUEUED
+    assert req.station_id == "H1"
+    assert _claim_ids(core, "H2-CP01", T0, T0 + timedelta(hours=2)) == set()
+
+
+def test_optimize_queue_rechecks_m4_suggestion() -> None:
+    """A suggestion with no free bay in Core (here an unknown Hub) leaves the request QUEUED."""
+    core, service = _full_hub_with_queued_request()
+    core.register_provider(
+        ProviderPort.ALTERNATIVE_CHARGING,
+        _StubAlternativeCharging(hub_id="H9", point_id="H9-CP01"),
+    )
+
+    res = service.optimize_queue("H1", OPERATOR)
+
+    assert isinstance(res, Ok)
+    assert res.value == []
+    assert schema.read(core, "R-Q").status is ChargingSessionStatus.QUEUED
+    assert schema.read(core, "R-Q").station_id == "H1"
