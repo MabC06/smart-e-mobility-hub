@@ -1,0 +1,45 @@
+{# S8. Request or schedule charging (wireframes-student.md), UC-M3-01 to UC-M3-03. Private EV only
+   (a returned rental vehicle needs M2's route). The form and the list use M3's routes. #}
+{% extends "base.html" %}
+{% block title %}Charging · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Charging</h1>
+
+{% if vehicles %}
+<form action="{{ url_for('student_request_charging') }}" method="post">
+  <p>
+    <label>My private EV
+      <select name="vehicle_id">
+        {% for v in vehicles %}<option value="{{ v.vehicle_id }}">{{ v.plate_or_code }}</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  <p>
+    <label>Hub
+      <select name="hub_id">
+        {% for h in hubs %}<option value="{{ h.hub_id }}">{{ h.hub_id }} {{ h.name }}</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  <p>
+    <label><input type="radio" name="when" value="now" checked> Charge now</label>
+    <label><input type="radio" name="when" value="schedule"> Schedule</label>
+    <label>Date and time <input type="datetime-local" name="start_at"></label>
+    <label>Duration <input type="number" name="duration_minutes" min="1" value="60"> min</label>
+  </p>
+  <p><button class="button primary" type="submit">Request charging</button></p>
+</form>
+{% else %}
+<p>Register your private EV first: <a href="{{ url_for('student_private_ev') }}">My vehicle</a>.</p>
+{% endif %}
+
+<h2>Your charging requests</h2>
+<ul>
+  {% for s in sessions %}
+  <li>{{ s.vehicle_id }} · {{ s.status }} · {{ s.hub_id }}{% if s.charger_id %} · point {{ s.charger_id }}{% endif %} · {{ s.current_soc | round | int }}% → {{ s.target_soc | round | int }}%</li>
+  {% else %}
+  <li>No charging request yet.</li>
+  {% endfor %}
+</ul>
+<p><span class="planned">Planned</span> Change time and Cancel.</p>
+{% endblock %}

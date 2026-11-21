@@ -1,6 +1,7 @@
 # Consistency Review: UI, Class Diagram, ERD, Code and Other Modules
 
 > Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09
+> Note of 2026-11-21 (Phase 3): rows G6, G7, G9, D1 and D6 are out of date, because M3, M4 and M5 now have routes that check the token and `ui` calls them through `src/ui/api.py`. G8 still waits for M6's route. Current state: `docs/report/06-ui-design.md`, Section 3.4.8.
 > I compared the screens with `class-diagram-core.md`, `erd.md`, the code, and the Phase 1 documents of the other modules.
 > Read on 2026-11-07: `core` on `develop`; `architecture-diagram.md`; M2's code (`origin/feat/reservation-booking-flow`) and documents (`origin/docs/reservation-phase1-design`); M4's code (`origin/feat/allocation-phase2`); M5 (`origin/docs/monitoring-phase1`); M6 (`origin/docs/simulation-design`, `origin/feat/m6-simulation-impl`); M3 (`origin/docs/charging-scheduling-requirements`).
 > Read again on 2026-11-09: M5's code (`origin/feat/monitoring-incident`) and M3's code (`origin/feat/charging-phase2`).
