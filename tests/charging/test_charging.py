@@ -47,12 +47,8 @@ def _build_core(
     repo.add(UserAccount("OP1", "OP-01", Role.OPERATOR, password_hash=PW_HASH))
     repo.add(ParkingSpace("H1-S001", "H1", "S1", SpaceStatus.OCCUPIED, "V-DOCKED"))
     repo.add(ParkingSpace("H1-S002", "H1", "S2", SpaceStatus.AVAILABLE, None))
-    repo.add(
-        ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE)
-    )
-    repo.add(
-        ChargingPoint("H1-CP02", "H1", "H1-S002", 10.0, ChargingPointStatus.AVAILABLE)
-    )
+    repo.add(ChargingPoint("H1-CP01", "H1", "H1-S001", 10.0, ChargingPointStatus.AVAILABLE))
+    repo.add(ChargingPoint("H1-CP02", "H1", "H1-S002", 10.0, ChargingPointStatus.AVAILABLE))
 
     vehicles = [
         ("V-DOCKED", "P-00", 50.0, "H1-S001"),
@@ -116,9 +112,7 @@ def _bearer(client: TestClient, code: str) -> dict[str, str]:
 def test_battery_threshold_bva(vehicle_id: str, expected_emergency: bool) -> None:
     """BVA around 15.0% threshold: 14.9% and 15.0% are emergency; 15.1% is not."""
     _, _, service = _setup()
-    res = service.submit_charging_request(
-        f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT
-    )
+    res = service.submit_charging_request(f"REQ-{vehicle_id}", vehicle_id, "H1", STUDENT)
     assert isinstance(res, Ok)
     assert res.value.status is ChargingSessionStatus.QUEUED
     assert res.value.is_emergency is expected_emergency
@@ -152,9 +146,7 @@ def test_threshold_reads_from_core_config() -> None:
 def test_charging_lifecycle_and_d020_provider() -> None:
     """Immediate request starts/finishes charging; D-020 provider returns scheduled sessions."""
     core, _, service = _setup()
-    started = service.submit_charging_request(
-        "REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0
-    )
+    started = service.submit_charging_request("REQ-NOW", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
 
@@ -212,9 +204,7 @@ def test_interrupt_charging_session() -> None:
     """Active charging session can be prematurely interrupted and cancelled."""
     core, _, service = _setup()
 
-    started = service.submit_charging_request(
-        "REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0
-    )
+    started = service.submit_charging_request("REQ-INT", "V-DOCKED", "H1", STUDENT, target_soc=90.0)
     assert isinstance(started, Ok)
     assert started.value.status is ChargingSessionStatus.CHARGING
     interrupted = service.interrupt_charging("REQ-INT", STUDENT, current_soc=60.0)
@@ -331,15 +321,11 @@ def _core_state(
     with core.unit_of_work() as uow:
         veh = uow.queries.get_vehicle(vehicle_id)
         assert isinstance(veh, Ok)
-        points = {
-            p.charging_point_id: p for p in uow.queries.list_charging_points("H1")
-        }
+        points = {p.charging_point_id: p for p in uow.queries.list_charging_points("H1")}
         return veh.value.state, points[point_id].status
 
 
-def _claim_ids(
-    core: CoreFacade, point_id: str, start: datetime, end: datetime
-) -> set[str]:
+def _claim_ids(core: CoreFacade, point_id: str, start: datetime, end: datetime) -> set[str]:
     with core.unit_of_work() as uow:
         return {c.claim_id for c in uow.queries.get_claims(point_id, start, end)}
 
@@ -410,12 +396,7 @@ def test_operator_token_reaches_operator_endpoints_through_app() -> None:
 
     assert client.get("/charging/queue?hub_id=H1", headers=operator).status_code == 200
     assert client.get("/charging/demand?hub_id=H1", headers=operator).status_code == 200
-    assert (
-        client.post(
-            "/charging/schedule/optimize?hub_id=H1", headers=operator
-        ).status_code
-        == 200
-    )
+    assert client.post("/charging/schedule/optimize?hub_id=H1", headers=operator).status_code == 200
 
 
 def test_schedule_start_finish_lifecycle_through_app() -> None:
@@ -440,15 +421,9 @@ def test_schedule_start_finish_lifecycle_through_app() -> None:
     assert res.status_code == 200
     assert res.json()["status"] == "SCHEDULED"
 
-    assert (
-        client.post("/charging/sessions/R-APP-1/start", headers=owner).status_code
-        == 409
-    )
+    assert client.post("/charging/sessions/R-APP-1/start", headers=owner).status_code == 409
     clock.advance(timedelta(minutes=30))
-    assert (
-        client.post("/charging/sessions/R-APP-1/start", headers=other).status_code
-        == 404
-    )
+    assert client.post("/charging/sessions/R-APP-1/start", headers=other).status_code == 404
 
     started = client.post("/charging/sessions/R-APP-1/start", headers=owner)
     assert started.status_code == 200
@@ -457,19 +432,16 @@ def test_schedule_start_finish_lifecycle_through_app() -> None:
         ChargingPointStatus.CHARGING,
     )
 
-    done = client.post(
-        "/charging/sessions/R-APP-1/finish", headers=owner, json={"final_soc": 80.0}
-    )
+    done = client.post("/charging/sessions/R-APP-1/finish", headers=owner, json={"final_soc": 80.0})
     assert done.status_code == 200
     assert done.json()["status"] == "COMPLETED"
 
     mine = client.get("/charging/sessions", headers=owner).json()
     assert [r["request_id"] for r in mine] == ["R-APP-1"]
     assert client.get("/charging/sessions", headers=other).json() == []
-    assert [
-        r["request_id"]
-        for r in client.get("/charging/sessions", headers=operator).json()
-    ] == ["R-APP-1"]
+    assert [r["request_id"] for r in client.get("/charging/sessions", headers=operator).json()] == [
+        "R-APP-1"
+    ]
 
 
 def test_operator_allowed_on_operator_endpoints() -> None:
@@ -477,9 +449,7 @@ def test_operator_allowed_on_operator_endpoints() -> None:
     client = _client(core, service, OPERATOR_P, operator=OPERATOR_P)
 
     assert client.get("/charging/queue?hub_id=H1").status_code == 200
-    assert (
-        client.get("/charging/demand?hub_id=H1&horizon_minutes=60").status_code == 200
-    )
+    assert client.get("/charging/demand?hub_id=H1&horizon_minutes=60").status_code == 200
 
 
 def test_private_vehicle_creation_and_ownership() -> None:
@@ -552,9 +522,7 @@ def test_optimize_queue_turns_queued_into_scheduled() -> None:
     assert req.charger_id == "H1-CP02"
     assert req.start_time == T0
     assert req.end_time == T0 + timedelta(minutes=60)
-    assert req.point_claim_id in _claim_ids(
-        core, "H1-CP02", req.start_time, req.end_time
-    )
+    assert req.point_claim_id in _claim_ids(core, "H1-CP02", req.start_time, req.end_time)
     # Scheduled only: the vehicle is not started and the point stays free.
     assert _core_state(core, "V-149", "H1-CP02") == (
         VehicleState.AVAILABLE,
@@ -564,20 +532,14 @@ def test_optimize_queue_turns_queued_into_scheduled() -> None:
 
 def test_optimize_endpoint_requires_hub_id_and_returns_sessions() -> None:
     core, _, service = _setup()
-    assert isinstance(
-        service.submit_charging_request("REQ-OCC", "V-DOCKED", "H1", STUDENT), Ok
-    )
-    assert isinstance(
-        service.submit_charging_request("REQ-Q", "V-149", "H1", STUDENT), Ok
-    )
+    assert isinstance(service.submit_charging_request("REQ-OCC", "V-DOCKED", "H1", STUDENT), Ok)
+    assert isinstance(service.submit_charging_request("REQ-Q", "V-149", "H1", STUDENT), Ok)
     client = _client(core, service, OPERATOR_P, operator=OPERATOR_P)
 
     assert client.post("/charging/schedule/optimize").status_code == 422
     res = client.post("/charging/schedule/optimize?hub_id=H1")
     assert res.status_code == 200
-    assert [(s["request_id"], s["status"]) for s in res.json()] == [
-        ("REQ-Q", "SCHEDULED")
-    ]
+    assert [(s["request_id"], s["status"]) for s in res.json()] == [("REQ-Q", "SCHEDULED")]
     assert schema.read(core, "REQ-Q").status is ChargingSessionStatus.SCHEDULED
 
 
@@ -701,9 +663,7 @@ def test_point_failure_moves_session_to_other_bay() -> None:
     # Take CP01 out of service in Core, then deliver the status-change event.
     with core.unit_of_work() as uow:
         cp01 = next(
-            p
-            for p in uow.queries.list_charging_points("H1")
-            if p.charging_point_id == "H1-CP01"
+            p for p in uow.queries.list_charging_points("H1") if p.charging_point_id == "H1-CP01"
         )
         out = uow.commands.set_charging_point_status(
             "H1-CP01", ChargingPointStatus.OUT_OF_SERVICE, cp01.version, OPERATOR
@@ -711,9 +671,7 @@ def test_point_failure_moves_session_to_other_bay() -> None:
         assert isinstance(out, Ok)
         assert not isinstance(uow.commit(), Err)
     # Idempotent if the bus already delivered it.
-    service._on_point_status_changed(
-        _point_event("H1-CP01", ChargingPointStatus.OUT_OF_SERVICE)
-    )
+    service._on_point_status_changed(_point_event("H1-CP01", ChargingPointStatus.OUT_OF_SERVICE))
 
     old = schema.read(core, "REQ-S1")
     assert old.status is ChargingSessionStatus.INTERRUPTED
@@ -726,25 +684,18 @@ def test_point_failure_moves_session_to_other_bay() -> None:
     window = (moved.start_time, moved.end_time)
     assert moved.point_claim_id in _claim_ids(core, "H1-CP02", *window)
     assert _claim_ids(core, "H1-CP01", T0, T0 + timedelta(hours=2)) == set()
-    assert (
-        _core_state(core, "V-DOCKED", "H1-CP01")[1]
-        is ChargingPointStatus.OUT_OF_SERVICE
-    )
+    assert _core_state(core, "V-DOCKED", "H1-CP01")[1] is ChargingPointStatus.OUT_OF_SERVICE
 
 
 def test_point_available_event_schedules_queued_request() -> None:
     """A point becoming AVAILABLE triggers optimize_queue (UC-M3-07, UC-M3-08)."""
     core, _, service = _setup()
-    assert isinstance(
-        service.submit_charging_request("REQ-OCC", "V-DOCKED", "H1", STUDENT), Ok
-    )
+    assert isinstance(service.submit_charging_request("REQ-OCC", "V-DOCKED", "H1", STUDENT), Ok)
     queued = service.submit_charging_request("REQ-Q", "V-149", "H1", STUDENT)
     assert isinstance(queued, Ok)
     assert queued.value.status is ChargingSessionStatus.QUEUED
 
-    service._on_point_status_changed(
-        _point_event("H1-CP02", ChargingPointStatus.AVAILABLE)
-    )
+    service._on_point_status_changed(_point_event("H1-CP02", ChargingPointStatus.AVAILABLE))
 
     req = schema.read(core, "REQ-Q")
     assert req.status is ChargingSessionStatus.SCHEDULED
@@ -753,9 +704,7 @@ def test_point_available_event_schedules_queued_request() -> None:
 
 def test_point_status_event_without_data_is_ignored() -> None:
     core, _, service = _setup()
-    assert isinstance(
-        service.submit_charging_request("REQ-S1", "V-DOCKED", "H1", STUDENT), Ok
-    )
+    assert isinstance(service.submit_charging_request("REQ-S1", "V-DOCKED", "H1", STUDENT), Ok)
 
     service._on_point_status_changed(type("E", (), {"payload": {}})())
 
@@ -789,12 +738,8 @@ def test_stub_reservation_demand_provider_prioritizes_booked() -> None:
 def test_student_sees_only_own_sessions() -> None:
     """/sessions returns only the caller's rows for students; operators see all."""
     core, _, service = _setup()
-    assert isinstance(
-        service.submit_charging_request("REQ-STU1", "V-DOCKED", "H1", STUDENT), Ok
-    )
-    assert isinstance(
-        service.submit_charging_request("REQ-STU2", "V-149", "H1", STUDENT_2), Ok
-    )
+    assert isinstance(service.submit_charging_request("REQ-STU1", "V-DOCKED", "H1", STUDENT), Ok)
+    assert isinstance(service.submit_charging_request("REQ-STU2", "V-149", "H1", STUDENT_2), Ok)
     assert schema.read(core, "REQ-STU1").user_id == "STU1"
     assert schema.read(core, "REQ-STU2").user_id == "STU2"
 
@@ -819,9 +764,7 @@ def test_reservation_demand_error_falls_back_to_battery_only() -> None:
         def upcoming_bookings(self, hub_id: str, horizon: timedelta):
             return Err(ErrorCode.RESOURCE_UNAVAILABLE, "M2 is down")
 
-    core.register_provider(
-        ProviderPort.RESERVATION_DEMAND, _UnavailableReservationDemand()
-    )
+    core.register_provider(ProviderPort.RESERVATION_DEMAND, _UnavailableReservationDemand())
 
     ranked = service.compute_priority_queue("H1")
     assert [r.vehicle_id for r in ranked] == ["V-151", "V-400"]
@@ -863,9 +806,7 @@ def test_request_endpoints_immediate_interrupt_and_schedule_lifecycle() -> None:
     assert started.json()["status"] == "CHARGING"
     assert _core_state(core, "V-DOCKED", "H1-CP01")[0] is VehicleState.CHARGING
 
-    stopped = client.post(
-        "/charging/sessions/R-API-1/interrupt", json={"current_soc": 60.0}
-    )
+    stopped = client.post("/charging/sessions/R-API-1/interrupt", json={"current_soc": 60.0})
     assert stopped.status_code == 200
     assert stopped.json()["status"] == "INTERRUPTED"
     assert schema.read(core, "R-API-1").current_soc == 60.0
@@ -895,9 +836,7 @@ def test_request_endpoints_immediate_interrupt_and_schedule_lifecycle() -> None:
     req = schema.read(core, "R-API-2")
     assert req.start_time == new_start
     assert req.end_time == new_start + timedelta(minutes=45)
-    assert req.point_claim_id in _claim_ids(
-        core, req.charger_id, req.start_time, req.end_time
-    )
+    assert req.point_claim_id in _claim_ids(core, req.charger_id, req.start_time, req.end_time)
 
     cancelled = client.delete("/charging/requests/R-API-2")
     assert cancelled.status_code == 200
@@ -995,10 +934,7 @@ def test_optimize_queue_binds_three_requests_on_two_bays_without_overlap() -> No
         )
         for second in bound[i + 1 :]:
             if first.charger_id == second.charger_id:
-                assert (
-                    first.end_time <= second.start_time
-                    or second.end_time <= first.start_time
-                )
+                assert first.end_time <= second.start_time or second.end_time <= first.start_time
 
 
 def test_optimize_endpoint_binds_three_queued_requests() -> None:
@@ -1013,9 +949,7 @@ def test_optimize_endpoint_binds_three_queued_requests() -> None:
     assert [(s["request_id"], s["status"]) for s in res.json()] == [
         (rid, "SCHEDULED") for rid in ids
     ]
-    assert all(
-        schema.read(core, rid).status is ChargingSessionStatus.SCHEDULED for rid in ids
-    )
+    assert all(schema.read(core, rid).status is ChargingSessionStatus.SCHEDULED for rid in ids)
 
 
 def test_optimize_queue_leaves_requests_queued_when_no_slot() -> None:
@@ -1027,9 +961,7 @@ def test_optimize_queue_leaves_requests_queued_when_no_slot() -> None:
         )
         assert isinstance(blocker, Ok)
         assert blocker.value.status is ChargingSessionStatus.SCHEDULED
-    assert isinstance(
-        service.submit_charging_request("R-Q", "V-149", "H1", STUDENT), Ok
-    )
+    assert isinstance(service.submit_charging_request("R-Q", "V-149", "H1", STUDENT), Ok)
 
     res = service.optimize_queue("H1", OPERATOR)
 
