@@ -65,7 +65,7 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 | DEF-M3-003 | `/queue` and `/demand` were open to students and `/sessions` returned other users' sessions | High | Review of PR #32 (M3-14) | NFR-16, TC-M3-031, TC-M3-032, TC-M3-033 | Closed | See below | PR #32 |
 | DEF-M3-004 | Start-session, private-vehicle and optimize endpoints did not follow the agreed flow (start logic outside the service, owner not taken from the token) | Medium | Review of PR #32 (M3-15) | FR-06.2, FR-07.M3.1, UC-M3-02, UC-M3-04, TC-M3-008 to TC-M3-013, TC-M3-019, TC-M3-020 | Closed | `start_scheduled_session` moved into the service (owner/operator check, due-time check, Core `START_CHARGING` transition); owner of a private EV comes from the token | PR #32 |
 | DEF-M3-005 | Claims column of the charging state-machine document did not match the code for `SCHEDULED` transitions | Low | Review of PR #28 (M3-12) | UC-M3-02, UC-M3-03 | Closed | Claims column and section 3 wording corrected | PR #28, `2925a23` |
-| DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #<n> |
+| DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #51 |
 
 **DEF-M3-002** (High)
 - Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
