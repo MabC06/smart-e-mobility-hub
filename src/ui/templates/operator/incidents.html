@@ -23,7 +23,7 @@
   <label>Status <select disabled><option>all</option></select></label>
   <label>Hub <select disabled><option>all</option></select></label>
   <label>Type <select disabled><option>all</option></select></label>
-  <span class="planned">Planned</span> Filters (Phase 3).
+  <span class="planned">Planned</span> Filters.
 </p>
 
 <div class="table-wrap">
@@ -61,7 +61,7 @@
     reported by {{ incident.reported_by }} · created {{ incident.created_at | ict }} ·
     assigned to {{ incident.assigned_operator_id or "nobody yet" }}
   </p>
-  <p><span class="planned">Planned</span> History of the ticket (Phase 3).</p>
+  <p><span class="planned">Planned</span> History of the ticket.</p>
   {% if incident.resolution_notes %}<p>Resolution notes: {{ incident.resolution_notes }}</p>{% endif %}
   {% if incident.status in ("OPEN", "ESCALATED") %}
   <form action="{{ url_for('incident_action', incident_id=incident.incident_id, action='acknowledge') }}" method="post">

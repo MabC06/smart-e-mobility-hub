@@ -190,7 +190,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M6's code has the demand-surge scenario only. Its route (`POST /simulation/runs`) was in an open pull request and not in `develop` when this was revised, so the screen shows sample data (DEV-12, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
+- M6's code has the demand-surge scenario only. Its route (`POST /simulation/runs`) was in an open pull request and not in `develop` when this was revised, so the screen shows sample data (DEV-11, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
 - Five scenarios: demand surge, Hub at capacity, charging surge, charging-point failure, vehicle imbalance. Common inputs: scenario, time horizon, time step, random seed. The form changes with the scenario. Inputs per scenario (from the design):
 
 | Scenario | Inputs |

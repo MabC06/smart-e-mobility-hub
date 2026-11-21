@@ -290,7 +290,7 @@ A private EV owner is a student with a registered vehicle and uses the student i
 | NFR-20 | Alert strip on every operator screen; O1 ordered by severity |
 | NFR-21 | One refusal block with cause, alternative and code |
 
-Review of NFR-20 and NFR-21 (Phase 3): the alert strip lists the Hubs in WARNING or CRITICAL and counts the active incidents on every operator screen (TC-M7-006, TC-M7-020). A refusal shows its cause and code in one block, never a stack trace (TC-M7-005, TC-M7-021, TC-M7-024, TC-M7-027). Limits: Section 4.4, DEV-11 to DEV-14.
+Review of NFR-20 and NFR-21 (Phase 3): the alert strip lists the Hubs in WARNING or CRITICAL and counts the active incidents on every operator screen (TC-M7-006, TC-M7-020). A refusal shows its cause and code in one block, never a stack trace (TC-M7-005, TC-M7-021, TC-M7-024, TC-M7-027). Limits: Section 4.4, DEV-10 to DEV-13.
 
 ### 3.4.8 Consistency with the data design and status
 
