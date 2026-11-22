@@ -25,14 +25,14 @@
 | Module | Found | Critical | High | Medium | Low | Closed | Open / Accepted |
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| M2 reservation | — | | | | | | |
+| M2 reservation | 1 | 0 | 1 | 0 | 0 | 1 | 0 |
 | M3 charging | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
 | M5 monitoring | — | | | | | | |
 | M6 simulation | 5 | 0 | 1 | 0 | 4 | 5 | 0 |
-| **Total** | **7** | **0** | **1** | **0** | **6** | **7** | **0** |
+| **Total** | **8** | **0** | **2** | **0** | **6** | **8** | **0** |
 
-All seven entries so far were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
+The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
 ## 3. Defects by module
 
@@ -47,10 +47,19 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 <!-- BEGIN M2: Reservation & Trip -->
 ### M2 Reservation & Trip
 
-<!-- M2 adds rows here by 17/11. -->
-
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
+| DEF-M2-001 | Reopening SQLite could reuse persisted Core IDs and cause a valid pickup to fail | High | TC-M2-021 | D-022, FR-04, UC-M2-04, NFR-09 | Closed | The default Core generator resumes each prefix above the maximum persisted numeric suffix; injected generators retain their own behavior | PR #24, `e25578d`; D-022 released in PR #40 |
+
+**DEF-M2-001** (High)
+- Steps: create and reserve V1 on a file-backed SQLite store; close it;
+  open a new facade on the same store; call pickup on the original booking.
+- Expected: pickup succeeds with fresh shared record IDs and starts one Trip.
+  Original failure: the reset default counters reused a stored ID, so a valid
+  pickup could fail before commit.
+- Resolution: seed the default generator from stored Core IDs. Retest with
+  TC-M2-021 and `tests/core/test_id_recovery.py`: 6 passed on `bb5c622`
+  on 2026-11-23. See [execution evidence](evidence/m2-validation-2026-11-23.json).
 <!-- END M2: Reservation & Trip -->
 
 <!-- BEGIN M3: Charging & Smart Scheduling -->
