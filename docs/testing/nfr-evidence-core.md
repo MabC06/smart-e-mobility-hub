@@ -1,6 +1,6 @@
 # NFR Evidence for `core`
 
-> **Status:** v2 · **Owner:** M1; M8 results added 2026-11-23 · **Measured on:** `develop` at `686b4b0` (core tests), `01d68e7` (M8 timings)
+> **Status:** v2 · **Owner:** M1; M8 results added 2026-11-23 · **Measured on:** `develop` at `686b4b0` (core tests), `01d68e7` (M8 timings and NFR-14 fresh-clone check)
 > Which test proves which non-functional requirement (`docs/requirements/nfr.md`) for `core`. M8 uses this table in report section 5 and adds the timed results of NFR-01 to NFR-03 on 18/11 (D-024).
 
 Run on 2026-11-16 (Windows 11, Python 3.12): `python -m pytest tests/core -q` → 1059 passed, 1 skipped. Line coverage of `core` 98.8 %.
@@ -24,7 +24,7 @@ Run on 2026-11-16 (Windows 11, Python 3.12): `python -m pytest tests/core -q` �
 | NFR-10 | A malformed sensor event is rejected and logged, no state change, no crash; a charging-point failure interrupts sessions and opens an incident within 5 s | `test_sensor_events.py`: `test_a_bad_event_is_rejected_without_any_change_and_is_announced`, `test_a_rejection_is_logged_as_a_warning`, `test_a_garbage_feed_never_crashes_or_breaks_a_rule`, `test_a_charger_fault_takes_the_point_out_of_service_and_a_clear_brings_it_back` | Pass | Core part met | M3 (interrupt sessions), M5 (incident within 5 s) |
 | NFR-12 | A What-if run never changes the operational state | `test_snapshot.py`: `test_changing_the_snapshot_never_changes_the_store`, `test_a_loaded_snapshot_is_an_independent_store_that_follows_the_rules`; in `tests/simulation/`: `test_snapshot_isolation` (store version and reads unchanged after a run) | Pass; SC-01 state hash unchanged in 4 runs on 01d68e7 | Core part met; M6 part met for SC-01 only | M6 (SC-02 to SC-05 not implemented, DEV-08) |
 | NFR-13 | Same seed and events give the same state hash and output | `test_snapshot.py`: `test_the_same_state_gives_the_same_id_whatever_the_history`, `test_the_snapshot_can_be_written_as_json_and_is_repeatable`; `test_network_loader.py`: `test_the_same_description_gives_the_same_network`, `test_the_reference_dataset_is_repeatable` | Pass; SC-01 two runs identical in 4 runs on 01d68e7 | Core part met; M6 part met for SC-01 only | M6 (SC-02 to SC-05) |
-| NFR-14 | Install, run and test from a clean clone in ≤ 15 min, ≤ 5 commands | — | Not performed (2026-11-23) | Open | M8 (fresh-clone check by another member) |
+| NFR-14 | Install, run and test from a clean clone in ≤ 15 min, ≤ 5 commands | Fresh clone (`fresh-nfr14` from local repo/worktree on 2026-11-23): 5 commands, total time 4m34s (274 s), `pytest` 1,501 passed, 1 skipped in 95.66 s, `ruff` & `mypy` clean, Uvicorn startup verified | Met (5 commands, 4m34s ≤ 15 min) | — |
 | NFR-15 | A new Hub, space, charging point or vehicle needs data only, no code change | `test_network_loader.py`: networks of any size are loaded from a description (`test_a_network_is_loaded_with_deterministic_ids_and_summary`, `test_the_reference_dataset_loads_and_passes_its_sanity_checks`); `test_commands_misc.py`: `register_vehicle` tests | Pass | Met, with a gap (see 2.2) | — |
 | NFR-16 | Every API except login needs a token; operator-only operations give 403 to a student; every endpoint has an authorization test | `test_api.py`: `test_each_endpoint_gives_the_right_status_to_each_kind_of_caller`, `test_no_endpoint_is_missing_from_the_authorization_matrix`; `test_api_security.py` (the checks module routers import, D-023) | Pass | Core part met | M2–M5, M7 (their own routers) |
 | NFR-17 | Passwords salted and hashed; 0 secrets in the repository | `test_auth.py`: `test_a_hash_is_salted_and_never_contains_the_password`, `test_there_is_no_default_secret`, `test_the_token_does_not_contain_the_password_or_its_hash`; `.gitignore` ignores `.env` and `.env.*` | Pass | Core part met | M1 to confirm secret scanning is on in the GitHub settings |
@@ -48,5 +48,4 @@ The size of the network comes only from data: `load_network` reads a description
 ### 2.3 What M8 added on 2026-11-23
 
 - NFR-01, NFR-02, NFR-03: p95 and max from the timed tests on DS-STD (D-024), with the commit they ran on.
-- NFR-14: the result of the fresh-clone check.
-- NFR-14 is still open. Full figures and limits: `nfr-measurements.md`.
+- NFR-14: completed on 2026-11-23 in `fresh-nfr14` (5 commands, 4m34s total, `pytest` 1,501 passed, 1 skipped in 95.66 s, `ruff` & `mypy` clean, Uvicorn startup verified). Full figures and limits: `nfr-measurements.md`.
