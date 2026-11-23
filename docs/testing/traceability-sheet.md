@@ -1,131 +1,155 @@
 # ID Traceability Sheet
 
-> **Owner:** M8 - Testing, QA & Report Integration Lead
-> **Phase:** Phase 3
-> **Status:** Updated partial baseline (v0.2)
-> **Last updated:** 2026-11-20
-> **Related design:** [`IoT Simulator Design`](../design/simulation/iot-sim-design.md)
+> **Owner:** M8 · **Version:** v1.1 · **Date:** 2026-11-23 · **Baseline:** `01d68e7` (testing branch)
+> Generated from `docs/requirements/*.md` and the test-case documents (`docs/testing/test-cases/*.md`, `reservation-phase2.md`, M7 test docstrings).
 
-## Purpose
+Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. A TC listed here passed on 01d68e7 unless `test-cases/integration.md` records it as Blocked or Partial (TC-M8-027 Blocked; TC-M8-028 Partial; TC-M8-026 passes at 15 queued per Hub only).
 
-This sheet is the single working index for requirement-to-test traceability. It will be updated as the team locks FR/BR/UC definitions and creates standardized test cases. `Planned` means the requirement is known but the final test case has not yet been assigned.
+**Summary:** 172 TCs. FR 11/12; BR 25/34; UC 21/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
 
-### Traceability rule
+**NFR-26 is not yet met:** the uncovered IDs below are listed with the reason known so far; module owners must confirm or add TCs.
 
-`FR / NFR / BR / UC → TC → execution result → defect (if any)`
+## 1. Functional requirements
 
-Per NFR-26, every FR, BR, and UC must have at least one test case and there must be no orphan IDs at submission time.
-
-## 1. Functional Requirements
-
-| ID | Type | Primary owner | Status | Test Case ID(s) | Notes |
-|---|---|---|---|---|---|
-| FR-01 | Functional requirement | M1 | Partial | TC-M7-001, TC-M7-002, TC-M7-003, TC-M8-019 | Core Hub read and UI prototype coverage; remaining Core behavior needs module-owner mapping |
-| FR-02 | Functional requirement | M2 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-03 | Functional requirement | M2 | Partial | TC-M2-001..TC-M2-023 | Reservation booking/lifecycle tests; FR sub-requirement granularity still needs owner confirmation |
-| FR-04 | Functional requirement | M2 | Partial | TC-M2-001..TC-M2-023 | Trip/pickup/return behavior appears in M2 test mapping; FR sub-requirement granularity still needs owner confirmation |
-| FR-05 | Functional requirement | M2 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-06 | Functional requirement | M3 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-07 | Functional requirement | M2/M3 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-08 | Functional requirement | M5 | Partial | TC-M7-001, TC-M7-002, TC-M7-006, TC-M7-009 | UI prototype and authenticated module-view coverage; incident behavior needs M5 mapping |
-| FR-09 | Functional requirement | M5 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-10 | Functional requirement | M4 | Partial | TC-M7-007, TC-M7-009, TC-M8-022 | Allocation UI prototype and alternative-Hub provider route; remaining M4 cases need owner mapping |
-| FR-11 | Functional requirement | M3/M4 | Planned | — | To be linked after module requirement tables are finalized |
-| FR-12 | Functional requirement | M6 | Planned | — | To be linked after module requirement tables are finalized |
-
-## 2. Non-Functional Requirements
-
-| ID | Requirement (short form) | Related FR / Reference | Priority | Status | Test Case ID(s) |
-|---|---|---|---|---|---|
-| NFR-01 | After `core` accepts a state update, subsequent reads return the new state; the UI shows it shortly after. | FR-01, FR-08 | M | Planned | — |
-| NFR-02 | Read operations meet the p95/max targets over ≥100 sequential requests per endpoint (D-024). | FR-01, FR-02, FR-08 | M | Pass (4 measured endpoints; system-wide coverage remains partial) | TC-M8-023 |
-| NFR-03 | Write operations meet the p95 target over ≥100 sequential operations on DS-STD (D-024). | FR-03 to FR-07 | M | Pass (1 measured operation; system-wide coverage remains partial) | TC-M8-024 |
-| NFR-04 | Allocation and scheduling computations finish in interactive time. | FR-10, FR-11 | M | Planned | — |
-| NFR-05 | A What-if scenario completes in acceptable time. | FR-12 | M | Planned | — |
-| NFR-06 | No double allocation of a vehicle, parking space or charging slot. | BR-M1-01 | M | Planned | — |
-| NFR-07 | Capacity and uniqueness invariants always hold. | BR-M1-02, BR-M1-03 | M | Planned | — |
-| NFR-08 | Only transitions allowed by the state machines are executed. | BR-M1-03 | M | Planned | — |
-| NFR-09 | Multi-entity operations are atomic. | FR-03, FR-04, FR-05 | M | Planned | — |
-| NFR-10 | The system tolerates faulty input and equipment failures. | FR-09 | M | Planned | — |
-| NFR-11 | **Withdrawn.** Stable under continuous operation. | FR-08 | Withdrawn | Withdrawn | — |
-| NFR-12 | What-if Simulation never changes real operational state. | FR-12 | M | Planned | — |
-| NFR-13 | Results are deterministic. | FR-12; CONTRIBUTING 9.8, 9.13 | M | Planned | — |
-| NFR-14 | Reproducible from a clean clone. | All | M | Not run | Independent fresh-clone check required |
-| NFR-15 | Handles growth of the network. | FR-01, FR-08 | M | Planned | — |
-| NFR-16 | Authentication and role-based access (A-06). | FR-08 to FR-12 | M | Partial | TC-M8-019, TC-M8-020, TC-M8-021; module security tests |
-| NFR-17 | Credentials and secrets are protected. | CONTRIBUTING 11 | M | Planned | — |
-| NFR-18 | External input is validated. | All | M | Planned | — |
-| NFR-19 | **Withdrawn.** Students can reserve a vehicle easily. | FR-02, FR-03 | Withdrawn | Withdrawn | — |
-| NFR-20 | Operators see critical status at a glance. | FR-08, FR-09 | M | Planned | — |
-| NFR-21 | Rejections are understandable. | FR-03, FR-05, FR-06 | M | Planned | — |
-| NFR-22 | Modules are decoupled. | CONTRIBUTING 9.2 | M | Partial | TC-M8-017; `tests/core/test_import_boundaries.py` |
-| NFR-23 | **Withdrawn.** Code quality is enforced. | CONTRIBUTING 9.10, 9.12 | Withdrawn | Withdrawn | — |
-| NFR-24 | Business logic is well tested. | CONTRIBUTING 6, 10 | M | Planned | — |
-| NFR-25 | State changes are auditable. | FR-09 | M | Planned | — |
-| NFR-26 | Requirements are traceable. | CONTRIBUTING 5 | M | Partial | Traceability audit still open |
-| NFR-27 | **Withdrawn.** Runs on the team's machines. | NFR-14 | Withdrawn | Withdrawn | — |
-
-## 3. Business Rules
-
-This is a partial extraction from the module requirements documents. The row below is linked to an implemented API-level integration case; remaining BR IDs and module-owned test IDs still require owner-by-owner reconciliation before NFR-26 sign-off.
-
-| ID | Module | Rule | Related FR / UC | Status | Test Case ID(s) |
-|---|---|---|---|---|---|
-| BR-M4-10 | M4 | If nothing is available, refuse with a reason (`NO_VEHICLE`, `NO_PARKING`, `NO_CHARGER`, `ALL_HUBS_FULL`) and suggest other Hubs if any | FR-10.6 | Partial | TC-M8-022 |
-
-## 4. Use Cases
-
-This is a partial extraction from the committed module requirements and use-case documents. Remaining use cases still require module-owner test-case mapping before NFR-26 sign-off.
-
-| ID | Use Case | Actor | Related FR | Status | Test Case ID(s) |
-|---|---|---|---|---|---|
-| UC-M4-05 | Suggest alternative Hubs | Student (via M2), System | FR-10.6 | Partial | TC-M8-022 |
-
-## 5. Test Cases
-
-Standardized test cases will be created in `docs/testing/test-cases/` after the FR/BR/UC baseline is locked.
-
-| TC ID | Test Case | Technique | Linked IDs | Status |
-|---|---|---|---|---|
-| TC-M8-001 | Build DS-STD totals | Data sanity / BVA | FR-01, NFR-07 | Pass |
-| TC-M8-002 | Verify rental battery bands | EP / data sanity | NFR-13 | Pass |
-| TC-M8-003 | Verify rental vehicle types | EP / data sanity | NFR-13 | Pass |
-| TC-M8-004 | Repeat dataset generation with same seed | Determinism | NFR-13 | Pass |
-| TC-M8-005 | Different seed preserves shape but changes values | Metamorphic | NFR-13 | Pass |
-| TC-M8-006 | Reject negative seed | EP | NFR-18 | Pass |
-| TC-M8-007 | Repeat event generation with same inputs | Determinism | NFR-13 | Pass |
-| TC-M8-008 | Ensure event IDs are unique and timestamps ordered | Structural / BVA | NFR-13 | Pass |
-| TC-M8-009 | Generate battery drain for every fleet vehicle | EP | FR-01, NFR-07 | Pass |
-| TC-M8-010 | Generate paired private-EV occupancy events | State transition | FR-01, NFR-07 | Pass |
-| TC-M8-011 | Reject naive event start time | EP | NFR-18 | Pass |
-| TC-M8-012 | Seed Core from DS-STD | Integration | FR-01, NFR-07 | Pass |
-| TC-M8-013 | Apply minimal feed | Integration / state transition | FR-01, FR-09, NFR-10 | Pass |
-| TC-M8-014 | Check Core invariants after feed | Invariant check | NFR-07 | Pass |
-| TC-M8-015 | Refuse to seed a non-empty store | Negative / boundary | NFR-10, NFR-18 | Pass |
-| TC-M8-016 | Build application through the composition root | Integration / composition | D-013, Core API spec §8 | Pass |
-| TC-M8-017 | Verify D-020 provider registration and expected missing M2 ports | Interface contract | D-020, NFR-22 | Pass |
-| TC-M8-018 | Call ChargingDemand through Core provider registry | Integration / contract | D-020 | Pass |
-| TC-M8-019 | Authenticate Core Hub read API | API integration / EP | FR-01, NFR-16 | Pass |
-| TC-M8-020 | Reject student access to operator-only module endpoints | Security / role partition | NFR-16, D-023 | Pass |
-| TC-M8-021 | Allow operator read access to Charging, Allocation and Monitoring | Security / integration | NFR-16, D-023 | Pass |
-| TC-M8-022 | Call M4 alternative-Hub provider through API | Integration / provider contract | FR-10, UC-M4-05, BR-M4-10, D-020 | Pass |
-| TC-M8-023 | Measure 100 sequential read requests per endpoint on DS-STD | Performance / sequential timing | NFR-02, D-024 | Pass (4 endpoints; Python 3.12.10) |
-| TC-M8-024 | Measure 100 sequential write operations on DS-STD | Performance / sequential timing | NFR-03, D-024 | Pass (1 operation; Python 3.12.10) |
-
-## 6. Coverage / Orphan Check
-
-| Check | Current status | Target |
+| ID | Status | Test cases |
 |---|---|---|
-| FR coverage | Partial | Every FR has ≥1 TC |
-| BR coverage | Partial / owner confirmation needed | Every BR has ≥1 TC |
-| UC coverage | Pending UC definitions | Every UC has ≥1 TC |
-| NFR coverage | Partial; NFR-02/03 pass only for measured scope; other NFRs remain open | Applicable NFRs have evidence/tests |
-| Orphan IDs | Not yet verified | 0 orphan FR/BR/UC |
+| FR-01 | Covered | TC-M7-001, TC-M7-002, TC-M7-003, TC-M7-009, TC-M7-017, TC-M8-001, TC-M8-009, TC-M8-010, TC-M8-012, TC-M8-013, TC-M8-019 |
+| FR-02 | Covered | TC-M7-002, TC-M7-004, TC-M7-009 |
+| FR-03 | Covered | TC-M2-001, TC-M2-002, TC-M2-003, TC-M2-004, TC-M2-006, TC-M2-008, TC-M2-014, TC-M2-015, TC-M2-019, TC-M2-022, TC-M2-023, TC-M7-002, TC-M7-009 |
+| FR-04 | Covered | TC-M2-001, TC-M2-004, TC-M2-006, TC-M2-007, TC-M2-008, TC-M2-010, TC-M2-012, TC-M2-016, TC-M2-017, TC-M2-020, TC-M7-010 |
+| FR-05 | **GAP** | — |
+| FR-06 | Covered | TC-M3-006, TC-M3-007, TC-M3-014, TC-M3-015, TC-M3-016, TC-M7-023, TC-M8-018 |
+| FR-07 | Covered | TC-M3-019, TC-M3-020, TC-M3-021, TC-M7-024, TC-M7-025 |
+| FR-08 | Covered | TC-M5-003, TC-M5-004, TC-M5-012, TC-M5-013, TC-M5-014, TC-M5-015, TC-M7-009, TC-M7-016, TC-M7-017 |
+| FR-09 | Covered | TC-M5-001, TC-M5-002, TC-M5-003, TC-M5-004, TC-M5-005, TC-M5-006, TC-M5-007, TC-M5-008, TC-M5-009, TC-M5-010, TC-M5-011, TC-M5-015, TC-M5-020, TC-M7-008, TC-M7-011, TC-M7-016, TC-M7-019, TC-M8-013 |
+| FR-10 | Covered | TC-M4-001, TC-M4-002, TC-M4-003, TC-M4-004, TC-M4-005, TC-M4-006, TC-M4-011, TC-M4-012, TC-M4-013, TC-M4-014, TC-M4-015, TC-M4-018, TC-M4-019, TC-M4-020, TC-M4-021, TC-M4-022, TC-M4-023, TC-M4-024, TC-M4-025, TC-M4-026, TC-M4-028, TC-M4-029, TC-M7-007, TC-M7-009, TC-M7-016, TC-M7-021, TC-M7-022, TC-M8-022, TC-M8-027 |
+| FR-11 | Covered | TC-M3-001, TC-M3-002, TC-M3-004, TC-M3-022, TC-M3-023, TC-M3-024, TC-M3-025, TC-M3-027, TC-M3-034, TC-M4-004, TC-M4-007, TC-M4-008, TC-M4-009, TC-M4-010, TC-M4-011, TC-M4-015, TC-M4-016, TC-M4-017, TC-M4-018, TC-M4-019, TC-M4-029, TC-M8-026 |
+| FR-12 | Covered | TC-M6-001, TC-M6-002, TC-M7-016, TC-M8-028, TC-M8-029 |
 
-## 7. Update Protocol
+## 2. Business rules
 
-1. Module owners add or update FR, BR, or UC definitions in their respective module documents. M8 updates this sheet to reflect the changes.
-2. M8 collects TC IDs from test files and tables, derives the BR → UC and requirement → TC relationships from the `Trace:` and `Verifies:` entries, and checks for duplicate and orphan IDs.
-3. Test execution records Pass / Fail / Blocked and evidence.
-4. Failed tests link to the defect log.
-5. Before code freeze and final submission, M8 performs an orphan-ID check.
+| ID | Status | Test cases |
+|---|---|---|
+| BR-M1-01 | Covered | TC-M4-024 |
+| BR-M1-02 | Covered | TC-M4-017, TC-M4-018 |
+| BR-M1-03 | **GAP** | — |
+| BR-M2-02 | Covered | TC-M2-003, TC-M2-004, TC-M2-015, TC-M2-016, TC-M2-022 |
+| BR-M2-03 | Covered | TC-M2-014 |
+| BR-M2-04 | Covered | TC-M2-001, TC-M2-007, TC-M2-023 |
+| BR-M2-05 | Covered | TC-M2-023 |
+| BR-M2-09 | Covered | TC-M2-001, TC-M2-008, TC-M2-009 |
+| BR-M2-10 | Covered | TC-M2-001, TC-M2-008, TC-M2-009, TC-M2-010, TC-M2-020 |
+| BR-M2-11 | **GAP** | — |
+| BR-M2-12 | **GAP** | — |
+| BR-M2-14 | Covered | TC-M2-017 |
+| BR-M2-15 | **GAP** | — |
+| BR-M3-01 | Covered | TC-M3-006, TC-M3-014, TC-M3-022, TC-M3-036 |
+| BR-M3-02 | Covered | TC-M3-022, TC-M3-026, TC-M3-027, TC-M3-034, TC-M3-035, TC-M3-036, TC-M4-016 |
+| BR-M3-03 | Covered | TC-M3-001, TC-M3-002, TC-M3-003, TC-M3-004, TC-M3-005 |
+| BR-M4-01 | Covered | TC-M4-007, TC-M4-008, TC-M4-009 |
+| BR-M4-02 | Covered | TC-M4-007, TC-M4-024 |
+| BR-M4-03 | Covered | TC-M4-001, TC-M4-005, TC-M4-014, TC-M4-024, TC-M4-030 |
+| BR-M4-04 | Covered | TC-M4-004, TC-M4-018, TC-M4-019, TC-M4-020, TC-M4-025 |
+| BR-M4-05 | Covered | TC-M4-001, TC-M4-003, TC-M4-030 |
+| BR-M4-06 | Covered | TC-M4-001, TC-M4-021, TC-M4-030 |
+| BR-M4-07 | **GAP** | — |
+| BR-M4-08 | Covered | TC-M4-018, TC-M4-020, TC-M4-024, TC-M4-026, TC-M4-028 |
+| BR-M4-09 | **GAP** | — |
+| BR-M4-10 | Covered | TC-M4-012, TC-M4-013, TC-M4-016, TC-M8-022 |
+| BR-M4-11 | **GAP** | — |
+| BR-M4-12 | **GAP** | — |
+| BR-M5-01 | Covered | TC-M5-013, TC-M5-014 |
+| BR-M5-02 | Covered | TC-M5-003 |
+| BR-M5-03 | Covered | TC-M5-001 |
+| BR-M5-04 | Covered | TC-M5-008 |
+| BR-M5-05 | Covered | TC-M5-005 |
+| BR-M6-03 | **GAP** | — |
+
+## 3. Use cases
+
+| ID | Status | Test cases |
+|---|---|---|
+| UC-M2-01 | **GAP** | — |
+| UC-M2-02 | Covered | TC-M2-001, TC-M2-002, TC-M2-003, TC-M2-004, TC-M2-005, TC-M2-006, TC-M2-008, TC-M2-009, TC-M2-011, TC-M2-013, TC-M2-014, TC-M2-015, TC-M2-019, TC-M2-021, TC-M2-022 |
+| UC-M2-03 | Covered | TC-M2-023 |
+| UC-M2-04 | Covered | TC-M2-001, TC-M2-005, TC-M2-006, TC-M2-007, TC-M2-008, TC-M2-009, TC-M2-011, TC-M2-012, TC-M2-013, TC-M2-016, TC-M2-021 |
+| UC-M2-05 | Covered | TC-M2-001, TC-M2-005, TC-M2-006, TC-M2-008, TC-M2-009, TC-M2-010, TC-M2-011, TC-M2-013, TC-M2-017, TC-M2-020, TC-M2-021 |
+| UC-M2-06 | **GAP** | — |
+| UC-M2-07 | **GAP** | — |
+| UC-M2-08 | **GAP** | — |
+| UC-M3-01 | Covered | TC-M3-006, TC-M3-016 |
+| UC-M3-02 | Covered | TC-M3-006, TC-M3-007, TC-M3-008, TC-M3-009, TC-M3-010, TC-M3-011, TC-M3-012, TC-M3-013 |
+| UC-M3-03 | Covered | TC-M3-015, TC-M3-016, TC-M3-017 |
+| UC-M3-04 | Covered | TC-M3-019, TC-M3-020, TC-M3-021 |
+| UC-M3-05 | Covered | TC-M3-021 |
+| UC-M3-06 | Covered | TC-M3-001, TC-M3-002, TC-M3-004 |
+| UC-M3-07 | Covered | TC-M3-022, TC-M3-023, TC-M3-024, TC-M3-025, TC-M3-026, TC-M3-028, TC-M3-034 |
+| UC-M3-08 | Covered | TC-M3-016, TC-M3-018, TC-M3-027, TC-M3-028, TC-M3-029 |
+| UC-M4-01 | Covered | TC-M4-001, TC-M4-002, TC-M4-003, TC-M4-004, TC-M4-005, TC-M4-006, TC-M4-014, TC-M4-021, TC-M4-022, TC-M4-023, TC-M4-028 |
+| UC-M4-02 | Covered | TC-M4-018, TC-M4-024, TC-M4-025, TC-M4-028 |
+| UC-M4-03 | Covered | TC-M4-018, TC-M4-019, TC-M4-026, TC-M4-028 |
+| UC-M4-04 | Covered | TC-M4-020, TC-M4-028 |
+| UC-M4-05 | Covered | TC-M4-011, TC-M4-012, TC-M4-013, TC-M4-014, TC-M4-029, TC-M8-022 |
+| UC-M4-06 | Covered | TC-M4-007, TC-M4-008, TC-M4-009, TC-M4-010, TC-M4-029 |
+| UC-M4-07 | Covered | TC-M3-034, TC-M3-035, TC-M4-011, TC-M4-016, TC-M4-017, TC-M4-029 |
+| UC-M4-08 | Covered | TC-M4-021 |
+| UC-M4-09 | Covered | TC-M4-030 |
+| UC-M5-01 | **GAP** | — |
+| UC-M5-02 | **GAP** | — |
+| UC-M6-01 | **GAP** | — |
+| UC-M7-01 | **GAP** | — |
+| UC-M7-02 | **GAP** | — |
+| UC-M7-03 | **GAP** | — |
+| UC-M7-04 | **GAP** | — |
+| UC-M7-05 | **GAP** | — |
+| UC-M7-06 | **GAP** | — |
+| UC-M7-07 | **GAP** | — |
+| UC-M7-08 | **GAP** | — |
+| UC-M7-09 | **GAP** | — |
+| UC-M7-10 | **GAP** | — |
+
+## 4. Non-functional requirements
+
+| ID | Status | Test cases |
+|---|---|---|
+| NFR-01 | Covered | TC-M5-003, TC-M5-004, TC-M5-013, TC-M8-025 |
+| NFR-02 | Covered | TC-M8-023 |
+| NFR-03 | Covered | TC-M8-024 |
+| NFR-04 | Covered | TC-M8-026, TC-M8-027 |
+| NFR-05 | Covered | TC-M8-028 |
+| NFR-06 | Covered | TC-M2-013, TC-M2-014, TC-M2-015, TC-M2-019, TC-M2-023, TC-M3-024, TC-M3-036, TC-M4-024, TC-M4-025 |
+| NFR-07 | Covered | TC-M2-010, TC-M4-018, TC-M4-019, TC-M4-020, TC-M8-001, TC-M8-009, TC-M8-010, TC-M8-012, TC-M8-014 |
+| NFR-08 | Covered | TC-M2-004, TC-M3-007, TC-M3-008, TC-M3-010, TC-M3-013, TC-M3-018, TC-M4-026 |
+| NFR-09 | Covered | TC-M2-001, TC-M2-006, TC-M2-010, TC-M2-011, TC-M2-012, TC-M2-013, TC-M2-021, TC-M2-023, TC-M3-010, TC-M3-016, TC-M3-024, TC-M4-018, TC-M4-024 |
+| NFR-10 | Covered | TC-M3-005, TC-M3-027, TC-M3-029, TC-M4-022, TC-M5-001, TC-M5-002, TC-M5-005, TC-M5-006, TC-M5-009, TC-M5-020, TC-M8-013, TC-M8-015 |
+| NFR-11 | **GAP** | — |
+| NFR-12 | Covered | TC-M6-003, TC-M6-004, TC-M8-029 |
+| NFR-13 | Covered | TC-M4-006, TC-M4-009, TC-M4-012, TC-M4-027, TC-M6-005, TC-M8-002, TC-M8-003, TC-M8-004, TC-M8-005, TC-M8-007, TC-M8-008, TC-M8-029 |
+| NFR-14 | **GAP** | — |
+| NFR-15 | **GAP** | — |
+| NFR-16 | Covered | TC-M2-005, TC-M2-009, TC-M2-016, TC-M2-023, TC-M3-007, TC-M3-009, TC-M3-011, TC-M3-013, TC-M3-017, TC-M3-020, TC-M3-030, TC-M3-031, TC-M3-032, TC-M3-033, TC-M4-031, TC-M4-032, TC-M5-017, TC-M5-018, TC-M5-019, TC-M7-001, TC-M7-012, TC-M7-013, TC-M7-014, TC-M7-015, TC-M7-026, TC-M8-019, TC-M8-020, TC-M8-021 |
+| NFR-17 | **GAP** | — |
+| NFR-18 | Covered | TC-M2-002, TC-M2-009, TC-M2-019, TC-M3-012, TC-M3-023, TC-M3-029, TC-M4-010, TC-M4-015, TC-M4-025, TC-M4-029, TC-M5-011, TC-M5-020, TC-M7-005, TC-M8-006, TC-M8-011, TC-M8-015 |
+| NFR-19 | **GAP** | — |
+| NFR-20 | Covered | TC-M7-006, TC-M7-020 |
+| NFR-21 | Covered | TC-M3-014, TC-M3-031, TC-M4-013, TC-M7-002, TC-M7-005, TC-M7-012, TC-M7-014, TC-M7-016, TC-M7-018, TC-M7-021, TC-M7-022, TC-M7-024, TC-M7-027 |
+| NFR-22 | Covered | TC-M2-018, TC-M4-011, TC-M4-027, TC-M8-017 |
+| NFR-23 | **GAP** | — |
+| NFR-24 | **GAP** | — |
+| NFR-25 | Covered | TC-M2-011, TC-M5-006, TC-M5-008, TC-M5-010 |
+| NFR-26 | **GAP** | — |
+| NFR-27 | **GAP** | — |
+
+## 5. Known gaps and reasons
+
+| ID(s) | Reason / action |
+|---|---|
+| FR-05, UC-M2-06/07/08, BR-M2-11/12/15 | Parking hold, parking lifecycle and overdue handling are not implemented by M2 (DEV-15, DEV-17). Confirm with M2: accept as out of scope or add TCs |
+| UC-M2-01 | Student search flow has no service/router (DEV-14) |
+| UC-M5-01/02, UC-M6-01 | M5/M6 TCs cite FR/BR only; owners to add the UC reference to existing TCs if they match |
+| UC-M7-01..10 | M7 TCs cite FR/NFR; UC-M7 are views of other UCs. M7 to map |
+| BR-M4-07/09/11/12 | Declared unused in the requirements; M4 to confirm and mark withdrawn |
+| BR-M1-03, BR-M6-03 | No TC found; owners to confirm |
+| NFR-14, NFR-24, NFR-26 | Verified by a fresh-clone check (NFR-14, not yet done), CI/coverage report (NFR-24, passed locally) and this sheet (NFR-26); no TC ID by design |
+| NFR-15, NFR-17 | Core tests exist (`nfr-evidence-core.md`) but no TC ID cites them; M1/M8 to add IDs |
+| NFR-11, 19, 23, 27 | Withdrawn |

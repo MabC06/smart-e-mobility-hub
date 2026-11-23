@@ -1,88 +1,54 @@
-# NFR Measurement Report
+# NFR Measurements — M8
 
-> **Owner:** M8 — Testing, QA & Report Integration Lead  
-> **Repository baseline:** `bb5c622` (snapshot supplied on 2026-11-18)  
-> **Measurement date:** 2026-11-20  
-> **Status:** Partial evidence; Remaining NFRs are open.
+> **Owner:** M8 · **Date:** 2026-11-23 · **Commit measured:** `01d68e764876a4c22fad53145843d164339784f9` (clean working tree) · **Python 3.12.10**, FastAPI 0.162.0 TestClient, in-memory SQLite, Windows
+> Method (D-024): sequential requests in-process on DS-STD (seed 2026: 10 Hubs, 400 spaces, 61 charging points, 350 vehicles, 1,005 users). No concurrent load. Timings are TestClient/in-memory figures, not production guarantees.
+> Scripts: `tests/performance/measure_nfr02_03.py`, `tests/performance/measure_nfr01_04_05.py`. Raw files: `docs/testing/evidence/`.
 
-## 1. Method
+## 1. Results
 
-NFR-02 and NFR-03 follow D-024: at least 100 **sequential** in-process API requests/operations against DS-STD. No concurrent load test is used. The reproducible runner is `tests/performance/measure_nfr02_03.py`; raw timings are stored in `evidence/nfr02-03-python312-rerun.json`.
+| NFR | Target | Measured (01d68e7) | Verdict |
+|---|---|---|---|
+| NFR-01 | API read reflects an accepted write, p95 ≤ 1 s | 100/100 writes visible in the next read; read-after-write p95 3.97–5.23 ms, max ≤ 6.40 ms (3 runs) | **Pass** (API part). UI ≤ 5 s is M7's part and is not measured here |
+| NFR-02 | Reads p95 ≤ 500 ms, max ≤ 2 s | 4 endpoints, 100/100 HTTP 200 each: p95 10.831 / 12.908 / 11.221 / 2.840 ms; max ≤ 41.589 ms | **Pass** for the 4 measured endpoints |
+| NFR-03 | Writes p95 ≤ 1 s | `POST /charging/requests/immediate`: 100/100 OK, p95 10.573 ms, max 12.232 ms | **Pass** for the measured operation |
+| NFR-04 (charging) | Schedule for one Hub ≤ 3 s | Queue depth 15 per Hub, all 10 Hubs: worst 1.03 s, 1.03 s, 1.50 s, 1.41 s (stub run and runs 1–3) | **Pass** at depth 15; see 2 for depth 50 |
+| NFR-04 (allocation) | Network recommendation ≤ 5 s | `POST /allocation/tasks/plan` returns 503 `RESOURCE_UNAVAILABLE`: no `ReservationDemand` provider registered (M2) | **Blocked** until M2 registers its provider. With an empty-demand stub: p95 78.7 ms (reference only, not a pass) |
+| NFR-05 | Each of 5 scenarios ≤ 30 s | SC-01 only: 5/5 OK, p95 113–164 ms. SC-02 to SC-05 are not implemented (DEV-08) | **Partial** (SC-01 passes) |
+| NFR-12 | Operational state unchanged after a run | State hash identical before/after, 3 runs + stub run (SC-01); `tests/simulation` isolation tests pass | **Pass** for SC-01 |
+| NFR-13 | Same seed ⇒ same output | Two runs identical after removing wall-clock fields (`as_of`, `executed_at`, `taken_at`), 3 runs + stub run | **Pass** for SC-01 |
+| NFR-14 | Fresh clone ≤ 15 min, ≤ 5 commands | Not performed | **Open** |
+| NFR-24 | core ≥ 70 %, others ≥ 60 % | core 98.8 %, reservation 96.3 %, charging 88.2 %, allocation 91.5 %, monitoring 87.3 %, simulation 92.4 % (one full run, 1501 passed, 1 skipped) | **Pass** |
 
-Environment recorded by the run:
+## 2. NFR-04 charging: depth sweep on Hub H01 (limitation)
 
-- Python 3.12.10
-- FastAPI `TestClient`
-- Isolated in-memory SQLite repository
-- DS-STD generated with seed 2026: 10 Hubs, 400 parking spaces, 61 charging points, 250 fleet + 100 private vehicles, 1,005 users
-- 100 sequential samples per operation; no concurrency
+DS-STD gives each Hub up to 15 queued requests in the measurement, which is the realistic load. A sweep on H01 shows how the time grows with the queue:
 
-## 2. NFR-02 — Read API Performance
+| Queue depth | stub run | run 1 | run 2 | run 3 |
+|---|---|---|---|---|
+| 5 | 19.9 ms | 20.4 ms | 31.6 ms | 26.9 ms |
+| 10 | 47.2 ms | 41.0 ms | 69.3 ms | 53.7 ms |
+| 15 | 122.0 ms | 122.6 ms | 170.4 ms | 160.9 ms |
+| 30 | 674.6 ms | 666.7 ms | 943.8 ms | 923.1 ms |
+| 50 | 2,636 ms | 2,669 ms | **3,834 ms** | **3,555 ms** |
 
-**Result: PASS (for the four tested endpoints)**
+Depth 50 exceeds 3 s in 2 of 4 recorded runs (and in two earlier console runs: 3.04 s and 3.10 s). Time per queued request rises from about 4 ms to 53–77 ms, so the cost grows faster than linearly. Run-to-run spread is machine load. Recorded as proposed **DEF-M3-007** (Medium) in `defect-log.md`; M3 to confirm the cause. Report section 4.4 states: NFR-04 for charging holds at the DS-STD load (15 per Hub) and is not shown for queues of about 50.
 
-Performance testing was conducted using 100 sequential requests per endpoint on the DS-STD dataset.
+## 3. NFR-04 allocation and NFR-05 scenarios: why not complete
 
-| Endpoint | Samples | p95 (ms) | Max (ms) | Result |
-|---|---:|---:|---:|---|
-| GET /hubs | 100 | 27.830 | 74.016 | PASS |
-| GET /hubs/H01/vehicles | 100 | 39.059 | 66.605 | PASS |
-| GET /api/v1/monitoring/metrics/hubs | 100 | 28.043 | 94.486 | PASS |
-| GET /charging/queue | 100 | 9.067 | 13.263 | PASS |
+- **Allocation:** `develop` plus PRs #45–#52 contains no M2 provider for `ProviderPort.RESERVATION_DEMAND` or `HOLD_CONSUMER` (PR #52 changes documents only; DEV-09, DEV-16). TC-M8-017 therefore still asserts the absence. Rerun `measure_nfr01_04_05.py` (without `--stub-reservation-demand`) once M2 registers the providers.
+- **Scenarios:** M6 implements the demand surge only (DEV-08). SC-02 to SC-05 are reported as not implemented, not as passed.
 
-All tested endpoints satisfied the specified thresholds of p95 ≤ 500 ms and max ≤ 2,000 ms.
+## 4. Evidence files
 
-## 3. NFR-03 — Write API Performance
+| File | Content |
+|---|---|
+| `nfr02-03-phase34.json` | NFR-02, NFR-03 on 01d68e7 (supersedes `nfr02-03-python312-rerun.json`, taken on `bb5c622`) |
+| `nfr01-04-05-run1.json` … `run3.json` | NFR-01, 04, 05, 12, 13 without a provider stub |
+| `nfr01-04-05-phase34-stub.json` | Same, with the empty-demand stub (allocation timing, reference only) |
 
-**Result: PASS (for the tested operation)**
-
-The `POST /charging/requests/immediate` endpoint was tested using 100 sequential operations.
-
-| Metric | Measured value | Target |
-|---|---:|---:|
-| p50 | 26.428 ms | Informational |
-| p95 | 33.610 ms | ≤ 1,000 ms |
-| Max | 45.727 ms | Informational |
-| Successful operations | 100/100 | 100% |
-
-All 100 operations returned HTTP 200, with zero recorded write errors.
-
-## Test Environment
-
-- Python 3.12.10
-- Commit: `bb5c622`
-- FastAPI TestClient
-- In-memory SQLite
-- Sequential execution without concurrency
-- DS-STD seed: 2026
-- 10 hubs, 400 parking spaces, 61 charging points, 350 vehicles, and 1,005 users.
-
-**Limitation:** These results represent measurements in the local test environment and do not constitute production performance guarantees. The conclusions apply only to the endpoints and operation tested above.
-
-## 4. Remaining NFR evidence
-
-| NFR | Required evidence | Status |
-|---|---|---|
-| NFR-01 | State update followed by read visibility; UI refresh timing | Not measured in this run |
-| NFR-04 | Charging schedule ≤3 s/Hub; network redistribution ≤5 s | Not measured in this run |
-| NFR-05 | Each of five standard simulation scenarios ≤30 s | Not measured in this run |
-| NFR-06 | 20–50 simultaneous requests, 100 repeated runs | Not measured here; separate concurrency test required |
-| NFR-07 | Invariant checker after integration and simulation runs | Partially asserted by existing module tests; consolidated evidence pending |
-| NFR-10 | Malformed sensor event and equipment-failure response | Existing Core/IoT tests cover parts; system-level timing evidence pending |
-| NFR-12 | Operational-state hash unchanged and write guard | Requires explicit system-level evidence for all five scenarios |
-| NFR-13 | Same seed/event order gives identical state hash/output | Existing dataset/event tests cover deterministic generation; consolidated simulation evidence pending |
-| NFR-14 | Fresh clone by a different member, ≤15 min and ≤5 commands | Not performed by M8 author; assign an independent team member |
-| NFR-16 | Authorization test for every endpoint | New integration tests cover selected endpoints only; endpoint inventory/sign-off pending |
-| NFR-24 | Per-module coverage thresholds from current CI artifacts | Not verified against the current snapshot's CI artifact |
-| NFR-25 | State-change audit evidence | Existing Core tests cover audit behavior; consolidated integration evidence pending |
-| NFR-26 | Every FR/BR/UC linked to TC; zero orphan IDs | Not complete; module-owned BR/UC/test-case links must be confirmed |
-
-## 5. Reproduction
-
-From the repository root, using the project's Python 3.12 environment:
+Reproduce:
 
 ```powershell
-python tests/performance/measure_nfr02_03.py `
-    --output docs/testing/evidence/nfr02-03-python312-rerun.json `
-    --count 100
+py tests/performance/measure_nfr02_03.py --output docs/testing/evidence/nfr02-03-phase34.json --count 100
+py tests/performance/measure_nfr01_04_05.py --output docs/testing/evidence/nfr01-04-05-run1.json
 ```

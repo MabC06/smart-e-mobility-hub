@@ -1,60 +1,64 @@
 # 09. Testing and Validation
 
-> **Status:** Working draft — 2026-11-20  
+> **Status:** Draft for integration — 2026-11-23  
 > **Owner:** M8 — Testing, QA & Report Integration Lead  
-> **Baseline:** supplied repository snapshot `bb5c622`; latest local test execution includes the TC-M8-016 test adjustment described in `docs/testing/test-execution-report.md`.
+> **Baseline:** testing branch `01d68e764876a4c22fad53145843d164339784f9` (`develop` plus approved, not-yet-merged PRs #45, #47–#52). Details: `docs/testing/test-execution-report.md`, `docs/testing/nfr-measurements.md`.
 
 ## 9.1 Testing approach
 
-Testing follows the layered strategy defined in `docs/testing/test-plan-final.md`: module unit/component tests are owned by each module member; M8 coordinates integration/system verification, requirements traceability, NFR evidence and consolidated reporting. Test cases use the `TC-M<n>-###` convention and identify the requirements they verify.
+Testing follows the layered strategy in `docs/testing/test-plan-final.md`: module owners write unit and component tests; M8 coordinates integration verification, traceability, NFR evidence and reporting. Test cases use the `TC-M<n>-###` convention and cite the requirements they verify (172 test cases are documented).
 
-Integration tests build the application through `src/main.py::build_app` with an isolated SQL repository. The M8 integration suite checks application composition, D-020 provider registration, Core provider invocation, authenticated Core reads, role-based access to Charging/Allocation/Monitoring endpoints, and M4's alternative-Hub provider route.
+Integration tests build the application through `src/main.py::build_app` with an isolated SQL repository. They check application composition, D-020 provider registration, Core provider invocation, authenticated Core reads, role-based access to Charging, Allocation and Monitoring endpoints, and M4's alternative-Hub route.
 
-## 9.2 Integration and regression results
+## 9.2 Regression results
 
-On 2026-11-20, the user's local Python 3.12.10 workspace produced:
+On 2026-11-23, on Python 3.12.10 (Windows, pytest 9.2.0), clean working tree:
 
-| Test run | Result |
+| Check | Result |
 |---|---|
-| `python -m pytest -q tests/integration --disable-warnings` | 7 passed, 1 warning in 1.31 s |
-| `python -m pytest -q tests/integration tests/iot_sim tests/core/test_main.py tests/core/test_providers.py` | 66 passed, 1 warning in 15.54 s |
-| `python -m pytest -q` | 1,400 passed, 1 skipped, 1 warning in 106.68 s |
+| ruff check / ruff format --check / mypy | Clean (202 files formatted; 47 source files) |
+| Full suite (`pytest -q`) | 1,501 passed, 1 skipped, 1 warning |
+| M8 integration (7), focused regression (66), NFR-22 import boundaries (25), NFR-06 concurrency (42) | All passed |
+| Per module: reservation 159, charging 45, allocation 93, monitoring 40, simulation 9, UI 75 | All passed |
 
-The full repository regression completed successfully; this supersedes the earlier draft's incomplete/timeout note. One test was skipped and is not counted as passed. The warning is a Starlette deprecation warning emitted through `fastapi.testclient`: use of `httpx` with `starlette.testclient` is deprecated and `httpx2` is recommended. It did not fail the test runs.
-
-TC-M8-016 initially failed because the test accessed `.path` on every item in `app.routes`, but the tested FastAPI/Starlette combination includes an internal `_IncludedRouter` object without that attribute. The test was adjusted to inspect the generated OpenAPI paths for API routes and to check `/ui/login` using an HTTP request. The subsequent integration run passed all seven cases. This was a test compatibility correction, not an application defect.
-
-These results establish regression evidence for the user's local workspace. The M3–M6 PRs have been reported complete by their owners but remain unmerged; do not treat this run as sign-off of unmerged PR contents unless those PR branches were included in the tested workspace.
+The skipped test (`tests/core/test_module_entities.py:316`) applies only to the SQL repository ("only the database has foreign keys") and is not counted as passed. The single warning is a Starlette deprecation notice about `httpx` in `starlette.testclient`; it did not fail any run. An earlier TC-M8-016 failure (route inspection in the test, not the application) was fixed in the test.
 
 ## 9.3 Integration limitations
 
-The supplied `bb5c622` snapshot does not register M2's `ReservationDemand` or `HoldConsumer` providers in `reservation.install()`. Therefore, dependent Reservation–Charging/Allocation workflows remain blocked in that snapshot and TC-M8-017 must be revalidated after the relevant M2 implementation is merged.
-
-The UI implementation in the supplied snapshot still reads from `ui.sample_data`; it cannot be treated as an end-to-end Core-integrated interface. The seven M8 integration tests also do not prove that every business workflow across Reservation, Charging, Allocation, Monitoring and Simulation works end to end.
+- M2 registers neither `ReservationDemand` nor `HoldConsumer`; the M2 pull request #52 changes documents only. Allocation planning therefore returns 503 and workflows that need reservation demand are blocked. TC-M8-017 asserts this absence and must be updated when M2 registers the providers.
+- The UI reads sample data for several screens (DEV-10 to DEV-12), so it is not shown to be integrated with Core.
+- M6 implements only the demand-surge scenario SC-01 (DEV-08).
+- No end-to-end journey (rental → dispatch → charging → monitoring) has been executed.
 
 ## 9.4 Non-functional validation
 
-A D-024 sequential measurement run was performed on Python 3.12.10 against DS-STD, with 100 samples per operation. The raw evidence is `docs/testing/evidence/nfr02-03-python312-rerun.json`.
+Measurements follow D-024: sequential requests, in-process client, DS-STD (seed 2026; 10 Hubs, 400 spaces, 61 charging points, 350 vehicles, 1,005 users). They are TestClient and in-memory SQLite timings and are not production guarantees.
 
-- **NFR-02:** four read endpoints returned 100/100 successful HTTP 200 responses. p95 values ranged from 9.067 ms to 39.059 ms; maximum values ranged from 13.263 ms to 94.486 ms. All four met p95 ≤500 ms and max ≤2,000 ms.
-- **NFR-03:** `POST /charging/requests/immediate` returned 100/100 successful HTTP 200 responses, with p95 33.610 ms and zero write errors; it met p95 ≤1,000 ms.
+| NFR | Target | Result | Verdict |
+|---|---|---|---|
+| NFR-01 | Read after write, p95 ≤ 1 s | 100/100 visible; p95 3.97–5.23 ms | Pass (API) |
+| NFR-02 | Reads p95 ≤ 500 ms, max ≤ 2 s | 4 endpoints: p95 2.84–12.91 ms; max ≤ 41.6 ms | Pass (4 endpoints) |
+| NFR-03 | Writes p95 ≤ 1 s | `POST /charging/requests/immediate`: p95 10.6 ms | Pass (1 operation) |
+| NFR-04 charging | ≤ 3 s per Hub | 15 queued per Hub: worst 1.50 s. 50 queued on one Hub: 2.64–3.83 s | Pass at DS-STD load; exceeds at depth 50 |
+| NFR-04 allocation | ≤ 5 s | 503, no M2 provider | Blocked |
+| NFR-05 | Each scenario ≤ 30 s | SC-01: p95 113–164 ms; SC-02–05 not implemented | Partial |
+| NFR-12, NFR-13 | State unchanged; same seed same output | Both hold for SC-01 in 4 runs | Pass (SC-01) |
+| NFR-14 | Fresh clone ≤ 15 min, ≤ 5 commands | Not performed | Open |
 
-NFR-02 and NFR-03 are therefore **Pass for the measured endpoints/operation only**. These local TestClient/in-memory SQLite measurements do not establish production performance or prove that every system endpoint meets the targets.
-
-NFR-01, NFR-04, NFR-05, NFR-14 and the remaining system-level NFR evidence are not complete. NFR-14 specifically requires an independent member to perform the fresh-clone check.
+The NFR-04 charging time rises faster than linearly with queue depth (about 4 ms per queued request at depth 5, 53–77 ms at depth 50). This is recorded as proposed defect DEF-M3-007 and, if not fixed, goes into section 4.4 as a limitation. No concurrent-load figure exists (DEV-01).
 
 ## 9.5 Coverage and traceability
 
-The full pytest suite passed as recorded above, but this does not replace the NFR-24 coverage thresholds. Current CI coverage artifacts still need to be checked against Core ≥70% and Reservation, Charging, Allocation, Monitoring and Simulation ≥60%.
+Line coverage meets NFR-24 for every named module (local run): core 98.8 % (≥ 70 %); reservation 96.3 %, charging 88.2 %, allocation 91.5 %, monitoring 87.3 %, simulation 92.4 % (each ≥ 60 %). The CI coverage artifact has not been checked.
 
-FR/BR/UC traceability remains partial. Module owners must confirm their requirement-to-test mappings, and M8 must complete the NFR-26 duplicate/orphan audit before claiming complete traceability.
+Traceability (`docs/testing/traceability-sheet.md`) is incomplete: 11 of 12 FR, 25 of 34 BR and 21 of 38 UC have a test case. Uncovered: FR-05 (parking hold, not implemented by M2); nine BR (parking and overdue rules of M2, four M4 rules declared unused, BR-M1-03, BR-M6-03); 17 UC (parking and search flows of M2, UC-M5-01/02, UC-M6-01, UC-M7-01 to 10). Module owners must confirm or add tests; NFR-26 is not yet met.
 
 ## 9.6 Defect summary
 
-The existing defect log records seven earlier defects (one High and six Low), all marked Closed after PR #39. M2 and M5 still need their module owners to confirm their entries. The latest integration, focused regression and full repository runs reported no failing tests. The initial TC-M8-016 test-harness `AttributeError` was resolved by correcting the route-inspection assertion; it is not recorded as an application defect.
+22 defects are recorded (0 Critical, 6 High, 5 Medium, 11 Low); all are Closed. One further entry, DEF-M3-007 (Medium, NFR-04 at depth 50), is proposed and awaits M3. No test failed in the runs above.
 
 ## 9.7 Overall assessment
 
-M8 has completed the recorded integration and regression runs in the local workspace: 7 integration tests passed, 66 focused tests passed, and the full repository suite completed with 1,400 passed and 1 skipped. NFR-02 and NFR-03 passed for their measured scope on Python 3.12.10.
+On the testing branch all executed tests pass, static checks are clean, coverage exceeds the thresholds, and NFR-01, 02, 03 and 12/13 (SC-01) are met within their measured scope; NFR-04 for charging is met at the standard load.
 
-This is not a final quality sign-off. Independent NFR-14 fresh-clone verification, remaining NFR measurements, current CI coverage confirmation, complete FR/BR/UC traceability, confirmation of M2/M5 defect-log entries, and post-merge integration validation remain open.
+This is a conditional sign-off, not a final one. Open: NFR-14 fresh-clone check; NFR-04 allocation (needs M2 providers); NFR-05 for SC-02–SC-05; NFR-26 traceability gaps; confirmation of DEF-M3-007; a repeat run on `develop` after the PRs merge; and the CI coverage artifact.

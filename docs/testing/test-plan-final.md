@@ -1,8 +1,8 @@
-# Test Plan — v1
+# Test Plan — Final
 
 > **Owner:** M8 — Testing, QA & Report Integration Lead  
-> **Baseline:** repository snapshot `bb5c622` (2026-11-18; supplied ZIP)  
-> **Status:** Phase 3 testing baseline · execution evidence refreshed 2026-11-20; full-system sign-off remains open  
+> **Baseline:** testing branch `01d68e764876a4c22fad53145843d164339784f9` (2026-11-23): `develop` plus approved, not-yet-merged PRs #45, #47–#52  
+> **Status:** Final plan · execution evidence updated 2026-11-23; sign-off conditional (section 14)  
 > **Related:** `docs/requirements/nfr.md`, `docs/requirements/reference-dataset.md`, `docs/design/architecture/core-api-spec.md`, `docs/design/simulation/iot-sim-design.md`, `CONTRIBUTING.md`
 
 ## 1. Purpose and objectives
@@ -184,6 +184,8 @@ The authoritative schedule is `docs/task-assignment-timeline.md`. M8 milestones:
 | 18/11 | Integration execution, NFR measurements, execution report, consolidated defect log, Testing report draft |
 | 22/11 | Evaluation/conclusion integration, final consistency checklist and report assembly |
 
+Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(charging)/05(SC-01)/12/13/24 measurements are done on `01d68e7`; the execution report, NFR measurements, defect log and traceability sheet are updated. The 18/11 and 22/11 milestones were met late (23/11). NFR-14, NFR-04 allocation and NFR-05 SC-02–SC-05 are not complete.
+
 ## 12. Risks and mitigations
 
 | Risk | Impact | Mitigation |
@@ -194,36 +196,42 @@ The authoritative schedule is `docs/task-assignment-timeline.md`. M8 milestones:
 | M8 becomes a bottleneck for sign-offs | PR queue | Review test existence/pass status as PRs arrive; do not wait until code freeze |
 | Cross-module assumptions diverge | Integration defects | Use Core API spec and provider-port contracts as single interface references |
 
-## 13. Integration test implementation baseline (2026-11-20)
+## 13. Integration test implementation baseline (2026-11-23)
 
-The integration suite is built through `src/main.py::build_app(settings, repository=...)` and uses an isolated SQLite repository. It does not call `build_app()` without its required `Settings` argument.
-
-Current integration cases are documented in `test-cases/integration.md` and implemented under `tests/integration/`:
+The integration suite is built through `src/main.py::build_app(settings, repository=...)` and uses an isolated SQLite repository (7 tests, all passing on `01d68e7`). Cases are documented in `test-cases/integration.md` and implemented under `tests/integration/`:
 
 - application composition and route mounting;
-- provider registration and the expected absence of M2's `ReservationDemand` and `HoldConsumer` ports in this snapshot;
+- provider registration, including the expected absence of M2's `ReservationDemand` and `HoldConsumer` ports (TC-M8-017);
 - invocation of M3's `ChargingDemand` provider through Core;
 - authentication on Core read APIs;
 - operator-only authorization on Charging, Allocation and Monitoring endpoints;
 - Allocation alternative-Hub route through the installed M4 provider.
 
-The tests use a small deterministic fixture, not DS-STD. DS-STD remains required for NFR-02/03 performance measurement. A missing M2 provider is an explicit dependency limitation, not a test fixture to be faked.
+The tests use a small deterministic fixture, not DS-STD. DS-STD is used by the NFR measurement scripts `tests/performance/measure_nfr02_03.py` and `measure_nfr01_04_05.py` (results in `nfr-measurements.md`). A missing M2 provider is an explicit dependency limitation, not a fixture to be faked; the only stub is the optional `--stub-reservation-demand` flag, whose timing is reference only.
 
 ### 13.1 Known integration limitations
 
-- `reservation.install()` registers its tables and service but does not register `ReservationDemand` or `HoldConsumer` in this snapshot. Any workflow that depends on those ports must be marked Blocked until M2's implementation is merged and registered.
-- `src/ui/routes.py` still describes and reads Phase 2 sample data. The current UI pages are not evidence of end-to-end UI-to-Core integration; UI operational journeys must not be signed off as integrated.
-- The new M8 integration tests cover application composition, provider contracts and role-protected module views. They do not claim full cross-module business workflow coverage (rental → allocation → charging → monitoring).
+- M2's `reservation.install()` still registers neither `ReservationDemand` nor `HoldConsumer` (PR #52 is documentation only). `POST /allocation/tasks/plan` returns 503 `RESOURCE_UNAVAILABLE`, so NFR-04 for allocation and every workflow needing those ports are Blocked. TC-M8-017 must be changed when M2 registers them.
+- `src/ui/routes.py` still reads `ui.sample_data` for several screens (DEV-10 to DEV-12); UI pages are not evidence of end-to-end Core integration.
+- M6 implements SC-01 only (DEV-08).
+- The integration tests do not claim full business-workflow coverage (rental → allocation → charging → monitoring).
 
 ## 14. Open items and sign-off gates
 
-- Obtain M3–M6 module-owner test-case IDs and `Verifies:` mappings; confirm all active FR, BR and UC rows and run the NFR-26 orphan/duplicate audit.
-- M2 must register `ReservationDemand` and `HoldConsumer` before dependent Reservation–Charging/Allocation integration workflows can be executed.
-- M7 must complete the planned UI-to-Core integration before operational UI journeys can be signed off; the current `ui.routes` still uses `ui.sample_data`.
-- Focused integration (7 passed), focused regression (66 passed), and full repository regression (1,400 passed, 1 skipped) were executed in the user's local Python 3.12.10 workspace on 2026-11-20; see `test-execution-report.md`. Re-run after relevant PRs are merged into the integration baseline.
-- NFR-02/03 were measured on Python 3.12.10 and passed for the four read endpoints and one write operation measured; complete NFR-01, NFR-04, NFR-05 and applicable system-level evidence.
-- Assign NFR-14 fresh-clone verification to a member who did not author the setup instructions; retain elapsed time and command count.
-- Capture current CI coverage artifacts and confirm NFR-24 thresholds for every named module.
-- Confirm M2 and M5 defect-log entries with their module owners before consolidating the final defect summary.
+Done on 2026-11-23 (`01d68e7`; details in `test-execution-report.md`, `nfr-measurements.md`):
 
-Passing focused and full regression runs, or NFR-02/03 results for a limited measured scope, do not by themselves satisfy the full-system exit criteria in section 7.
+- ruff, format, mypy clean; full suite 1,501 passed, 1 skipped (SQL-only foreign-key test); 7 integration, 66 focused, 25 NFR-22 tests passed.
+- NFR-24 coverage: core 98.8 %; reservation 96.3 %; charging 88.2 %; allocation 91.5 %; monitoring 87.3 %; simulation 92.4 %.
+- NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (proposed DEF-M3-007); NFR-05, 12, 13 pass for SC-01.
+
+Open:
+
+- **NFR-14:** fresh-clone check by a member who did not write the setup instructions (≤ 15 min, ≤ 5 commands); keep time and commands.
+- **NFR-04 allocation:** rerun after M2 registers the providers.
+- **NFR-05:** SC-02–SC-05 not implemented; reported as a limitation.
+- **NFR-26:** traceability gaps in `traceability-sheet.md` (FR-05; 9 BR; 17 UC) need owner confirmation or new TCs.
+- **DEF-M3-007:** M3 to confirm; fix or Accept into report 4.4.
+- Repeat the full run on `develop` after the PRs merge; check the CI coverage artifact (NFR-24).
+- Confirm M2 and M5 defect-log entries with their owners.
+
+Passing regression runs and NFR results for a limited measured scope do not by themselves satisfy the exit criteria in section 7. M8 sign-off is **conditional** on the items above.
