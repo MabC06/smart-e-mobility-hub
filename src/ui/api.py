@@ -1,7 +1,7 @@
 """Calls from a page to the REST routes of M3, M4 and M5 with the user's own token.
 
 ``ui`` may not import those modules (NFR-22). The call stays inside the application (no network).
-Use these functions only from a normal ``def`` route: they wait for the answer.
+Use call() and read_form() only from a normal ``def`` route.
 """
 
 from typing import Any
