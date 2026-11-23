@@ -9,7 +9,6 @@ import main
 from core.actor import Actor
 from core.auth import hash_password
 from core.domain.enums import Role, VehicleType
-from core.providers import ProviderPort
 from core.repository.sql import SqlRepository
 from core.result import Err
 from core.seed import HubSpec, NetworkSpec, UserSpec, VehicleSpec

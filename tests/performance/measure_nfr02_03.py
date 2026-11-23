@@ -1,7 +1,7 @@
 """Run D-024 sequential NFR-02/03 measurements against the DS-STD fixture.
 
 Usage from repository root:
-    python tests/performance/measure_nfr02_03.py --output docs/testing/evidence/nfr02-03-<run-id>.json
+python tests/performance/measure_nfr02_03.py --output docs/testing/evidence/nfr02-03-<run-id>.json
 
 This creates an isolated in-memory SQLite app, loads DS-STD, then executes sequential
 in-process HTTP requests. It does not use concurrency or a production database.
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import statistics
 import sys
 import time
 from dataclasses import replace
@@ -21,15 +20,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from fastapi.testclient import TestClient  # noqa: E402
+
 import main as app_main  # noqa: E402
 from core.actor import Actor  # noqa: E402
 from core.auth import hash_password  # noqa: E402
-from core.domain.enums import Role  # noqa: E402
 from core.domain.entities import Vehicle  # noqa: E402
-from core.errors import ErrorCode  # noqa: E402
-from core.result import Err  # noqa: E402
+from core.domain.enums import Role  # noqa: E402
 from core.repository.sql import SqlRepository  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+from core.result import Err  # noqa: E402
 from iot_sim import build_network_spec  # noqa: E402
 
 
@@ -54,7 +53,9 @@ def summarize(name: str, samples: list[float], statuses: list[int]) -> dict[str,
     }
 
 
-def timed_requests(client: TestClient, method: str, path: str, headers: dict[str, str], count: int = 100):
+def timed_requests(
+    client: TestClient, method: str, path: str, headers: dict[str, str], count: int = 100
+):
     samples: list[float] = []
     statuses: list[int] = []
     for _ in range(count):
@@ -85,9 +86,7 @@ def main_run(output: Path, count: int = 100) -> dict[str, object]:
 
     repository = SqlRepository.open("sqlite://")
     app = app_main.build_app(settings, repository=repository)
-    loaded = app.state.core.commands.load_network(
-        spec, Actor("SIM", Role.OPERATOR, "iot_sim")
-    )
+    loaded = app.state.core.commands.load_network(spec, Actor("SIM", Role.OPERATOR, "iot_sim"))
     if isinstance(loaded, Err):
         repository.close()
         raise RuntimeError(f"DS-STD seed failed: {loaded.code}: {loaded.message}")
@@ -131,7 +130,9 @@ def main_run(output: Path, count: int = 100) -> dict[str, object]:
             write_samples: list[float] = []
             write_statuses: list[int] = []
             write_errors: list[dict[str, object]] = []
-            candidates = [vehicle for vehicle in vehicles if vehicle.hub_id and vehicle.battery_pct < 100]
+            candidates = [
+                vehicle for vehicle in vehicles if vehicle.hub_id and vehicle.battery_pct < 100
+            ]
             if len(candidates) < count:
                 raise RuntimeError(f"only {len(candidates)} eligible vehicles for {count} writes")
             for index, vehicle in enumerate(candidates[:count], start=1):
@@ -143,12 +144,18 @@ def main_run(output: Path, count: int = 100) -> dict[str, object]:
                     "queue_if_full": True,
                 }
                 start = time.perf_counter()
-                response = client.post("/charging/requests/immediate", json=payload, headers=headers)
+                response = client.post(
+                    "/charging/requests/immediate", json=payload, headers=headers
+                )
                 write_samples.append((time.perf_counter() - start) * 1000)
                 write_statuses.append(response.status_code)
                 if not 200 <= response.status_code < 300:
                     write_errors.append(
-                        {"request_id": payload["request_id"], "status": response.status_code, "body": response.text}
+                        {
+                            "request_id": payload["request_id"],
+                            "status": response.status_code,
+                            "body": response.text,
+                        }
                     )
             result["nfr03_write_operation"] = summarize(
                 "POST /charging/requests/immediate", write_samples, write_statuses
@@ -168,7 +175,11 @@ def cli_main() -> None:
     report = main_run(args.output, args.count)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(json.dumps({key: value for key, value in report.items() if key != "nfr02_read_endpoints"}, indent=2))
+    print(
+        json.dumps(
+            {key: value for key, value in report.items() if key != "nfr02_read_endpoints"}, indent=2
+        )
+    )
     for name, metrics in report["nfr02_read_endpoints"].items():
         print(name, {key: metrics[key] for key in ("samples", "success_count", "p95_ms", "max_ms")})
 
