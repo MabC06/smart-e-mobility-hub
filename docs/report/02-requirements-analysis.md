@@ -44,7 +44,7 @@ The rules prioritize consistency over pretending that future arrivals or departu
 
 This design addresses NFR-06/07/08/09 (uniqueness, capacity, valid transitions, atomicity), NFR-12/13 (simulation isolation/determinism), NFR-16/18 (authorization/validation), NFR-21/22 (clear errors/module boundaries), and NFR-25/26 (audit/traceability). NFR-02/03 latency remain implementation/measurement targets, not demonstrated results.
 
-Baseline §9 provides FR -> UC -> BR -> diagram -> V-M2 scenario traceability, with equivalence partitions, boundary values, race conditions, retries, failures, shared bays and simulation isolation. The [M2 test catalog](../testing/test-cases/reservation.md) maps the implemented rental cases to TC-M2-001 through TC-M2-023 and records execution evidence. UC-M2/BR-M2 identifiers are stable; retired BR numbers are not reused.
+Baseline §9 provides FR -> UC -> BR -> diagram -> V-M2 scenario traceability, with equivalence partitions, boundary values, race conditions, retries, failures, shared bays and simulation isolation. The [M2 test catalog](../testing/test-cases/reservation.md) maps the implemented rental service, API and demand provider to TC-M2-001 through TC-M2-026 and records execution evidence. UC-M2/BR-M2 identifiers are stable; retired BR numbers are not reused.
 
 <!-- END M2: Reservation & Trip -->
 

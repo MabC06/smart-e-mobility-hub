@@ -135,6 +135,16 @@ Draft points for M1:
    occupancy and an already-faulty vehicle's Maintenance state. The same
    lock orders a racing pickup and cancel. See
    [lifecycle.py](../../src/reservation/lifecycle.py) and TC-M2-007/023.
+5. **Keeping authentication and ownership checks consistent at the API.**
+   [PR #54](https://github.com/MabC06/smart-e-mobility-hub/pull/54) mounts the
+   reserve, pickup, cancel, return and list routes under `/reservations`.
+   Each route uses Core's `require_student` and derives its actor from the
+   authenticated principal (D-023). `GET /reservations/mine` reads the
+   student's bookings, open trips and observed vehicle versions in one unit of
+   work. The router gives foreign and missing records the same 404 response.
+   State or version conflicts return 409, internal operation failures return
+   500 and repository failures while listing bookings return 503. TC-M2-024
+   and TC-M2-025 exercise the routes with Core-issued tokens and SQLite.
 
 <!-- END M2: Reservation & Trip -->
 
@@ -163,9 +173,9 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-01 | M1, M8 | NFR-02/03 under 100 concurrent sessions | Measured with sequential requests over DS-STD (D-024) | No load-test tool could be built before the code freeze | No figure for concurrent load; correctness under concurrency is covered by NFR-06 tests |
 | DEV-02 | M4 | Task and its vehicles in a separate table | `vehicle_ids` is one comma-separated text column (Section 3.2.2) | — (M4 fills in) | The database cannot check the vehicle IDs |
 | DEV-03 | M1 | Brief: a distributed operational environment | One process; Hubs and modules are separated logically (A-08, Section 3.1.7) | Size of the project and the team | Failures of the network between Hubs are not modelled |
-| DEV-14 | M2 | Student search and the rental actions in UC-M2-01 to UC-M2-05 have a student-facing flow | Rental operations are in-process services. M2 supplies neither a search service nor a reservation REST router or a student bookings query | The delivered rental slice implements reserve, pickup, return and release in the backend | Evidence is from service tests. Student reservation screens with sample data are excluded from the completed rental demonstration |
+| DEV-14 | M2 | Students search for eligible fleet vehicles and complete the rental journey (UC-M2-01 to UC-M2-05) | PR #54 exposes the authenticated rental operations and the student's bookings and open trips. M2-specific vehicle search (FR-02) remains unimplemented | The API builds on the existing rental service for selected vehicles. Search requires a separate eligibility and availability query | The rental API is covered by TC-M2-024/025. M7 connects the S4/S5 UI after the router lands |
 | DEV-15 | M2 | FR-05 and the parking part of FR-07 include parking holds, private arrival/departure and coordination with charging | Return asks Core for safe unclaimed capacity. No M2 parking booking lifecycle, reserved return bay or coordinated parking/charging bundle is implemented | These Phase 3 paths were outside the merged rental slice | A planned destination is advisory. A full hub leaves a trip open; there is no confirmed parking reservation to consume |
-| DEV-16 | M2 | M2 provides demand and hold data through the D-020 ports and can use M4 for alternatives | Core v1.2 exports `ReservationDemand` and `HoldConsumer` types, but M2 registers neither implementation or calls M4 for an alternative | Contract types were implemented before runtime integration | M4/M5/M6 cannot rely on M2 runtime demand through these contracts; an absent provider or empty fallback is not evidence that there is no demand |
-| DEV-17 | M2 | Due uncollected rentals are processed; pre-pickup faults and overdue trips are handled across modules (BR-M2-04/14/15) | `expire_due` requires an explicit application call. Pickup refuses expired/ineligible vehicles. An owner cancellation or maintenance expiry can settle an unused faulty vehicle while retaining Maintenance and its bay. Faulty in-use return is implemented | Explicit release and safe return landed ahead of scheduler and incident wiring | Without a maintenance caller, an expired booking may remain Confirmed. There is no automatic pre-pickup fault settlement or overdue Trip transition |
+| DEV-16 | M2 | M2 provides demand and hold data through the D-020 ports and can use M4 for alternatives | PR #54 registers the read-only `ReservationDemand` provider for live pickup holds and open trips. `HoldConsumer` is unregistered and M2 makes no call to M4 for an alternative Hub | Rental demand can be read from M2 tables. Coordinated hold consumption and alternative selection remain separate integration work | Consumers can read real rental demand. They cannot consume an M2 hold through that port, and an unsuccessful rental does not produce an M4 Hub suggestion |
+| DEV-17 | M2 | Due uncollected rentals are processed; pre-pickup faults and overdue trips are handled across modules (BR-M2-04/14/15) | `expire_due` requires an explicit application call. Pickup refuses expired/ineligible vehicles. An owner cancellation or maintenance expiry can settle an unused faulty vehicle while retaining Maintenance and its bay. Faulty in-use return is implemented. The demand provider reports overdue trips using Core time | Explicit release, safe return and read-only demand are available ahead of scheduler and incident wiring | Without a maintenance caller, an expired booking may remain Confirmed. There is no automatic pre-pickup fault settlement or persisted overdue Trip transition |
 
 Rows to check on 17/11 and add if still true: M3 step 3 of BR-M3-02 (call to M4) missing; M5 `SensorEventRejected` and heartbeat not handled; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.

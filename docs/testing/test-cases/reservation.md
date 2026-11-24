@@ -12,6 +12,11 @@ uses U1, R1, V1, H1, H2 and the observed vehicle version. Tests separately
 prepare invalid or conflicting conditions. F2 is an on-disk temporary SQLite
 database which is closed and reopened by TC-M2-021.
 
+Fixture `F3` builds the app with real Core authentication, a fixed clock and
+SQLite. It seeds two students, an operator, an eligible fleet vehicle at H1,
+a free destination at H2 and a full destination at H3. HTTP requests use
+bearer tokens issued by Core's sign-in endpoint.
+
 `EP` is equivalence partitioning, `BVA` is boundary value analysis, `ST` is
 state transition, `CT` is conflict/concurrency, `FI` is failure injection, and
 `INT` is integration/contract. Priority H identifies correctness, safety and
@@ -43,22 +48,33 @@ unless another file is stated.
 | TC-M2-015 Vehicle contention | FR-03, UC-M2-02, BR-M2-02, NFR-06 | CT | H | F1 | U1 and U2 try to reserve V1 concurrently | One success, one conflict and one claim | Automated assertions matched expected result | Pass | `test_two_students_cannot_reserve_one_vehicle` |
 | TC-M2-016 Pickup rechecks eligibility | FR-04, UC-M2-04, BR-M2-02, NFR-16 | EP/ST | H | F1, Confirmed R1 | Change the vehicle's battery or deactivate its owner after reservation, then pick up | Pickup rejects current battery/account ineligibility | Automated assertions matched expected result | Pass | `test_pickup_rechecks_battery_and_account` |
 | TC-M2-017 Faulty trip return | FR-04, UC-M2-05, D-016, BR-M2-14 | ST | H | F1, active trip | Report vehicle fault during use and return with actual capacity | Trip IncidentAborted, vehicle Maintenance, actual bay occupied | Automated assertions matched expected result | Pass | `test_faulty_trip_uses_core_faulty_return` |
-| TC-M2-018 Module installation | D-013/018/020, NFR-22 | INT | M | F1 app/core | Repeat M2 installation and inspect registered entities/providers | Tables registered safely. Unimplemented providers remain absent | Automated assertions matched expected result | Pass | `test_install_registers_entities_but_not_unimplemented_providers` |
+| TC-M2-018 Module installation | D-013/018/020, NFR-22 | INT | M | F1 app/core | Repeat M2 installation and inspect registered entities/providers | Tables register safely. After PR #54, `ReservationDemand` is registered and `HoldConsumer` remains absent | Automated assertions matched the expectation at each revision | Pass | [`test_install_registers_entities_and_read_provider_once`][router-install] |
 | TC-M2-019 Unknown resource and dispatch claim | FR-03, UC-M2-02, NFR-06/18 | EP/CT | H | F1 | Use unknown vehicle/Hub or reserve a vehicle already claimed by dispatch | Rejected with no new rental write | Automated assertions matched expected result | Pass | `test_unknown_resources_and_competing_claim` |
 | TC-M2-020 Advisory destination | FR-04, UC-M2-05, BR-M2-10 | ST | M | F1, active trip | Return to a suitable Hub other than the planned Hub | Receipt records accepted destination and actual space | Automated assertions matched expected result | Pass | `test_return_can_choose_different_hub_from_advisory_destination` |
 | TC-M2-021 Persisted retry after SQLite reopen | UC-M2-02/04/05, D-015/018/022, NFR-09 | INT | H | F2 | Reserve, reopen and retry, continue pickup/return, reopen and retry receipt | Original results recovered, no persisted Core ID collision, invariant check clean | Automated assertions matched expected result | Pass | [`test_retry_survives_database_reopen`](../../../tests/reservation/test_persistence.py) |
 | TC-M2-022 Origin Hub eligibility | FR-03, UC-M2-02, BR-M2-02 | EP | H | F1 | Reserve at a missing or Maintenance origin Hub | Booking rejected with the expected error for that origin | Automated assertions matched expected result | Pass | `test_origin_must_exist_and_accept_rentals` |
 | TC-M2-023 Unused booking release | FR-03, UC-M2-03, BR-M2-04/05, D-017, NFR-06/09/16 | BVA/EP/ST/CT/FI | H | F1, Confirmed R1 | Exercise owner and foreign cancel, deadline, disabled-owner sweep, active trip, existing Maintenance, pickup/cancel race, fault injection at release/transition/write/commit | Cancelled before the boundary, Expired when due. Retries return the stored terminal record. Occupancy and Maintenance are preserved. Active trip remains in use. Race has one winner. Injected failures roll back | Automated assertions matched expected result | Pass | [`test_lifecycle.py`](../../../tests/reservation/test_lifecycle.py) |
+| TC-M2-024 Authenticated rental journey | FR-03/04, UC-M2-02/03/04/05, D-015/023, NFR-07/09/16 | INT/ST | H | F3, student token | Reserve, list bookings, pick up and return. Retry the same operations. Separately cancel a confirmed booking | HTTP 200. Pickup opens one trip and vacates its origin. Return occupies the destination and closes the trip. Cancel preserves parked occupancy. Retries return the stored outcome | 2 HTTP tests passed | Pass | [`test_router.py`][router-tests] |
+| TC-M2-025 API authorization, validation and failures | D-023, BR-M2-09/10, NFR-09/16/18, M2-1 | INT/EP/FI | H | F3, two student tokens and an operator token | Try all endpoints without a token and as the operator. Try foreign and missing IDs, invalid input, stale versions and a full Hub. Inject write and list storage failures | 401/403 for access denial, identical 404 for foreign and missing records, 400 for invalid rental input, and 409 for a stale version or full Hub. Write failure returns 500 and rolls back. List failure returns 503. No storage details leak | 3 HTTP tests passed | Pass | [`test_router.py`][router-tests] |
+| TC-M2-026 ReservationDemand over Core | D-020/021, BR-M2-04/15, FR-03/04 | INT/BVA | H | F1, installed provider | Read pickup demand at active and expired boundaries. Try an invalid horizon and an unknown Hub. Read open trips at origin and planned destination before and after the overdue boundary and after return | Sorted live holds and open trips. An omitted destination stays absent. Overdue is reported only after due time plus 60 min. Completed trips are excluded. Reads do not change shared state | 8 cases passed across memory and SQLite | Pass | [`test_provider.py`][provider-tests] |
 
 ## Execution record
 
 | Run date | Commit | Environment | Command | Result | Evidence |
 |---|---|---|---|---|---|
 | 2026-11-23 | `bb5c622` | Windows, Python 3.14.4, memory and SQLite | `python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60` | 159 passed, 96.01% (313/326) | [M2 validation evidence](../evidence/m2-validation-2026-11-23.json) |
+| 2026-11-24 | `6488bc2` (PR #54) | Windows, Python 3.14.4, memory and SQLite | `python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60` | 172 passed, 96.70% (439/454). TC-M2-024 to TC-M2-026 accounted for 13 passes | [Code revision][router-revision] |
 
-The cases exercise the implemented rental service slice. FR-02 search, FR-05
-parking lifecycle, FR-07 parking/charging coordination, automatic maintenance,
-runtime providers and browser-based student rental remain outside this evidence.
+The November 23 baseline covers TC-M2-001 through TC-M2-023. The November 24
+run also covers the authenticated API and the `ReservationDemand` provider
+from PR #54. FR-02 search, FR-05 parking, FR-07 parking/charging coordination,
+automatic maintenance, `HoldConsumer` and browser-based student rental remain
+outside this evidence.
 Use the [Phase 2 guide](../reservation-phase2.md) for the historical execution
 and the [defect log](../defect-log.md) for regression disposition. A successful
 coverage run supports the NFR-24 threshold for M2. M8 records team sign-off.
+
+[router-install]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_booking.py#L480
+[router-tests]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_router.py
+[provider-tests]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_provider.py
+[router-revision]: https://github.com/MabC06/smart-e-mobility-hub/commit/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53
