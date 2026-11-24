@@ -5,9 +5,8 @@ Traceability: TC-M8-016..TC-M8-020; Core API spec v1.2 §§6, 8; D-020, D-023.
 
 from datetime import timedelta
 
-from core.errors import ErrorCode
 from core.providers import ProviderPort
-from core.result import Err, Ok
+from core.result import Ok
 
 
 def login(client, code, password):
@@ -45,13 +44,15 @@ def test_provider_registration_matches_the_phase_3_contract(integration_client):
     assert providers.is_registered(ProviderPort.CHARGING_DEMAND)
     assert providers.is_registered(ProviderPort.ALTERNATIVE_HUB)
     assert providers.is_registered(ProviderPort.ALTERNATIVE_CHARGING)
-    # M2's ReservationDemand/HoldConsumer implementation is not installed in this snapshot.
-    assert not providers.is_registered(ProviderPort.RESERVATION_DEMAND)
+    # M2 registers ReservationDemand (PR #54); HoldConsumer stays unregistered.
+    assert providers.is_registered(ProviderPort.RESERVATION_DEMAND)
     assert not providers.is_registered(ProviderPort.HOLD_CONSUMER)
 
-    missing = providers.call(ProviderPort.RESERVATION_DEMAND, lambda provider: Ok(provider))
-    assert isinstance(missing, Err)
-    assert missing.code is ErrorCode.RESOURCE_UNAVAILABLE
+    demand = providers.call(
+        ProviderPort.RESERVATION_DEMAND,
+        lambda provider: provider.upcoming_bookings("H01", timedelta(hours=1)),
+    )
+    assert isinstance(demand, Ok)
 
 
 def test_charging_demand_provider_is_callable_through_core(integration_client):

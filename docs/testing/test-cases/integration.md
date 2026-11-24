@@ -10,7 +10,7 @@ These cases exercise the real `src/main.py::build_app` composition root. They ar
 | TC ID | Scenario | Verifies | Technique | Expected result | Implementation |
 |---|---|---|---|---|---|
 | TC-M8-016 | Build the application with the real module installation sequence | D-013, Core API spec §8 | Integration / composition | Reservation, Charging, Allocation, Monitoring, Simulation and UI components/routes are installed; OpenAPI is available | `test_build_app_installs_the_expected_modules_and_routes` |
-| TC-M8-017 | Check provider registration against D-020 | D-020, NFR-22 | Interface contract | M3 and M4 providers are registered; M2 ReservationDemand and HoldConsumer remain absent (still absent after PR #52, which is documentation only). Update this test when M2 registers them | `test_provider_registration_matches_the_phase_3_contract` |
+| TC-M8-017 | Check provider registration against D-020 | D-020, NFR-22 | Interface contract | M3 and M4 providers are registered; M2 `RESERVATION_DEMAND` is registered and callable through Core (PR #54); `HOLD_CONSUMER` is not registered. Passes only when PR #54 is merged (not at `01d68e7`) | `test_provider_registration_matches_the_phase_3_contract` |
 | TC-M8-018 | Call ChargingDemand through Core's provider registry | FR-06, D-020 | Integration / contract | Registered M3 provider returns a successful empty scheduled-session list for a valid Hub with no sessions | `test_charging_demand_provider_is_callable_through_core` |
 | TC-M8-019 | Read Hubs through the authenticated Core REST API | FR-01, NFR-16 | API integration / EP | Unauthenticated request returns 401; authenticated student receives both seeded Hubs | `test_core_read_api_requires_authentication_and_returns_seeded_hubs` |
 | TC-M8-020 | Reject student access to operator-only module endpoints | NFR-16, D-023 | Security / role partition | Charging queue, Allocation tasks and Monitoring incidents return 403 to a student | `test_operator_only_module_endpoints_reject_student` |
@@ -29,7 +29,7 @@ Result: **7 passed, 1 warning in 1.03 s**. They also pass in the focused run (66
 
 ## Explicitly blocked / not covered
 
-- Reservation-demand and hold-consumption integration: **Blocked** until M2 registers `ReservationDemand` and `HoldConsumer` in `reservation.install()`. Revalidate after that PR is merged.
+- Hold-consumption integration: **Blocked** because `HOLD_CONSUMER` is not registered. Reservation-demand integration becomes testable once PR #54 is merged; revalidate then.
 - Full rental → dispatch → charging → monitoring workflow: not covered; needs the M2 providers.
 - UI-to-Core operational journey: not covered; several UI screens still read `ui.sample_data` (DEV-10 to DEV-12). Recheck against M7's latest PR.
 - NFR measurements are not part of these small-fixture tests; see the cases below and `../nfr-measurements.md`.
@@ -50,8 +50,7 @@ Script: `tests/performance/measure_nfr01_04_05.py`; each measurement runs on a f
 | TC ID | Scenario | Verifies | Technique | Acceptance | Result (01d68e7) |
 |---|---|---|---|---|---|
 | TC-M8-025 | Write, then read `GET /charging/sessions`, 100 times | NFR-01 | Performance / read-after-write | New state visible in the next read; p95 ≤ 1,000 ms | **Pass**: 100/100 visible; p95 3.97–5.23 ms |
-| TC-M8-026 | `POST /charging/schedule/optimize` per Hub, 15 queued requests on each of 10 Hubs; depth sweep 5–50 on H01 | NFR-04, FR-11 | Performance | ≤ 3,000 ms per Hub | **Pass** at depth 15 (worst 1.50 s). Depth 50: 2.64, 2.67, 3.56, 3.83 s, so exceeds in 2 of 4 runs (proposed DEF-M3-007) |
+| TC-M8-026 | `POST /charging/schedule/optimize` per Hub, 15 queued requests on each of 10 Hubs; depth sweep 5–50 on H01 | NFR-04, FR-11 | Performance | ≤ 3,000 ms per Hub | **Pass** at depth 15 (worst 1.50 s). Depth 50: 2.64, 2.67, 3.56, 3.83 s, so exceeds in 2 of 4 runs (DEF-M3-007, Accepted) |
 | TC-M8-027 | `POST /allocation/tasks/plan` on DS-STD | NFR-04, FR-10 | Performance | ≤ 5,000 ms, status 200 | **Blocked**: 503 `RESOURCE_UNAVAILABLE`, no M2 provider. Stub timing p95 78.7 ms is reference only |
 | TC-M8-028 | `POST /simulation/runs` for each standard scenario | NFR-05, FR-12 | Performance | Each of 5 scenarios ≤ 30,000 ms | **Partial**: SC-01 passes (p95 113–164 ms); SC-02–05 not implemented (DEV-08) |
 | TC-M8-029 | Run SC-01 twice with the same seed; compare operational state hash and output (wall-clock fields `as_of`, `executed_at`, `taken_at` removed) | NFR-12, NFR-13, FR-12 | Metamorphic / repeat-run | State unchanged after run; outputs identical | **Pass** for SC-01 (4 of 4 runs) |
-

@@ -26,21 +26,13 @@
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | M2 reservation | 1 | 0 | 1 | 0 | 0 | 1 | 0 |
+| M3 charging | 7 | 0 | 3 | 2 | 2 | 6 | 1 |
 | M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
-| M3 charging | 6 | 0 | 3 | 1 | 2 | 6 | 0 |
 | M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| **Total** | **22** | **0** | **6** | **5** | **11** | **22** | **0** |
+| **Total** | **23** | **0** | **6** | **6** | **11** | **22** | **1** |
 
 The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
-
-### 2.1 Proposed entry from Phase 3+4 measurement (M3 to confirm)
-
-| ID | Severity | Found by | Summary | Status |
-|---|---|---|---|---|
-| DEF-M3-007 (proposed) | Medium | `tests/performance/measure_nfr01_04_05.py`, depth sweep, 01d68e7 | `POST /charging/schedule/optimize` for one Hub exceeds 3 s (NFR-04) when the queue holds 50 requests: 2.64, 2.67, 3.56, 3.83 s in four recorded runs (earlier console runs 3.04 and 3.10 s). Depth 15 (DS-STD ratio) passes in all runs (worst 1.50 s); depth 30 passes (≤ 0.94 s). Cost per queued request grows with depth (about 4 ms at 5 to 53-77 ms at 50), so the growth is worse than linear. | Open: M3 to confirm cause; if not fixed before freeze, Accepted and listed in report 4.4 |
-
-This row is a proposal by M8; it is not counted in the summary above until M3 confirms it.
 
 ## 3. Defects by module
 
@@ -83,6 +75,7 @@ This row is a proposal by M8; it is not counted in the summary above until M3 co
 | DEF-M3-004 | Start-session, private-vehicle and optimize endpoints did not follow the agreed flow (start logic outside the service, owner not taken from the token) | Medium | Review of PR #32 (M3-15) | FR-06.2, FR-07.M3.1, UC-M3-02, UC-M3-04, TC-M3-008 to TC-M3-013, TC-M3-019, TC-M3-020 | Closed | `start_scheduled_session` moved into the service (owner/operator check, due-time check, Core `START_CHARGING` transition); owner of a private EV comes from the token | PR #32 |
 | DEF-M3-005 | Claims column of the charging state-machine document did not match the code for `SCHEDULED` transitions | Low | Review of PR #28 (M3-12) | UC-M3-02, UC-M3-03 | Closed | Claims column and section 3 wording corrected | PR #28, `2925a23` |
 | DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #51 |
+| DEF-M3-007 | `POST /charging/schedule/optimize` for one Hub takes more than 3 s when the queue holds 50 requests (NFR-04); within the limit at 15 queued per Hub (DS-STD load) | Medium | Integration, M8 (TC-M8-026, depth sweep) | NFR-04, FR-11.M3.2, UC-M3-07, TC-M8-026 | Accepted | See below | — |
 
 **DEF-M3-002** (High)
 - Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
@@ -98,6 +91,11 @@ This row is a proposal by M8; it is not counted in the summary above until M3 co
 - Steps: register a private EV with `POST /charging/private/vehicles`, then register another one with the same `plate_or_code` (TC-M7-024).
 - Expected: core refuses the second one with `INVALID_INPUT` and the route answers 400. Actual: building the mapping in `from_core_error` (`src/charging/models.py`) read `ErrorCode.INVALID_STATE`, which does not exist, so the route raised `AttributeError` and answered 500. The same happened for every refused core command.
 - Resolution: the mapping names only codes that exist in `core.errors.ErrorCode`, written directly instead of `getattr(..., None)`. Retest: `test_second_registration_of_same_plate_is_400_not_500` passes.
+
+**DEF-M3-007** (Medium, Accepted)
+- Steps: load DS-STD, queue 50 requests on one Hub (H01), then `POST /charging/schedule/optimize?hub_id=H01` (`tests/performance/measure_nfr01_04_05.py`, depth sweep).
+- Expected: ≤ 3 s (NFR-04). Actual: 2.64, 2.67, 3.56 and 3.83 s in four recorded runs (2 of 4 over the limit; two earlier console runs 3.04 s and 3.10 s). At depth 5, 10, 15 and 30 the call takes 0.02 s, 0.04–0.07 s, 0.12–0.17 s and 0.67–0.94 s. Time per queued request grows from about 4 ms to 53–77 ms, so the growth is faster than linear. Measured on a local merge; to be repeated on `develop` (`nfr-measurements.md` section 2).
+- Resolution: not fixed. Lead decision (2026-11-24): accepted as a known limitation because NFR-04 passes at the DS-STD load (15 queued per Hub, worst 1.50 s). M3 adds the limitation to report section 4.4 with its own part.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->

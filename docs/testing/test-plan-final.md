@@ -201,7 +201,7 @@ Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(chargin
 The integration suite is built through `src/main.py::build_app(settings, repository=...)` and uses an isolated SQLite repository (7 tests, all passing on `01d68e7`). Cases are documented in `test-cases/integration.md` and implemented under `tests/integration/`:
 
 - application composition and route mounting;
-- provider registration, including the expected absence of M2's `ReservationDemand` and `HoldConsumer` ports (TC-M8-017);
+- provider registration: M3/M4 providers, M2 `ReservationDemand` registered and callable (PR #54), `HoldConsumer` not registered (TC-M8-017);
 - invocation of M3's `ChargingDemand` provider through Core;
 - authentication on Core read APIs;
 - operator-only authorization on Charging, Allocation and Monitoring endpoints;
@@ -211,7 +211,7 @@ The tests use a small deterministic fixture, not DS-STD. DS-STD is used by the N
 
 ### 13.1 Known integration limitations
 
-- M2's `reservation.install()` still registers neither `ReservationDemand` nor `HoldConsumer` (PR #52 is documentation only). `POST /allocation/tasks/plan` returns 503 `RESOURCE_UNAVAILABLE`, so NFR-04 for allocation and every workflow needing those ports are Blocked. TC-M8-017 must be changed when M2 registers them.
+- At `01d68e7`, M2's `reservation.install()` registered neither port (PR #52 is documentation only) and `POST /allocation/tasks/plan` returned 503 `RESOURCE_UNAVAILABLE`, so NFR-04 for allocation was Blocked. PR #54 registers `ReservationDemand`; `HoldConsumer` stays unregistered, so hold-consuming workflows remain Blocked. TC-M8-017 asserts this state and passes only with PR #54 merged. Rerun the NFR-04 allocation measurement on `develop` after the merge.
 - `src/ui/routes.py` still reads `ui.sample_data` for several screens (DEV-10 to DEV-12); UI pages are not evidence of end-to-end Core integration.
 - M6 implements SC-01 only (DEV-08).
 - The integration tests do not claim full business-workflow coverage (rental → allocation → charging → monitoring).
@@ -222,16 +222,16 @@ Done on 2026-11-23 (`01d68e7`; details in `test-execution-report.md`, `nfr-measu
 
 - ruff, format, mypy clean; full suite 1,501 passed, 1 skipped (SQL-only foreign-key test); 7 integration, 66 focused, 25 NFR-22 tests passed.
 - NFR-24 coverage: core 98.8 %; reservation 96.3 %; charging 88.2 %; allocation 91.5 %; monitoring 87.3 %; simulation 92.4 %.
-- NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (proposed DEF-M3-007); NFR-05, 12, 13 pass for SC-01.
+- NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (DEF-M3-007, Accepted); NFR-05, 12, 13 pass for SC-01.
 
 Open:
 
 - **NFR-14:** fresh-clone check by a member who did not write the setup instructions (≤ 15 min, ≤ 5 commands); keep time and commands.
-- **NFR-04 allocation:** rerun after M2 registers the providers.
+- **NFR-04 allocation:** rerun on `develop` after PR #54 is merged.
 - **NFR-05:** SC-02–SC-05 not implemented; reported as a limitation.
 - **NFR-26:** traceability gaps in `traceability-sheet.md` (FR-05; 9 BR; 17 UC) need owner confirmation or new TCs.
-- **DEF-M3-007:** M3 to confirm; fix or Accept into report 4.4.
-- Repeat the full run on `develop` after the PRs merge; check the CI coverage artifact (NFR-24).
+- **DEF-M3-007:** Accepted by the Lead as a known limitation; M3 adds it to report 4.4.
+- Repeat the full run and all measurements on `develop` after all PRs merge (by 26/11) and replace the commit hash `01d68e7` in every document; check the CI coverage artifact (NFR-24).
 - Confirm M2 and M5 defect-log entries with their owners.
 
 Passing regression runs and NFR results for a limited measured scope do not by themselves satisfy the exit criteria in section 7. M8 sign-off is **conditional** on the items above.

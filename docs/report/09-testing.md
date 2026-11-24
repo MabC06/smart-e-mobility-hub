@@ -20,13 +20,12 @@ On 2026-11-23, on Python 3.12.10 (Windows, pytest 9.2.0), clean working tree:
 | Full suite (`pytest -q`) | 1,501 passed, 1 skipped, 1 warning |
 | M8 integration (7), focused regression (66), NFR-22 import boundaries (25), NFR-06 concurrency (42) | All passed |
 | Per module: reservation 159, charging 45, allocation 93, monitoring 40, simulation 9, UI 75 | All passed |
-| NFR-14 fresh clone (`fresh-nfr14`) | 5 commands, 4m34s total (`pytest` 1,501 passed, 1 skipped in 95.66 s; `ruff` & `mypy` clean; Uvicorn startup verified) |
 
 The skipped test (`tests/core/test_module_entities.py:316`) applies only to the SQL repository ("only the database has foreign keys") and is not counted as passed. The single warning is a Starlette deprecation notice about `httpx` in `starlette.testclient`; it did not fail any run. An earlier TC-M8-016 failure (route inspection in the test, not the application) was fixed in the test.
 
 ## 9.3 Integration limitations
 
-- M2 registers neither `ReservationDemand` nor `HoldConsumer`; the M2 pull request #52 changes documents only. Allocation planning therefore returns 503 and workflows that need reservation demand are blocked. TC-M8-017 asserts this absence and must be updated when M2 registers the providers.
+- At `01d68e7` M2 registered neither `ReservationDemand` nor `HoldConsumer` (PR #52 is documentation only), so allocation planning returned 503 and the NFR-04 allocation timing was blocked. PR #54 registers `ReservationDemand`; `HoldConsumer` stays unregistered. TC-M8-017 now asserts that `RESERVATION_DEMAND` is registered and callable and `HOLD_CONSUMER` is not; it passes only when PR #54 is merged. Workflows that consume holds remain blocked. The NFR-04 allocation measurement must be rerun on `develop` after the merge.
 - The UI reads sample data for several screens (DEV-10 to DEV-12), so it is not shown to be integrated with Core.
 - M6 implements only the demand-surge scenario SC-01 (DEV-08).
 - No end-to-end journey (rental → dispatch → charging → monitoring) has been executed.
@@ -46,7 +45,7 @@ Measurements follow D-024: sequential requests, in-process client, DS-STD (seed 
 | NFR-12, NFR-13 | State unchanged; same seed same output | Both hold for SC-01 in 4 runs | Pass (SC-01) |
 | NFR-14 | Fresh clone ≤ 15 min, ≤ 5 commands | 5 commands, 4m34s (`fresh-nfr14`), `pytest` 1,501 passed in 95.66 s, app startup OK | Pass |
 
-The NFR-04 charging time rises faster than linearly with queue depth (about 4 ms per queued request at depth 5, 53–77 ms at depth 50). This is recorded as proposed defect DEF-M3-007 and, if not fixed, goes into section 4.4 as a limitation. No concurrent-load figure exists (DEV-01).
+The NFR-04 charging time rises faster than linearly with queue depth (about 4 ms per queued request at depth 5, 53–77 ms at depth 50). This is recorded as defect DEF-M3-007 (Medium, Accepted by the Lead as a known limitation because NFR-04 passes at the DS-STD load); M3 describes it in section 4.4. No concurrent-load figure exists (DEV-01).
 
 ## 9.5 Coverage and traceability
 
@@ -56,10 +55,10 @@ Traceability (`docs/testing/traceability-sheet.md`) is incomplete: 11 of 12 FR, 
 
 ## 9.6 Defect summary
 
-22 defects are recorded (0 Critical, 6 High, 5 Medium, 11 Low); all are Closed. One further entry, DEF-M3-007 (Medium, NFR-04 at depth 50), is proposed and awaits M3. No test failed in the runs above.
+23 defects are recorded (0 Critical, 6 High, 6 Medium, 11 Low): 22 Closed and 1 Accepted. The Accepted one is DEF-M3-007 (Medium, NFR-04 at queue depth 50; the Lead accepted it as a known limitation). No test failed in the runs above.
 
 ## 9.7 Overall assessment
 
 On the testing branch all executed tests pass, static checks are clean, coverage exceeds the thresholds, and NFR-01, 02, 03, 12/13 (SC-01), and 14 are met within their measured scope; NFR-04 for charging is met at the standard load.
 
-This is a conditional sign-off, not a final one. Open: NFR-04 allocation (needs M2 providers); NFR-05 for SC-02–SC-05; NFR-26 traceability gaps; confirmation of DEF-M3-007; a repeat run on `develop` after the PRs merge; and the CI coverage artifact.
+This is a conditional sign-off, not a final one. Open: NFR-04 allocation (needs M2 providers); NFR-05 for SC-02–SC-05; NFR-26 traceability gaps; a repeat run on `develop` after the PRs merge; and the CI coverage artifact.

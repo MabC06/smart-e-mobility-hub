@@ -48,7 +48,7 @@ The skipped test is `tests/core/test_module_entities.py:316`, skipped with the r
 | Test case | Scenario | Result |
 |---|---|---|
 | TC-M8-016 | Application composition and route mounting | Pass |
-| TC-M8-017 | Provider registration matches the snapshot (M2 providers still absent) | Pass (asserts the absence; must change when M2 registers) |
+| TC-M8-017 | Provider registration: M3/M4 providers, M2 `RESERVATION_DEMAND` registered and callable (PR #54), `HOLD_CONSUMER` not registered | Pass at `01d68e7` with the earlier version of the test, which asserted both M2 ports absent. The updated test passes only with PR #54 merged; rerun on `develop` |
 | TC-M8-018 | ChargingDemand provider callable through Core | Pass |
 | TC-M8-019 | Authenticated Core Hub read | Pass |
 | TC-M8-020 | Student denied operator-only endpoints | Pass |
@@ -57,15 +57,15 @@ The skipped test is `tests/core/test_module_entities.py:316`, skipped with the r
 
 ## 4. NFR results
 
-Summary (details and raw files: `nfr-measurements.md`): NFR-01 Pass (API); NFR-02 Pass (4 endpoints); NFR-03 Pass (1 operation); NFR-04 charging Pass at 15 queued per Hub (exceeds 3 s at depth 50 in 2 of 4 runs → proposed DEF-M3-007); NFR-04 allocation **Blocked** (no M2 provider); NFR-05 Partial (SC-01 only); NFR-12 and NFR-13 Pass for SC-01; NFR-14 **Pass** (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`, `1,501 passed, 1 skipped` in 95.66 s, Uvicorn startup verified with `hubs=10, parking_spaces=400, charging_points=61, vehicles=350, users=1005`); NFR-22 Pass; NFR-24 Pass; NFR-06 Pass.
+Summary (details and raw files: `nfr-measurements.md`): NFR-01 Pass (API); NFR-02 Pass (4 endpoints); NFR-03 Pass (1 operation); NFR-04 charging Pass at 15 queued per Hub (exceeds 3 s at depth 50 in 2 of 4 runs → DEF-M3-007, Accepted); NFR-04 allocation **Blocked** (no M2 provider); NFR-05 Partial (SC-01 only); NFR-12 and NFR-13 Pass for SC-01; NFR-14 **Pass** (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`, `1,501 passed, 1 skipped` in 95.66 s, Uvicorn startup verified with `hubs=10, parking_spaces=400, charging_points=61, vehicles=350, users=1005`); NFR-22 Pass; NFR-24 Pass; NFR-06 Pass.
 
 ## 5. Defects
 
-22 recorded defects, all Closed (0 Critical, 6 High, 5 Medium, 11 Low; `defect-log.md`). One new entry is proposed and not yet counted: DEF-M3-007 (Medium, NFR-04 at depth 50), awaiting M3. No test failed in the runs above. The earlier TC-M8-016 `AttributeError` was a test-implementation issue, not an application defect.
+23 recorded defects: 22 Closed and 1 Accepted (0 Critical, 6 High, 6 Medium, 11 Low; `defect-log.md`). The Accepted one is DEF-M3-007 (Medium, NFR-04 at depth 50; Lead decision 2026-11-24, known limitation). No test failed in the runs above. The earlier TC-M8-016 `AttributeError` was a test-implementation issue, not an application defect.
 
 ## 6. Limitations and open items
 
-1. **M2 providers absent:** `reservation.install()` registers neither `RESERVATION_DEMAND` nor `HOLD_CONSUMER`; PR #52 is documentation only. Allocation timing and every flow that needs reservation demand or hold data (rental → dispatch → charging → monitoring) are not verified end to end.
+1. **M2 providers:** at `01d68e7` `reservation.install()` registered neither `RESERVATION_DEMAND` nor `HOLD_CONSUMER` (PR #52 is documentation only). PR #54 registers `RESERVATION_DEMAND`; `HOLD_CONSUMER` stays unregistered. Allocation timing and every flow that needs reservation demand or hold data (rental → dispatch → charging → monitoring) are not verified end to end.
 2. **M6:** only SC-01 (demand surge) exists; SC-02 to SC-05 not implemented (DEV-08).
 3. **M7:** UI pages read `ui.sample_data` for several screens (DEV-10 to DEV-12); UI tests do not prove Core integration of those screens.
 4. **NFR-14 note:** completed by M8 on a local clone (`fresh-nfr14`) in 5 commands and 4m34s (`<= 5` commands, `<= 15` min); if independent verification by another member is still desired per `nfr-evidence-core.md`, it can be recorded alongside this run.

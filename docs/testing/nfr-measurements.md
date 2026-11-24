@@ -16,7 +16,7 @@
 | NFR-05 | Each of 5 scenarios ≤ 30 s | SC-01 only: 5/5 OK, p95 113–164 ms. SC-02 to SC-05 are not implemented (DEV-08) | **Partial** (SC-01 passes) |
 | NFR-12 | Operational state unchanged after a run | State hash identical before/after, 3 runs + stub run (SC-01); `tests/simulation` isolation tests pass | **Pass** for SC-01 |
 | NFR-13 | Same seed ⇒ same output | Two runs identical after removing wall-clock fields (`as_of`, `executed_at`, `taken_at`), 3 runs + stub run | **Pass** for SC-01 |
-| NFR-14 | Fresh clone ≤ 15 min, ≤ 5 commands | Not performed | **Open** |
+| NFR-14 | Fresh clone ≤ 15 min, ≤ 5 commands | completed by M8 on a local clone (`fresh-nfr14`) in 5 commands and 4m34s (`<= 5` commands, `<= 15` min) | **Pass** |
 | NFR-24 | core ≥ 70 %, others ≥ 60 % | core 98.8 %, reservation 96.3 %, charging 88.2 %, allocation 91.5 %, monitoring 87.3 %, simulation 92.4 % (one full run, 1501 passed, 1 skipped) | **Pass** |
 
 ## 2. NFR-04 charging: depth sweep on Hub H01 (limitation)
@@ -31,11 +31,11 @@ DS-STD gives each Hub up to 15 queued requests in the measurement, which is the 
 | 30 | 674.6 ms | 666.7 ms | 943.8 ms | 923.1 ms |
 | 50 | 2,636 ms | 2,669 ms | **3,834 ms** | **3,555 ms** |
 
-Depth 50 exceeds 3 s in 2 of 4 recorded runs (and in two earlier console runs: 3.04 s and 3.10 s). Time per queued request rises from about 4 ms to 53–77 ms, so the cost grows faster than linearly. Run-to-run spread is machine load. Recorded as proposed **DEF-M3-007** (Medium) in `defect-log.md`; M3 to confirm the cause. Report section 4.4 states: NFR-04 for charging holds at the DS-STD load (15 per Hub) and is not shown for queues of about 50.
+Depth 50 exceeds 3 s in 2 of 4 recorded runs (and in two earlier console runs: 3.04 s and 3.10 s). Time per queued request rises from about 4 ms to 53–77 ms, so the cost grows faster than linearly. Run-to-run spread is machine load. Recorded as **DEF-M3-007** (Medium) in `defect-log.md`; the Lead accepted it as a known limitation (2026-11-24) and M3 describes it in report section 4.4. Report section 4.4 states: NFR-04 for charging holds at the DS-STD load (15 per Hub) and is not shown for queues of about 50.
 
 ## 3. NFR-04 allocation and NFR-05 scenarios: why not complete
 
-- **Allocation:** `develop` plus PRs #45–#52 contains no M2 provider for `ProviderPort.RESERVATION_DEMAND` or `HOLD_CONSUMER` (PR #52 changes documents only; DEV-09, DEV-16). TC-M8-017 therefore still asserts the absence. Rerun `measure_nfr01_04_05.py` (without `--stub-reservation-demand`) once M2 registers the providers.
+- **Allocation:** at `01d68e7` (`develop` plus PRs #45–#52) there is no M2 provider for `ProviderPort.RESERVATION_DEMAND` or `HOLD_CONSUMER` (PR #52 changes documents only; DEV-09, DEV-16). PR #54 registers `RESERVATION_DEMAND`. Rerun `measure_nfr01_04_05.py` (without `--stub-reservation-demand`) on `develop` after PR #54 is merged. All figures in this file carry the local hash `01d68e7` and are to be replaced by the `develop` hash after that rerun (by 26/11).
 - **Scenarios:** M6 implements the demand surge only (DEV-08). SC-02 to SC-05 are reported as not implemented, not as passed.
 
 ## 4. Evidence files
