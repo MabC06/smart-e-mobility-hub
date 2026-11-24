@@ -9,8 +9,10 @@ import main
 from core.auth import hash_password
 from core.clock import FixedClock
 from core.domain.enums import Role, SpaceStatus, VehicleType
+from core.repository.base import RepositoryError
 from core.result import Ok
 from core.seed import HubSpec, NetworkSpec, UserSpec, VehicleSpec
+from reservation import storage
 
 PREFIX = "/reservations"
 PASSWORD = "m2-test-password"
@@ -224,3 +226,36 @@ def test_invalid_version_and_full_hub_errors_have_no_partial_writes(m2_api):
     assert full.json()["detail"]["code"] == "NO_PARKING"
     assert _mine(client, headers)["open_trips"] == [trip]
     assert core.snapshots.export_snapshot() == before
+
+
+@pytest.mark.tc_m2_025
+def test_storage_failures_return_server_errors_and_leave_booking_retryable(m2_api, monkeypatch):
+    """Verifies: review M2-1, NFR-09/18. Read and write faults differ from conflicts."""
+    client, core, _clock = m2_api
+    headers = _login(client, "STUDENT-1")
+    request = _request(core)
+    before = core.snapshots.export_snapshot()
+
+    def fail_storage(*_args):
+        raise RepositoryError("injected database failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "add", fail_storage)
+        failed_booking = client.post(PREFIX, headers=headers, json=request)
+    assert failed_booking.status_code == 500
+    assert failed_booking.json()["detail"]["code"] == "INTERNAL_ERROR"
+    assert "injected database failure" not in failed_booking.text
+    assert core.snapshots.export_snapshot() == before
+    assert _mine(client, headers)["bookings"] == []
+
+    with monkeypatch.context() as patch:
+        patch.setattr(storage, "student_records", fail_storage)
+        failed_list = client.get(f"{PREFIX}/mine", headers=headers)
+    assert failed_list.status_code == 503
+    assert failed_list.json()["detail"] == {
+        "code": "INTERNAL_ERROR",
+        "message": "Could not read bookings.",
+    }
+
+    booking = _ok(client.post(PREFIX, headers=headers, json=request))
+    assert _mine(client, headers)["bookings"] == [booking]

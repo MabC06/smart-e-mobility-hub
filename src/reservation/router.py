@@ -56,7 +56,7 @@ _HTTP_STATUS = {
     BookingErrorCode.EXPIRED: 409,
     BookingErrorCode.RESOURCE_UNAVAILABLE: 409,
     BookingErrorCode.NO_PARKING: 409,
-    BookingErrorCode.INTERNAL_ERROR: 409,
+    BookingErrorCode.INTERNAL_ERROR: 500,
 }
 
 
@@ -99,7 +99,7 @@ def create_router(
                 return StudentRentals(bookings, open_trips, vehicle_versions)
         except RepositoryError:
             raise HTTPException(
-                409,
+                503,
                 {
                     "code": BookingErrorCode.INTERNAL_ERROR.value,
                     "message": "Could not read bookings.",
