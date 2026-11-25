@@ -22,11 +22,13 @@ from core.domain.enums import (
     Role,
     VehicleEvent,
     VehicleState,
+    VehicleType,
 )
 from core.facade import CoreFacade
 from core.repository.base import RepositoryError, VersionConflictError
 from core.result import Err, Ok
 from core.services.transition_ctx import TransitionCtx
+from core.views import VehicleFilter, VehicleView
 from reservation import storage
 from reservation.models import (
     RentalReservation,
@@ -34,6 +36,7 @@ from reservation.models import (
     ReservationStatus,
     ReserveRequest,
     TripStatus,
+    VehicleSearch,
 )
 from reservation.results import BookingError, BookingErrorCode, BookingResult, from_core
 
@@ -52,6 +55,30 @@ def _version_valid(value: int) -> bool:
 
 def _error(code: BookingErrorCode, message: str) -> BookingError:
     return BookingError(code, message)
+
+
+def _battery_valid(value: float) -> bool:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and isfinite(value)
+        and 0 <= value <= 100
+    )
+
+
+def _rentable(
+    vehicle: VehicleView, hub_id: str, min_battery: float, low_battery_threshold: float
+) -> bool:
+    """BR-M2-02 checks on Core's view; search and reserve use the same rule."""
+    return (
+        vehicle.ownership is Ownership.FLEET
+        and vehicle.state is VehicleState.AVAILABLE
+        and vehicle.hub_id == hub_id
+        and vehicle.parking_space_id is not None
+        and not vehicle.fault_flag
+        and vehicle.battery_pct >= max(RENTAL_MIN_BATTERY, min_battery)
+        and vehicle.battery_pct > low_battery_threshold
+    )
 
 
 class BookingService:
@@ -81,6 +108,52 @@ class BookingService:
             return _error(BookingErrorCode.FORBIDDEN, "An active student account is required.")
         return Actor(account.user_id, Role.STUDENT, "reservation")
 
+    def search(
+        self, hub_id: str, vehicle_type: VehicleType | None, min_battery: float, actor: Actor
+    ) -> BookingResult[VehicleSearch]:
+        """FR-02: fleet vehicles a student can reserve now at one Hub, without any change.
+
+        Sorted by battery, highest first, then by vehicle ID. A vehicle with an active
+        claim in the next hold window (another booking, a dispatch task) is left out.
+        An empty list means no vehicle; alternative Hubs come from M4 (DEV-16).
+        """
+        if not _id_valid(hub_id) or not _battery_valid(min_battery):
+            return _error(BookingErrorCode.INVALID_INPUT, "Invalid search fields.")
+        return self._execute(lambda: self._search(hub_id, vehicle_type, min_battery, actor))
+
+    def _search(
+        self, hub_id: str, vehicle_type: VehicleType | None, min_battery: float, actor: Actor
+    ) -> BookingResult[VehicleSearch]:
+        with self.core.unit_of_work() as uow:
+            caller = self._actor(actor)
+            if isinstance(caller, BookingError):
+                return caller
+            hub = uow.queries.get_hub(hub_id)
+            if isinstance(hub, Err):
+                return from_core(hub)
+            if hub.value.status is HubStatus.MAINTENANCE:
+                return _error(BookingErrorCode.RESOURCE_UNAVAILABLE, "Origin is in maintenance.")
+            config = uow.queries.get_config()
+            hold_end = config.as_of + timedelta(minutes=HOLD_MINUTES)
+            candidates = uow.queries.find_vehicles(
+                VehicleFilter(
+                    hub_id=hub_id,
+                    state=VehicleState.AVAILABLE,
+                    vehicle_type=vehicle_type,
+                    ownership=Ownership.FLEET,
+                )
+            )
+            vehicles = sorted(
+                (
+                    vehicle
+                    for vehicle in candidates
+                    if _rentable(vehicle, hub_id, min_battery, config.low_battery_threshold)
+                    and not uow.queries.get_claims(vehicle.vehicle_id, config.as_of, hold_end)
+                ),
+                key=lambda vehicle: (-vehicle.battery_pct, vehicle.vehicle_id),
+            )
+            return Ok(VehicleSearch(hub_id, config.as_of, vehicles))
+
     def reserve(self, request: ReserveRequest, actor: Actor) -> BookingResult[RentalReservation]:
         """Confirm a ten-minute vehicle hold; retain its occupied origin space.
 
@@ -98,10 +171,7 @@ class BookingService:
             or not _version_valid(request.expected_version)
             or type(request.planned_duration_minutes) is not int
             or not 5 <= request.planned_duration_minutes <= 120
-            or isinstance(request.min_battery, bool)
-            or not isinstance(request.min_battery, (int, float))
-            or not isfinite(request.min_battery)
-            or not 0 <= request.min_battery <= 100
+            or not _battery_valid(request.min_battery)
         ):
             return _error(BookingErrorCode.INVALID_INPUT, "Invalid booking fields.")
         return self._execute(lambda: self._reserve(request, actor))
@@ -148,14 +218,8 @@ class BookingService:
             config = uow.queries.get_config()
             if vehicle.version != request.expected_version:
                 return _error(BookingErrorCode.CONFLICT, "Vehicle changed; refresh selection.")
-            if (
-                vehicle.ownership is not Ownership.FLEET
-                or vehicle.state is not VehicleState.AVAILABLE
-                or vehicle.hub_id != request.origin_hub_id
-                or vehicle.parking_space_id is None
-                or vehicle.fault_flag
-                or vehicle.battery_pct < max(RENTAL_MIN_BATTERY, request.min_battery)
-                or vehicle.battery_pct <= config.low_battery_threshold
+            if not _rentable(
+                vehicle, request.origin_hub_id, request.min_battery, config.low_battery_threshold
             ):
                 return _error(BookingErrorCode.RESOURCE_UNAVAILABLE, "Vehicle is not eligible.")
             now = config.as_of

@@ -15,9 +15,7 @@ from core.providers import (
 )
 from core.result import Err, Ok, Result
 from reservation import storage
-from reservation.models import RentalReservation, ReservationStatus, TripStatus
-
-OVERDUE_GRACE = timedelta(minutes=60)
+from reservation.models import OVERDUE_GRACE, RentalReservation, ReservationStatus, TripStatus
 
 
 class ReservationDemandProvider:

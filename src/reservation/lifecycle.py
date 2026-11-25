@@ -1,8 +1,10 @@
-"""M2-owned rental cancellation and expiry (D-017, UC-M2-03).
+"""M2-owned rental cancellation, expiry and overdue marking (D-017, UC-M2-03, BR-M2-15).
 
-The expiry sweep is an explicit application-maintenance entry point. It does not
-trust a client clock and never expires active Trips. Each booking is settled in
-one Core unit of work; an error leaves that booking and its resources unchanged.
+The application has no scheduler, so the router calls ``sweep()`` before each M2
+request: due bookings expire and late Trips become OVERDUE on the next request.
+The sweep reads Core's clock, never a client clock, and never expires active Trips.
+Each record is settled in one Core unit of work; an error leaves that record and
+its resources unchanged.
 """
 
 import logging
@@ -21,7 +23,13 @@ from core.facade import CoreFacade
 from core.repository.base import RepositoryError
 from core.result import Err, Ok
 from reservation import storage
-from reservation.models import RentalReservation, ReservationStatus
+from reservation.models import (
+    OVERDUE_GRACE,
+    RentalReservation,
+    RentalTrip,
+    ReservationStatus,
+    TripStatus,
+)
 from reservation.results import BookingError, BookingErrorCode, BookingResult, from_core
 
 logger = logging.getLogger(__name__)
@@ -52,7 +60,7 @@ class RentalLifecycle:
     def expire_due(self) -> dict[str, BookingResult[RentalReservation]]:
         """Settle due Confirmed bookings independently and report each outcome.
 
-        A scheduler/application calls this explicitly. Selection is advisory;
+        ``sweep()`` calls this before each M2 request. Selection is advisory;
         each expiry rechecks state/time under its own transaction lock. A failed
         booking remains retryable and does not roll back successful neighbours.
         """
@@ -63,6 +71,49 @@ class RentalLifecycle:
             if booking.status is ReservationStatus.CONFIRMED and booking.hold_expires_at <= now
         ]
         return {reservation_id: self.expire(reservation_id) for reservation_id in ids}
+
+    def mark_overdue(self) -> dict[str, BookingResult[RentalTrip]]:
+        """Mark each open Trip past its expected return + 60 min as OVERDUE (BR-M2-15).
+
+        Only the Trip record changes: the booking stays ACTIVE, the vehicle stays
+        InUse, and the student can still return it. Each Trip is checked again
+        under its own transaction lock.
+        """
+        now = self.core.queries.get_config().as_of
+        ids = [
+            trip.trip_id
+            for trip in storage.all_trips(self.core)
+            if trip.status is TripStatus.IN_PROGRESS
+            and now - trip.expected_return_at > OVERDUE_GRACE
+        ]
+        return {trip_id: self._mark_overdue(trip_id) for trip_id in ids}
+
+    def sweep(self) -> None:
+        """Expire due bookings and mark late Trips; a failure is logged, never raised."""
+        try:
+            self.expire_due()
+            self.mark_overdue()
+        except RepositoryError:
+            logger.exception("Rental sweep failed; the next request tries again")
+
+    def _mark_overdue(self, trip_id: str) -> BookingResult[RentalTrip]:
+        try:
+            with self.core.unit_of_work() as uow:
+                trip = storage.read(self.core, RentalTrip, trip_id)
+                now = uow.queries.get_config().as_of
+                if (
+                    trip is None
+                    or trip.status is not TripStatus.IN_PROGRESS
+                    or now - trip.expected_return_at <= OVERDUE_GRACE
+                ):
+                    return BookingError(BookingErrorCode.INVALID_STATE, "Trip is not overdue.")
+                trip.status = TripStatus.OVERDUE
+                storage.update(uow.repository, trip)
+                committed = uow.commit()
+                return from_core(committed) if isinstance(committed, Err) else Ok(trip)
+        except RepositoryError:
+            logger.exception("Overdue marking failed; transaction rolled back")
+            return BookingError(BookingErrorCode.INTERNAL_ERROR, "Trip could not be saved.")
 
     def _settle(self, reservation_id: str, actor: Actor | None) -> BookingResult[RentalReservation]:
         if not isinstance(reservation_id, str) or not reservation_id.strip():
