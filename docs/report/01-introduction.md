@@ -1,8 +1,7 @@
 # 1. Introduction
 
-> **Status:** Draft v0.1 · **Owner:** M1 · **Date:** 2026-10-05
-> Sections marked *(to be refined)* depend on inputs from other members (use cases, business rules).
-> Assumption IDs (`A-xx`) and decision IDs (`D-xxx`) refer to `docs/DECISIONS.md`.
+> **Status:** Final v1.0 · **Owner:** M1 · **Date:** 2026-11-26 (first draft 2026-10-05)
+> Assumption IDs (`A-xx`) and decision IDs (`D-xxx`) refer to the decision log (`docs/DECISIONS.md`).
 
 ---
 
@@ -58,8 +57,9 @@ The report concentrates on state management, resource allocation, reservation ha
 - Sophisticated 3D or map-based interfaces, route planning and in-trip tracking (A-01, A-02).
 - Payment, pricing, billing, penalties and ratings (A-07).
 - Integration with university identity systems or the real Metro operator (A-06).
+- A native or installable phone app. Students use the same web pages on a phone: the student screens adapt to phone screens from 360 px wide (D-027), and a phone app would later be one more client of the same REST routes (Section 6.3).
 
-## 1.4 Stakeholders and actors *(to be refined by M2 in Requirements Analysis)*
+## 1.4 Stakeholders and actors
 
 | Stakeholder / actor | Role | Main goals | Interaction with the system |
 |---|---|---|---|
@@ -69,6 +69,8 @@ The report concentrates on state management, resource allocation, reservation ha
 | Sensor / event source | Secondary actor (external) | Report battery levels, parking occupancy, charging-point failures and demand events. | Sends events through the `core` state-update interface; represented by the IoT simulator (D-004) |
 | VNU-HCM management | Stakeholder | Efficient use of shared infrastructure, good service for students. | Indirect (reports and recommendations) |
 | Course lecturer / evaluators | Stakeholder | A consistent, well-justified software engineering process. | Indirect (report, presentation, recorded demo) |
+
+Section 2.1 gives the full stakeholder and actor analysis and the use cases of each actor.
 
 ## 1.5 Assumptions
 
@@ -96,19 +98,12 @@ The full list, with owners and impact, is in `docs/DECISIONS.md`. The assumption
 The figure shows the system as a black box with its external actors. The detailed component architecture is given in the System Architecture section.
 
 ```mermaid
-flowchart LR
+flowchart TB
     ST["Student<br/>(rental user / private EV owner)"]
     OP["Operator"]
     IOT["Sensor / event source<br/>(simulated by iot_sim)"]
 
-    subgraph SYS["Smart E-Mobility Hub system"]
-        direction TB
-        F1["View Hubs and resource status"]
-        F2["Reserve, pick up, return vehicles<br/>Reserve parking"]
-        F3["Request / schedule charging"]
-        F4["Monitor, handle incidents,<br/>redistribute vehicles"]
-        F5["What-if Simulation<br/>and recommendations"]
-    end
+    SYS["<b>Smart E-Mobility Hub system</b><br/>View Hubs and resource status<br/>Reserve, pick up and return vehicles; reserve parking<br/>Request and schedule charging<br/>Monitor, handle incidents, redistribute vehicles<br/>What-if Simulation and recommendations"]
 
     ST -->|"search, reserve, pick up / return,<br/>charging requests"| SYS
     SYS -->|"availability, battery, confirmations,<br/>alternatives"| ST
@@ -125,7 +120,26 @@ flowchart LR
 | What-if Simulation on a copy of the state | Map rendering and route planning |
 | Student and operator interfaces | Generation of real-world events (represented by `iot_sim`, treated as an external source, D-004) |
 
-## 1.8 Organization of the report
+## 1.8 Team and process
+
+Eight students built the system. Each owns one module and its part of the report; the Lead also owns `core`, the shared state that every module goes through.
+
+| Member | Module | Main responsibility |
+|---|---|---|
+| M1 (Lead) | `core` | Shared state, state machines, claims, sign-in, REST API, architecture, integration and merges |
+| M2 | `reservation` | Vehicle search, rental reservations, trips, parking and return-space holds |
+| M3 | `charging` | Charging requests, schedules, priority queue, charging-point failures |
+| M4 | `allocation` | Vehicle redistribution tasks, alternative Hubs, allocation settings |
+| M5 | `monitoring` | Hub utilization, alerts and incident tickets |
+| M6 | `simulation` | What-if Simulation on a copy of the state and recommendations |
+| M7 | `ui` | Student and operator screens, data model |
+| M8 | `iot_sim`, testing | Simulated network and events, test plan, integration and NFR tests |
+
+The team worked in five phases from 3 October to 26 November 2026: requirements, design, two implementation sprints with integration, and testing. Every change went through a pull request with at least one review and a CI run (lint, format, types, tests and coverage per module) before it was merged; decisions that affect more than one module were recorded in the decision log (D-001 to D-028).
+
+The system is one Python application (FastAPI, Jinja2 and HTMX pages, SQLite). At the end it has about 6,800 statements of application code and 1,560 automated tests (94 % line coverage), and all twelve capabilities are available on both the student and the operator screens (Sections 4 and 5).
+
+## 1.9 Organization of the report
 
 | Report section | Rubric component |
 |---|---|
@@ -137,7 +151,7 @@ flowchart LR
 | 3.4 User-interface Design | UI Design |
 | 3.5 What-if Simulation and Coordination Design | What-if Simulation and Coordination Design |
 | 4 Implementation (4.1 to 4.4) | Implementation |
-| 5 Testing and Validation (5.1 to 5.4) | Testing and Validation |
-| 6 Evaluation and Conclusion (6.1 AI Usage Declaration) | Evaluation, Conclusion, and AI Declaration |
+| 5 Testing and Validation (5.1 to 5.7) | Testing and Validation |
+| 6 Evaluation, Conclusion and AI Usage Declaration (6.1 to 6.6) | Evaluation, Conclusion, and AI Declaration |
 
 Requirement, rule, use-case and test IDs are used consistently across all sections so that each requirement can be traced to its design elements, code and tests.
