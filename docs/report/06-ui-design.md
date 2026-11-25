@@ -250,12 +250,14 @@ Every refusal uses the same block: what failed, the cause, up to two alternative
 | Screen | Decision | Reason |
 |---|---|---|
 | S2 | One table with vehicles, free spaces and charging | The student compares Hubs without opening each one |
-| S3 | Note "Not a reservation" under the return Hub | The student does not think a space is held |
+| S3 | Vehicles as small cards to pick, five per row, best battery first; the return Hub and "Reserve" in a bar fixed at the bottom of the screen | A wide four-column table left large gaps between columns, and the main button was far below a long list |
 | S4 | The 10-minute deadline, planned time and missing return space shown before confirming | These are the facts that surprise students most |
 | S5 | Only the actions allowed in the booking's state; deadline as a time and a countdown | The student cannot try a pick-up on an expired booking |
-| O1 | One card per Hub, ordered by severity; symbol and word, not colour alone | Hubs that need attention are seen at once, and the screen is readable without colour |
-| O2 | State history under the vehicle; only the button that fits the state | The operator sees how the vehicle got there before overriding |
-| O4 | "Update recommendations" is a button; a failed task keeps its reason | Planning writes data, so it must be deliberate; no need to ask why a task failed |
+| O1 | One compact card per Hub, ordered by severity, five per row; symbol and word, not colour alone | All ten Hubs fit on one 1366×768 screen; Hubs that need attention are seen at once, and the screen is readable without colour |
+| O2 | Summary, section links and the Hub action on one line; the vehicle list scrolls inside its panel; spaces as tiles coloured by status with a word; state history under the vehicle; only the button that fits the state | The spaces and points stay one scroll away from the vehicles, and the operator sees how a vehicle got there before overriding |
+| O4 | The filter and "Update recommendations" on one toolbar; tasks two per row; a failed task keeps its reason | Planning writes data, so it must be deliberate; more tasks are seen at once |
+| S6, S7, S8 | Form and the student's own list side by side, labels above full-width fields | The screen is used across its width instead of a short form on the left |
+| All | Student column 1200 px, operator column 1440 px; nothing under 14 px; the login code in the header | Operator screens are dense and desktop only (D-027); the code is what the user typed to log in |
 | O5 | Active tickets first, most severe and oldest on top; only the actions the status allows; history under the ticket | The operator handles the worst ticket first and cannot close a ticket before it is resolved |
 | O6 | Banner that the screen works on a copy; only the chosen scenario's fields; both rates side by side; approve sends to Dispatch, not straight to the fleet | Simulated results are not mistaken for real state, the comparison is read at a glance, and a person approves every real move |
 | All | Loading, empty and error states | The user can tell "nothing here" from "something failed" |
