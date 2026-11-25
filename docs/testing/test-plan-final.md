@@ -1,7 +1,7 @@
 # Test Plan — Final
 
 > **Owner:** M8 — Testing, QA & Report Integration Lead  
-> **Baseline:** testing branch `01d68e764876a4c22fad53145843d164339784f9` (2026-11-23): `develop` plus approved, not-yet-merged PRs #45, #47–#52  
+> **Baseline:** `develop` at `0056f23` (2026-11-26, every PR up to #63 merged; rerun by M1). First round: testing branch `01d68e7` (2026-11-23).  
 > **Status:** Final plan · execution evidence updated 2026-11-23; sign-off conditional (section 14)  
 > **Related:** `docs/requirements/nfr.md`, `docs/requirements/reference-dataset.md`, `docs/design/architecture/core-api-spec.md`, `docs/design/simulation/iot-sim-design.md`, `CONTRIBUTING.md`
 
@@ -184,7 +184,7 @@ The authoritative schedule is `docs/task-assignment-timeline.md`. M8 milestones:
 | 18/11 | Integration execution, NFR measurements, execution report, consolidated defect log, Testing report draft |
 | 22/11 | Evaluation/conclusion integration, final consistency checklist and report assembly |
 
-Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(charging)/05(SC-01)/12/13/14/24 measurements are done on `01d68e7`; the execution report, NFR measurements, defect log and traceability sheet are updated. The 18/11 and 22/11 milestones were met late (23/11). NFR-04 allocation and NFR-05 SC-02–SC-05 are not complete.
+Actual status: the first round ran on 2026-11-23 on the testing branch `01d68e7` (the 18/11 and 22/11 milestones were met late). The full run and every measurement were repeated on `develop` on 2026-11-26 after all PRs merged; NFR-04 allocation and NFR-05 for SC-02 to SC-05 are now measured and pass.
 
 ## 12. Risks and mitigations
 
@@ -196,9 +196,9 @@ Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(chargin
 | M8 becomes a bottleneck for sign-offs | PR queue | Review test existence/pass status as PRs arrive; do not wait until code freeze |
 | Cross-module assumptions diverge | Integration defects | Use Core API spec and provider-port contracts as single interface references |
 
-## 13. Integration test implementation baseline (2026-11-23)
+## 13. Integration test implementation baseline (2026-11-26)
 
-The integration suite is built through `src/main.py::build_app(settings, repository=...)` and uses an isolated SQLite repository (7 tests, all passing on `01d68e7`). Cases are documented in `test-cases/integration.md` and implemented under `tests/integration/`:
+The integration suite is built through `src/main.py::build_app(settings, repository=...)` and uses an isolated SQLite repository (7 tests, all passing on `develop` at `0056f23`). Cases are documented in `test-cases/integration.md` and implemented under `tests/integration/`:
 
 - application composition and route mounting;
 - provider registration: M3/M4 providers, M2 `ReservationDemand` registered and callable (PR #54), `HoldConsumer` not registered (TC-M8-017);
@@ -211,27 +211,25 @@ The tests use a small deterministic fixture, not DS-STD. DS-STD is used by the N
 
 ### 13.1 Known integration limitations
 
-- At `01d68e7`, M2's `reservation.install()` registered neither port (PR #52 is documentation only) and `POST /allocation/tasks/plan` returned 503 `RESOURCE_UNAVAILABLE`, so NFR-04 for allocation was Blocked. PR #54 registers `ReservationDemand`; `HoldConsumer` stays unregistered, so hold-consuming workflows remain Blocked. TC-M8-017 asserts this state and passes only with PR #54 merged. Rerun the NFR-04 allocation measurement on `develop` after the merge.
-- `src/ui/routes.py` still reads `ui.sample_data` for several screens (DEV-10 to DEV-12); UI pages are not evidence of end-to-end Core integration.
-- M6 implements SC-01 only (DEV-08).
-- The integration tests do not claim full business-workflow coverage (rental → allocation → charging → monitoring).
+- M2 registers `ReservationDemand` (PR #54) but not `HoldConsumer`; no module consumes an M2 hold, so no workflow is blocked (DEV-16). NFR-04 for allocation is measured with the real provider and passes.
+- Every UI screen calls its module (no sample data, TC-M7-018), and the UI tests on the real modules cover the cross-module journeys (rental, parking, charging, dispatch, incidents, simulation to dispatch).
+- M6 implements SC-01 to SC-05 as per-Hub counts over the horizon, not time steps (DEV-08).
+- The parking/charging bundle (BR-M2-12) is not implemented (DEV-15).
 
 ## 14. Open items and sign-off gates
 
-Done on 2026-11-23 (`01d68e7`; details in `test-execution-report.md`, `nfr-measurements.md`):
+Done on 2026-11-26 on `develop` at `0056f23` (measurements on `267919e`; details in `test-execution-report.md`, `nfr-measurements.md`):
 
-- ruff, format, mypy clean; full suite 1,501 passed, 1 skipped (SQL-only foreign-key test); 7 integration, 66 focused, 25 NFR-22 tests passed.
-- NFR-24 coverage: core 98.8 %; reservation 96.3 %; charging 88.2 %; allocation 91.5 %; monitoring 87.3 %; simulation 92.4 %.
-- NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (DEF-M3-007, Accepted); NFR-05, 12, 13 pass for SC-01.
-- NFR-14 pass (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`, `1,501 passed, 1 skipped` in 95.66 s, Uvicorn startup verified with `hubs=10, parking_spaces=400, charging_points=61, vehicles=350, users=1005`)
+- ruff, format, mypy clean; CI run `45666388041` success; full suite 1,560 passed, 1 skipped (SQL-only foreign-key test); 7 integration, 25 NFR-22, 42 concurrency tests passed.
+- NFR-24 coverage: core 98.8 %; reservation 92.1 %; charging 89.0 %; allocation 91.7 %; monitoring 87.3 %; simulation 92.7 %; ui 91.9 %; iot_sim 99.0 %.
+- NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (DEF-M3-007, Accepted); NFR-04 allocation passes with M2's real provider; NFR-05, 12, 13 pass for SC-01 to SC-05.
+- NFR-14 pass on 2026-11-23 (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`); not repeated.
+- Defect log: 29 defects, 28 Closed, 1 Accepted (DEF-M3-007); six found by running the demo on 2026-11-25 and 26, all fixed with tests.
 
-Open:
+Open (accepted into report section 4.4):
 
-- **NFR-04 allocation:** rerun on `develop` after PR #54 is merged.
-- **NFR-05:** SC-02–SC-05 not implemented; reported as a limitation.
-- **NFR-26:** traceability gaps in `traceability-sheet.md` (FR-05; 9 BR; 17 UC) need owner confirmation or new TCs.
-- **DEF-M3-007:** Accepted by the Lead as a known limitation; M3 adds it to report 4.4.
-- Repeat the full run and all measurements on `develop` after all PRs merge (by 26/11) and replace the commit hash `01d68e7` in every document; check the CI coverage artifact (NFR-24).
-- Confirm M2 and M5 defect-log entries with their owners.
+- **NFR-26:** traceability gaps BR-M1-03, BR-M2-12, BR-M4-07/09/11/12, UC-M5-01/02 (`traceability-sheet.md` section 5).
+- **DEF-M3-007:** Accepted by the Lead as a known limitation.
+- **NFR-14:** not repeated after 2026-11-23.
 
-Passing regression runs and NFR results for a limited measured scope do not by themselves satisfy the exit criteria in section 7. M8 sign-off is **conditional** on the items above.
+With the open items accepted as known limitations, the exit criteria of section 7 are met for the report and the demo (final sign-off 2026-11-26).

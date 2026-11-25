@@ -1,9 +1,9 @@
 # ID Traceability Sheet
 
-> **Owner:** M8 · **Version:** v1.6 · **Date:** 2026-11-25 · **Baseline:** `01d68e7` (testing branch); v1.2 to v1.6 by M1 (PR #58, the M2 search, expiry and overdue fix, M2 parking, the M3/M4/M6 backend gaps, and the connected UI)
+> **Owner:** M8 · **Version:** v1.7 · **Date:** 2026-11-26 · **Baseline:** `develop` at `0056f23` (rerun by M1); first round `01d68e7` (testing branch); v1.2 to v1.6 by M1 (PR #58, the M2 search, expiry and overdue fix, M2 parking, the M3/M4/M6 backend gaps, and the connected UI)
 > Generated from `docs/requirements/*.md` and the test-case documents (`docs/testing/test-cases/*.md`, `reservation-phase2.md`, M7 test docstrings).
 
-Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. A TC listed here passed on 01d68e7 unless `test-cases/integration.md` records it as Blocked or Partial (TC-M8-027 Blocked; TC-M8-028 Partial; TC-M8-026 passes at 15 queued per Hub only). TC-M2-024 to TC-M2-026 and TC-M7-028 to TC-M7-033 came after 01d68e7; they passed on PR #58 (`76a0877`, 1524 passed). TC-M2-027 to TC-M2-029 passed on branch `fix/reservation-search-expiry-overdue`, TC-M2-030 to TC-M2-032 on `feat/reservation-parking`, TC-M3-037/038, TC-M4-033/034 and TC-M6-006 to 010 on `feat/backend-planned-gaps`, TC-M7-034 to 044 and TC-M3-039 on `feat/ui-complete-browser`, TC-M7-045 on `feat/ui-phone-layout`. M8's rerun on `develop` replaces this baseline.
+Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. Every TC listed here passed on `develop` at `0056f23` on 2026-11-26 (1,560 passed, 1 skipped; `test-execution-report.md`), except that `test-cases/integration.md` records TC-M8-026 as passing at 15 queued per Hub only (DEF-M3-007, Accepted).
 
 **Summary:** 209 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
 
@@ -148,6 +148,6 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 | UC-M5-01/02 | M5 TCs cite FR/BR only; owners to add the UC reference to existing TCs if they match |
 | BR-M4-07/09/11/12 | Declared unused in the requirements; M4 to confirm and mark withdrawn |
 | BR-M1-03 | No TC found; owners to confirm |
-| NFR-14, NFR-24, NFR-26 | Verified by a fresh-clone check (NFR-14, not yet done), CI/coverage report (NFR-24, passed locally) and this sheet (NFR-26); no TC ID by design |
+| NFR-14, NFR-24, NFR-26 | Verified by the fresh-clone run (NFR-14, 2026-11-23), CI with the coverage step on `develop` (NFR-24, run `45666388041`) and this sheet (NFR-26); no TC ID by design |
 | NFR-15, NFR-17 | Core tests exist (`nfr-evidence-core.md`) but no TC ID cites them; M1/M8 to add IDs |
 | NFR-11, 19, 23, 27 | Withdrawn |
