@@ -13,4 +13,4 @@ class SimulationService:
 
         # The engine reads the sandbox through Core queries and reports the snapshot it ran on.
         engine = SimulationEngine(config, sandbox_core, snapshot)
-        return engine.run_demand_surge()
+        return engine.run()
