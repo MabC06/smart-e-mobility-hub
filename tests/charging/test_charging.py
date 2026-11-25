@@ -1075,3 +1075,28 @@ def test_optimize_queue_rechecks_m4_suggestion() -> None:
     assert res.value == []
     assert schema.read(core, "R-Q").status is ChargingSessionStatus.QUEUED
     assert schema.read(core, "R-Q").station_id == "H1"
+
+
+def test_second_registration_of_same_plate_is_400_not_500() -> None:
+    """Core refuses a duplicate plate; the route answers 400, not 500 (TC-M7-024, DEF-M3-006)."""
+    core, _, _, client = _api()
+    student = _bearer(client, "2452030")
+    body = {
+        "plate_or_code": "PRIV777",
+        "vehicle_type": "E_BIKE",
+        "battery_capacity_kwh": 2.5,
+        "current_soc": 30.0,
+        "connector_type": "Type2",
+    }
+
+    first = client.post("/charging/private/vehicles", headers=student, json=body)
+    second = client.post(
+        "/charging/private/vehicles",
+        headers=student,
+        json={**body, "vehicle_id": "V-PRIV-OTHER"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 400
+    with core.unit_of_work() as uow:
+        assert isinstance(uow.queries.get_vehicle("V-PRIV-OTHER"), Err)
