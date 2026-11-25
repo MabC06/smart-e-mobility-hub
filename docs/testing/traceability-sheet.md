@@ -3,9 +3,9 @@
 > **Owner:** M8 · **Version:** v1.6 · **Date:** 2026-11-25 · **Baseline:** `01d68e7` (testing branch); v1.2 to v1.6 by M1 (PR #58, the M2 search, expiry and overdue fix, M2 parking, the M3/M4/M6 backend gaps, and the connected UI)
 > Generated from `docs/requirements/*.md` and the test-case documents (`docs/testing/test-cases/*.md`, `reservation-phase2.md`, M7 test docstrings).
 
-Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. A TC listed here passed on 01d68e7 unless `test-cases/integration.md` records it as Blocked or Partial (TC-M8-027 Blocked; TC-M8-028 Partial; TC-M8-026 passes at 15 queued per Hub only). TC-M2-024 to TC-M2-026 and TC-M7-028 to TC-M7-033 came after 01d68e7; they passed on PR #58 (`76a0877`, 1524 passed). TC-M2-027 to TC-M2-029 passed on branch `fix/reservation-search-expiry-overdue`, TC-M2-030 to TC-M2-032 on `feat/reservation-parking`, TC-M3-037/038, TC-M4-033/034 and TC-M6-006 to 010 on `feat/backend-planned-gaps`, TC-M7-034 to 044 and TC-M3-039 on `feat/ui-complete-browser`. M8's rerun on `develop` replaces this baseline.
+Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. A TC listed here passed on 01d68e7 unless `test-cases/integration.md` records it as Blocked or Partial (TC-M8-027 Blocked; TC-M8-028 Partial; TC-M8-026 passes at 15 queued per Hub only). TC-M2-024 to TC-M2-026 and TC-M7-028 to TC-M7-033 came after 01d68e7; they passed on PR #58 (`76a0877`, 1524 passed). TC-M2-027 to TC-M2-029 passed on branch `fix/reservation-search-expiry-overdue`, TC-M2-030 to TC-M2-032 on `feat/reservation-parking`, TC-M3-037/038, TC-M4-033/034 and TC-M6-006 to 010 on `feat/backend-planned-gaps`, TC-M7-034 to 044 and TC-M3-039 on `feat/ui-complete-browser`, TC-M7-045 on `feat/ui-phone-layout`. M8's rerun on `develop` replaces this baseline.
 
-**Summary:** 208 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
+**Summary:** 209 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
 
 **NFR-26 is not yet met:** the uncovered IDs below are listed with the reason known so far; module owners must confirm or add TCs.
 
@@ -132,7 +132,7 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 | NFR-18 | Covered | TC-M2-002, TC-M2-009, TC-M2-019, TC-M2-025, TC-M2-027, TC-M2-032, TC-M3-012, TC-M3-023, TC-M3-029, TC-M4-010, TC-M4-015, TC-M4-025, TC-M4-029, TC-M5-011, TC-M5-020, TC-M7-005, TC-M8-006, TC-M8-011, TC-M8-015 |
 | NFR-19 | **GAP** | — |
 | NFR-20 | Covered | TC-M7-006, TC-M7-020 |
-| NFR-21 | Covered | TC-M3-014, TC-M3-031, TC-M4-013, TC-M6-010, TC-M7-002, TC-M7-005, TC-M7-012, TC-M7-014, TC-M7-016, TC-M7-018, TC-M7-021, TC-M7-024, TC-M7-027, TC-M7-030, TC-M7-032 |
+| NFR-21 | Covered | TC-M3-014, TC-M3-031, TC-M4-013, TC-M6-010, TC-M7-002, TC-M7-005, TC-M7-012, TC-M7-014, TC-M7-016, TC-M7-018, TC-M7-021, TC-M7-024, TC-M7-027, TC-M7-030, TC-M7-032, TC-M7-045 |
 | NFR-22 | Covered | TC-M2-018, TC-M4-011, TC-M4-027, TC-M8-017 |
 | NFR-23 | **GAP** | — |
 | NFR-24 | **GAP** | — |

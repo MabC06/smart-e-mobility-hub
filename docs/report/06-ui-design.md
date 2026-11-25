@@ -281,6 +281,18 @@ Every refusal uses the same block: what failed, the cause, up to two alternative
 
 A private EV owner is a student with a registered vehicle and uses the student interface. `iot_sim` has no screen.
 
+**Use on phones (D-027).** Students mostly use phones, so the student screens (login, S1 to S9) adapt below 640 px wide with plain CSS (one `@media` block in `app.css`, no framework, D-002); the operator screens stay desktop screens for the control room. Checked at 360 and 390 px wide (TC-M7-045 and a page check in the browser):
+
+| Rule | How the phone layout meets it |
+|---|---|
+| One column, no sideways scrolling | Two-column panels (S6 to S8) become one column; S2's Hub table becomes stacked cards; no page is wider than the screen at 360 px |
+| Title and main action on the first screen | S3 keeps "Reserve selected vehicle" in a bar fixed at the bottom; S4, S5 and S9 show their action buttons without scrolling |
+| Key value first | S2 card: Hub name, then status, then numbers; S3 card: battery first, then type |
+| Menu marked and reachable | The header menu wraps into large links; the current page is outlined |
+| Readable fields and buttons | Labels above full-width fields with 16 px text (no zoom on focus); every button and menu link at least 44 px high, 8 px apart; nothing only on hover |
+
+A browser could keep an old stylesheet after an update, so the page links `app.css?v=<file time>`. A phone app later would be one more client of the same REST routes (D-023, D-026).
+
 ### 3.4.7 Non-functional requirements
 
 | NFR | How the interface meets it |

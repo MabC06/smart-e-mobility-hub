@@ -1117,3 +1117,22 @@ def test_new_actions_keep_to_their_role(student, operator):
         "/ui/operator/simulation/decide",
     ):
         assert student.post(path).status_code == 403
+
+
+def test_student_screens_carry_the_phone_layout(student):
+    """TC-M7-045 · UX · The student screens carry the phone rules of D-027.
+
+    Verifies: NFR-21
+    Expected: every student screen sets the viewport and links the versioned stylesheet; the
+    stylesheet has the phone block (max-width 640 px) with 44 px targets and 16 px fields; S2
+    lists Hubs as a stacked table with a label on each value.
+    """
+    for path in STUDENT_PAGES:
+        html = student.get(path).text
+        assert 'name="viewport" content="width=device-width, initial-scale=1"' in html, path
+        assert re.search(r"/app\.css\?v=\d+", html), path
+    css = student.get("/ui/static/app.css").text
+    phone = css[css.index("@media (max-width: 640px)") :]
+    assert "min-height: 44px" in phone and "font-size: 16px" in phone
+    hubs = student.get("/ui/student/hubs").text
+    assert '<table class="stack">' in hubs and 'data-label="Free spaces"' in hubs

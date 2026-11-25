@@ -12,7 +12,7 @@
 <p>Choose a Hub to see the vehicles you can rent there.</p>
 
 <div class="table-wrap">
-  <table>
+  <table class="stack">
     <thead>
       <tr>
         <th>Hub</th>
@@ -27,16 +27,16 @@
     <tbody>
       {% for hub in hubs %}
       <tr>
-        <td>{{ hub.hub_id }} {{ hub.name }}</td>
-        <td>{{ hub.zone_code }}</td>
-        <td>{{ hub.available_vehicles }}</td>
-        <td>{{ hub.free_spaces }} of {{ hub.parking_capacity }}</td>
-        <td>{{ hub.charging_in_use }} of {{ hub.charging_points }}</td>
-        <td>
+        <td class="stack-title">{{ hub.hub_id }} {{ hub.name }}</td>
+        <td data-label="Zone">{{ hub.zone_code }}</td>
+        <td data-label="Vehicles">{{ hub.available_vehicles }}</td>
+        <td data-label="Free spaces">{{ hub.free_spaces }} of {{ hub.parking_capacity }}</td>
+        <td data-label="Charging in use">{{ hub.charging_in_use }} of {{ hub.charging_points }}</td>
+        <td class="stack-status">
           <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ status_words[hub.status] }}</span>
           {% if hub.status == "CRITICAL" %}<span class="status-note">No new parking bookings</span>{% endif %}
         </td>
-        <td>
+        <td class="stack-action">
           {% if hub.status == "MAINTENANCE" or hub.available_vehicles == 0 %}
           <span class="button" aria-disabled="true">Find a vehicle</span>
           <span class="status-note">{{ "Hub closed" if hub.status == "MAINTENANCE" else "No vehicle here now" }}</span>

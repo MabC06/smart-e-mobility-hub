@@ -329,7 +329,12 @@ textarea {
   font: inherit;
 }
 
-input:disabled, select:disabled, textarea:disabled { background: var(--neutral-bg); color: var(--muted); }
+input:not([type="checkbox"]):not([type="radio"]):disabled, select:disabled, textarea:disabled {
+  background: var(--neutral-bg);
+  border-style: dashed;
+  color: var(--muted);
+  cursor: not-allowed;
+}
 
 :focus-visible { outline: 3px solid #7aa7e8; outline-offset: 2px; }
 
@@ -616,4 +621,124 @@ main > .page-bar > form.bare { margin: 0 0 0 auto; padding: 0; background: none;
 body.operator {
   --column: 1440px;
   --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
+}
+
+/* ================================================================== phones (D-027, part 3)
+   The student screens (login, S1 to S9) from 360 px wide, checked at 390 x 844. One column,
+   no sideways scrolling, 16 px text in fields (no zoom on focus), tap targets at least 44 px
+   high with at least 8 px between them, nothing shown only on hover. Operator screens are
+   desktop only. */
+@media (max-width: 640px) {
+  :root { --gutter: 12px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  main { padding: 16px var(--gutter) 24px; }
+  main > h1 { font-size: 1.375rem; }
+  main > h1 + p { font-size: 0.9375rem; }
+
+  /* Header: brand and code on one line, the menu as a row of large links that wraps. */
+  .site-header { gap: 6px 10px; padding: 8px var(--gutter); }
+  .site-header nav { margin-left: 0; width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+  .site-header nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+  .site-header nav a[aria-current="page"] { border-color: var(--link); background: var(--link-tint); color: var(--text); text-decoration: none; }
+
+  /* Panels use the whole width. */
+  main > section:not(.login):not(.error-block), main > form, main > details, .card,
+  .split > form, .split > section, .single > section { padding: 12px; }
+
+  /* Every field: label above, full width, 16 px. */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  input[type="radio"], input[type="checkbox"] { width: 22px; height: 22px; }
+  main > form > p, form.actions, .action-bar, main > form.filters > p, .toolbar form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  main > form > p > label, form.actions label, .action-bar label, main > form.filters label,
+  .form-grid label, .toolbar label {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid fieldset.choice-inline label, main > form fieldset label { flex-direction: row; align-items: center; min-height: 44px; }
+
+  /* Buttons: at least 44 px high, full width when they are a block's action. */
+  .button { min-height: 44px; margin: 0; }
+  form.actions .button, .action-bar .button, main > form > p > .button, .split > form > p > .button,
+  .error-block .button, .login .button { width: 100%; }
+  .action-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .action-row > form.actions { width: 100%; }
+
+  /* S2: each Hub as a stacked card, the name first, then status and the numbers. */
+  table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
+  table.stack thead { display: none; }
+  main > .table-wrap:has(table.stack) { border: 0; background: none; overflow: visible; }
+  table.stack { background: none; }
+  table.stack tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    margin: 0 0 12px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+  }
+  table.stack td { padding: 0 !important; border: 0; }
+  table.stack td.stack-title { grid-column: 1 / -1; font-size: 1.0625rem; font-weight: 700; }
+  table.stack td.stack-status, table.stack td.stack-action { grid-column: 1 / -1; }
+  table.stack td { order: 2; }
+  table.stack td.stack-title { order: 0; }
+  table.stack td.stack-status { order: 1; margin-bottom: 4px; }
+  table.stack td.stack-action { order: 3; }
+  table.stack td.stack-action .button { width: 100%; margin-top: 8px; }
+  table.stack td[data-label]::before { content: attr(data-label) " "; display: block; color: var(--muted); font-size: 0.875rem; }
+  tbody tr:hover td { background: none; }
+
+  /* S4: label and value pairs one under the other. */
+  table.pairs, table.pairs tbody, table.pairs tr, table.pairs th, table.pairs td { display: block; width: 100%; }
+  table.pairs th { padding: 8px 0 0; border: 0; background: none; }
+  table.pairs td { padding: 2px 0 8px; }
+
+  /* S3: two vehicle cards per row; the action bar stays at the bottom. */
+  main > form.pick { padding: 12px 12px 0; }
+  .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .choice { min-height: 64px; padding: 8px 10px; }
+  .action-bar { margin: 0 -12px; padding: 10px 12px; }
+  .action-bar .note { display: none; }
+  .action-bar { gap: 6px; }
+  .action-bar label { flex-direction: row; align-items: center; gap: 8px; }
+  .action-bar label select { flex: 1; }
+  /* S3 filters: the two fields side by side, the button under them. */
+  main > form.filters > p:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  main > form.filters > p:first-child > .button, main > form.filters > p:first-child > .note { grid-column: 1 / -1; }
+  main > form.filters > p:first-child > .note { display: none; }
+  .choice-meta { font-size: 0.875rem; }
+  .choice-meta strong { font-size: 1rem; }
+
+  /* Lists with actions: more room between items. */
+  .row-item { padding: 14px 0; }
+  ul.plain li { padding: 10px 0; }
+
+  /* S9 and the login fit the width. */
+  .error-block { padding: 14px; }
+  .login { margin: 16px auto; }
+}
+
+@media (max-width: 380px) {
+  .choice-grid { grid-template-columns: 1fr; }
 }
