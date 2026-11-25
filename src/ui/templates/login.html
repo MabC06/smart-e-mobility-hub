@@ -1,26 +1,24 @@
-{# S1. Login (wireframes-student.md). Phase 2 has no real login: one button for each role. #}
+{# S1. Login (wireframes-student.md). The code and password are checked by core. #}
 {% extends "base.html" %}
 {% block title %}Log in · Smart E-Mobility Hub{% endblock %}
 {% block content %}
 <section class="login">
   <h1>Smart E-Mobility Hub</h1>
 
-  <form>
+  {% if error %}
+  <p class="error-block" role="alert">⚠ {{ error }}</p>
+  {% endif %}
+
+  <form action="{{ url_for('login_submit') }}" method="post">
     <p>
       <label for="code">Code</label>
-      <input id="code" name="code" disabled>
+      <input id="code" name="code" value="{{ code or '' }}" required autofocus>
     </p>
     <p>
       <label for="password">Password</label>
-      <input id="password" name="password" type="password" disabled>
+      <input id="password" name="password" type="password" required>
     </p>
-    <p><span class="planned">Planned</span> Log in with code and password (Phase 3).</p>
+    <p><button class="button primary" type="submit">Log in</button></p>
   </form>
-
-  <p>Open the prototype as:</p>
-  <p>
-    <a class="button" href="{{ url_for('student_hubs') }}">Student</a>
-    <a class="button" href="{{ url_for('operator_overview') }}">Operator</a>
-  </p>
 </section>
 {% endblock %}

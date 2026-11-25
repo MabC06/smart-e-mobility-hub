@@ -1,0 +1,34 @@
+{# S7. Register a private EV (wireframes-student.md), UC-M3-04. The form goes to M3
+   (`/charging/private/vehicles`); the saved vehicles are the student's own, read from core. #}
+{% extends "base.html" %}
+{% block title %}My vehicle · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>My vehicle</h1>
+
+<form action="{{ url_for('student_register_ev') }}" method="post">
+  <p><label>Plate / code <input name="plate_or_code" required></label></p>
+  <p>
+    <label>Type
+      <select name="vehicle_type">
+        <option value="E_BIKE">E-bike</option>
+        <option value="E_SCOOTER" selected>E-scooter</option>
+        <option value="E_MOTORCYCLE">E-motorcycle</option>
+      </select>
+    </label>
+  </p>
+  <p><label>Battery capacity <input name="battery_capacity_kwh" type="number" step="0.1" min="0.1" required> kWh</label></p>
+  <p><label>Current charge <input name="current_soc" type="number" min="0" max="100" required> %</label></p>
+  <p><label>Connector <input name="connector_type" required></label></p>
+  <p><button class="button primary" type="submit">Save vehicle</button></p>
+</form>
+
+<h2>Saved</h2>
+<ul>
+  {% for v in vehicles %}
+  <li>{{ v.plate_or_code }} · {{ v.vehicle_type | type_label }} · {{ "Away" if v.hub_id is none else "Parked at " ~ v.hub_id }}</li>
+  {% else %}
+  <li>No vehicle saved yet.</li>
+  {% endfor %}
+</ul>
+<p><a href="{{ url_for('student_charging') }}">Request charging</a></p>
+{% endblock %}

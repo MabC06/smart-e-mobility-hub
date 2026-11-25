@@ -1,8 +1,7 @@
 """User interface module (M7): the pages for students and operators.
 
-Phase 2 is a clickable prototype (task-assignment-timeline.md, Phase 2): the screens S1 to S8 and
-O1 to O6 and the error block S9 of the wireframes exist, and the links between them follow the UI
-flow. The data on the pages is sample data, not read from ``core``; Phase 3 connects it.
+All screens of the wireframes exist. Login is real, and the pages read ``core`` or call the routes
+of M3, M4 and M5. S5 and O6 still show ``ui.sample_data`` (and say so) until M2 and M6 have routes.
 
 The pages are Jinja2 templates served by the same FastAPI application (D-002), under the ``/ui``
 prefix so they never clash with core's REST routes (core-api-spec.md, 8).
@@ -28,8 +27,8 @@ __all__ = ["install"]
 def install(core: CoreFacade, app: FastAPI) -> None:
     """Mount the UI pages and their static files on the application (D-013).
 
-    ``src/main.py`` installs ``ui`` last. The Phase 2 pages do not read ``core`` yet, so
-    ``core`` is not used here.
+    ``src/main.py`` installs ``ui`` last. The pages get ``core`` and the sign-in checker from
+    ``app.state`` (set by ``main.build_app``), so ``core`` is not used here.
     """
     app.mount("/ui/static", StaticFiles(directory=STATIC_DIR), name="ui-static")
     app.include_router(router)

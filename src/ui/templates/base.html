@@ -14,7 +14,9 @@
   <script src="{{ url_for('ui-static', path='htmx.min.js') }}" defer></script>
 </head>
 <body>
-  <p class="prototype-note">Prototype (Phase 2): the data is sample data and no button changes anything.</p>
+  {% if sample_note %}
+  <p class="prototype-note">{{ sample_note }}</p>
+  {% endif %}
 
   {% if actor == "student" %}
   <header class="site-header">
@@ -22,14 +24,14 @@
     <span class="user">{{ user_id }}</span>
     <nav>
       <a href="{{ url_for('student_bookings') }}">My bookings</a> |
-      <a href="{{ url_for('login_page') }}">Logout</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
     </nav>
   </header>
   {% elif actor == "operator" %}
   <header class="site-header">
     <a class="brand" href="{{ url_for('operator_overview') }}">Smart E-Mobility Hub: Operator</a>
     <span class="user">{{ user_id }}</span>
-    <nav><a href="{{ url_for('login_page') }}">Logout</a></nav>
+    <nav><a href="{{ url_for('logout') }}">Logout</a></nav>
   </header>
   <nav class="tabs">
     {% for name, label in [

@@ -1,28 +1,38 @@
-"""Pages of the UI prototype (Phase 2): one route for each screen of the wireframes.
+"""Pages of the UI: one route for each screen of the wireframes (``docs/design/ui``).
 
-Screens S1 to S9 are in ``docs/design/ui/wireframes-student.md``, O1 to O6 in
-``wireframes-operator.md``, and the moves between them in ``ui-flow-diagrams.md``. The data comes
-from ``ui.sample_data``; nothing is read from or written to ``core`` yet (Phase 3).
-
-Phase 2 has no real login: S1 has one button for each role. Buttons that would change data
-(Confirm reservation, Approve, Resolve...) only lead to the next screen of the flow.
+S2 to S4, O1 and O2 read ``core``. S7, S8 and O3 to O5 call the routes of M3, M4 and M5 through
+``ui.api``. S5 and O6 still show ``ui.sample_data`` and say so on the page.
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from core.domain.enums import HubStatus, Ownership, VehicleState, VehicleType
-from core.views import HubView, VehicleView
+from core.api.security import Principal
+from core.domain.enums import (
+    ChargingPointStatus,
+    HubStatus,
+    Ownership,
+    Role,
+    VehicleState,
+    VehicleType,
+)
+from core.facade import CoreFacade
+from core.result import Err
+from core.views import HubView, VehicleFilter, VehicleView
 from ui import sample_data
+from ui.api import call, explain, read_form
+from ui.auth import TOKEN_COOKIE, current_user, get_auth, get_core
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ICT = timezone(timedelta(hours=7), "ICT")  # D-005: times are shown in ICT (UTC+7)
+SAMPLE_NOTE = "Sample data: this screen is not connected to its module yet."
 ALERT_STATUSES = (HubStatus.CRITICAL, HubStatus.WARNING)  # alert strip, most severe first
 ACTIVE_INCIDENT_STATUSES = ("OPEN", "IN_PROGRESS", "ESCALATED")  # M5 statuses before RESOLVED
 SEVERITY_ORDER = ("CRITICAL", "HIGH", "MEDIUM", "LOW")  # M5 IncidentSeverity, most severe first
@@ -78,12 +88,85 @@ class ErrorInfo:
 # ------------------------------------------------------------------------------------ helpers
 
 
-def _find_hub(hub_id: str | None) -> HubView | None:
-    return next((hub for hub in sample_data.HUBS if hub.hub_id == hub_id), None)
+def _page(
+    request: Request,
+    template: str,
+    who: Principal,
+    status_code: int = 200,
+    sample: bool = False,
+    **context: Any,
+) -> HTMLResponse:
+    """Render a screen. An operator page also gets the alert strip (NFR-20)."""
+    core = get_core(request)
+    context["user_id"] = who.user_id
+    # A sample screen uses the time of its sample data, so ages and deadlines on it stay right.
+    context["as_of"] = sample_data.AS_OF if sample else core.queries.get_config().as_of
+    context["sample_note"] = SAMPLE_NOTE if sample else None
+    if who.role is Role.OPERATOR:
+        hubs = core.queries.list_hubs()
+        context["actor"] = "operator"
+        context["alert_hubs"] = [h for s in ALERT_STATUSES for h in hubs if h.status is s]
+        status, incidents = call(request, "GET", "/api/v1/monitoring/incidents")
+        # "?" if M5 does not answer: better than a wrong number on the alert strip (NFR-20)
+        context["active_incidents"] = (
+            sum(1 for i in incidents if i["status"] in ACTIVE_INCIDENT_STATUSES)
+            if status == 200
+            else "?"
+        )
+    else:
+        context["actor"] = "student"
+    return templates.TemplateResponse(request, template, context, status_code=status_code)
 
 
-def _find_vehicle(vehicle_id: str | None) -> VehicleView | None:
-    return next((v for v in sample_data.VEHICLES if v.vehicle_id == vehicle_id), None)
+def _check_login(request: Request, role: Role) -> Principal | Response:
+    """The signed-in user if it has the role, else the response to send: S1 or a 403 (NFR-16)."""
+    who = current_user(request)
+    if who is None:
+        return RedirectResponse(str(request.url_for("login_page")), status_code=303)
+    if who.role is not role:
+        is_student = who.role is Role.STUDENT
+        home = request.url_for("student_hubs" if is_student else "operator_overview")
+        error = ErrorInfo(
+            "You cannot open this page",
+            "This page is for operators." if is_student else "This page is for students.",
+            "FORBIDDEN",
+            (("Go to your home page", str(home)),),
+        )
+        return _page(request, "error.html", who, 403, error=error)
+    return who
+
+
+def _refused(
+    request: Request, who: Principal, what: str, status: int, data: Any, back: str, label: str
+) -> HTMLResponse:
+    """The error block S9 for a call that a module refused: its own cause and code (NFR-21)."""
+    code, cause = explain(status, data)
+    error = ErrorInfo(f"We could not {what}", cause, code, ((label, str(request.url_for(back))),))
+    return _page(request, "error.html", who, 400 if status < 500 else 502, error=error)
+
+
+def _hub_not_found(request: Request, who: Principal, back: str, label: str) -> HTMLResponse:
+    """The error block for a Hub ID that does not exist, with a link back to ``back``."""
+    error = ErrorInfo(
+        "We could not open this Hub",
+        "This item no longer exists.",
+        "NOT_FOUND",
+        ((label, str(request.url_for(back))),),
+    )
+    return _page(request, "error.html", who, 404, error=error)
+
+
+def _find_hub(core: CoreFacade, hub_id: str | None) -> HubView | None:
+    result = core.queries.get_hub(hub_id) if hub_id else None
+    return None if result is None or isinstance(result, Err) else result.value
+
+
+def _find_fleet_vehicle(core: CoreFacade, vehicle_id: str | None) -> VehicleView | None:
+    """A private vehicle counts as unknown: a student never sees it."""
+    result = core.queries.get_vehicle(vehicle_id) if vehicle_id else None
+    if result is None or isinstance(result, Err) or result.value.ownership is not Ownership.FLEET:
+        return None
+    return result.value
 
 
 def _by_severity(hubs: list[HubView]) -> list[HubView]:
@@ -97,36 +180,6 @@ def _by_severity(hubs: list[HubView]) -> list[HubView]:
     return sorted(hubs, key=key)
 
 
-def _student_page(
-    request: Request, template: str, status_code: int = 200, **context: Any
-) -> HTMLResponse:
-    """A student screen: the header shows the student's ``user_id``, the footer the data time."""
-    context.update(actor="student", user_id=sample_data.STUDENT_ID, as_of=sample_data.AS_OF)
-    return templates.TemplateResponse(request, template, context, status_code=status_code)
-
-
-def _operator_page(
-    request: Request, template: str, status_code: int = 200, **context: Any
-) -> HTMLResponse:
-    """An operator screen: header, tab bar, alert strip and the data time.
-
-    The alert strip lists the Hubs in ``WARNING`` or ``CRITICAL`` and the number of active
-    incidents (operator rule 2, NFR-20).
-    """
-    alert_hubs = [
-        hub for status in ALERT_STATUSES for hub in sample_data.HUBS if hub.status is status
-    ]
-    active_incidents = sum(1 for i in sample_data.INCIDENTS if i.status in ACTIVE_INCIDENT_STATUSES)
-    context.update(
-        actor="operator",
-        user_id=sample_data.OPERATOR_ID,
-        as_of=sample_data.AS_OF,
-        alert_hubs=alert_hubs,
-        active_incidents=active_incidents,
-    )
-    return templates.TemplateResponse(request, template, context, status_code=status_code)
-
-
 # ---------------------------------------------------------------------------- entry and login
 
 
@@ -138,41 +191,65 @@ def home(request: Request) -> RedirectResponse:
 
 @router.get("/login")
 def login_page(request: Request) -> HTMLResponse:
-    """S1. Login. A student goes to S2, an operator to O1 (ui-flow-diagrams.md)."""
+    """S1. Login form."""
     return templates.TemplateResponse(request, "login.html", {})
+
+
+@router.post("/login")
+def login_submit(request: Request) -> Response:
+    """S1. Ask ``core`` if the code and password are right; then S2 (student) or O1 (operator)."""
+    form = read_form(request)
+    code = form.get("code", "").strip()
+    result = get_auth(request).login(code, form.get("password", ""))
+    if isinstance(result, Err):
+        # One message for a wrong code and a wrong password, like core (NFR-16).
+        message = "The code or the password is wrong. Check both and try again."
+        context = {"error": message, "code": code}
+        return templates.TemplateResponse(request, "login.html", context, status_code=401)
+    login = result.value
+    home_page = "student_hubs" if login.role is Role.STUDENT else "operator_overview"
+    response = RedirectResponse(str(request.url_for(home_page)), status_code=303)
+    response.set_cookie(
+        TOKEN_COOKIE, login.access_token, expires=login.expires_at, httponly=True, samesite="lax"
+    )
+    return response
+
+
+@router.get("/logout")
+def logout(request: Request) -> RedirectResponse:
+    """Forget the token and go back to S1."""
+    response = RedirectResponse(str(request.url_for("login_page")), status_code=303)
+    response.delete_cookie(TOKEN_COOKIE)
+    return response
 
 
 # ------------------------------------------------------------------------------------ student
 
 
 @router.get("/student/hubs")
-def student_hubs(request: Request) -> HTMLResponse:
+def student_hubs(request: Request) -> Response:
     """S2. Find a Hub: the student's home screen."""
-    return _student_page(request, "student/hubs.html", hubs=sample_data.HUBS)
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    return _page(request, "student/hubs.html", who, hubs=get_core(request).queries.list_hubs())
 
 
 @router.get("/student/hubs/{hub_id}/vehicles")
-def student_vehicles(request: Request, hub_id: str) -> HTMLResponse:
-    """S3. Vehicles at one Hub. A student sees fleet vehicles only (student rule 3)."""
-    hub = _find_hub(hub_id)
+def student_vehicles(request: Request, hub_id: str) -> Response:
+    """S3. Vehicles at one Hub: fleet vehicles that are AVAILABLE only (student rule 3)."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    core = get_core(request)
+    hub = _find_hub(core, hub_id)
     if hub is None:
-        error = ErrorInfo(
-            "We could not open this Hub",
-            "This item no longer exists.",
-            "NOT_FOUND",
-            (("Back to Hubs", str(request.url_for("student_hubs"))),),
-        )
-        return _student_page(request, "error.html", 404, error=error)
-    vehicles = [
-        v
-        for v in sample_data.VEHICLES
-        if v.hub_id == hub_id
-        and v.ownership is Ownership.FLEET
-        and v.state is VehicleState.AVAILABLE
-    ]
-    return _student_page(
-        request, "student/vehicles.html", hub=hub, vehicles=vehicles, hubs=sample_data.HUBS
+        return _hub_not_found(request, who, "student_hubs", "Back to Hubs")
+    vehicles = core.queries.find_vehicles(
+        VehicleFilter(hub_id=hub_id, state=VehicleState.AVAILABLE, ownership=Ownership.FLEET)
     )
+    hubs = core.queries.list_hubs()
+    return _page(request, "student/vehicles.html", who, hub=hub, vehicles=vehicles, hubs=hubs)
 
 
 @router.get("/student/reserve")
@@ -181,137 +258,322 @@ def student_confirm(
     hub_id: str | None = None,
     vehicle_id: str | None = None,
     return_hub_id: str | None = None,
-) -> HTMLResponse:
-    """S4. Confirm the reservation of the vehicle chosen in S3 (sent as query parameters)."""
-    hub = _find_hub(hub_id)
-    vehicle = _find_vehicle(vehicle_id)
+) -> Response:
+    """S4. Confirm the vehicle chosen in S3 (the reservation itself needs a route of M2)."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    core = get_core(request)
+    hub = _find_hub(core, hub_id)
+    vehicle = _find_fleet_vehicle(core, vehicle_id)
     if hub is None or vehicle is None:
-        back = (
-            str(request.url_for("student_vehicles", hub_id=hub.hub_id))
-            if hub is not None
-            else str(request.url_for("student_hubs"))
+        back = "student_vehicles" if hub is not None else "student_hubs"
+        link = (
+            request.url_for(back, hub_id=hub.hub_id) if hub is not None else request.url_for(back)
         )
         error = ErrorInfo(
             "We could not reserve this vehicle",
             "Choose a vehicle in the list first.",
             "INVALID_INPUT",
-            (("Choose a vehicle", back),),
+            (("Choose a vehicle", str(link)),),
         )
-        return _student_page(request, "error.html", 400, error=error)
-    return _student_page(
+        return _page(request, "error.html", who, 400, error=error)
+    return _page(
         request,
         "student/confirm.html",
+        who,
+        sample=True,
         hub=hub,
         vehicle=vehicle,
-        return_hub=_find_hub(return_hub_id),
+        return_hub=_find_hub(core, return_hub_id),
     )
 
 
 @router.get("/student/bookings")
-def student_bookings(request: Request) -> HTMLResponse:
-    """S5. My bookings: pick up, cancel, return. ``hubs`` fills the "Return to" list."""
-    return _student_page(
-        request, "student/bookings.html", bookings=sample_data.BOOKINGS, hubs=sample_data.HUBS
+def student_bookings(request: Request) -> Response:
+    """S5. My bookings: pick up, cancel, return. Sample data until M2 has a route for it."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    hubs = get_core(request).queries.list_hubs()
+    return _page(
+        request,
+        "student/bookings.html",
+        who,
+        sample=True,
+        bookings=sample_data.BOOKINGS,
+        hubs=hubs,
     )
 
 
 @router.get("/student/parking")
-def student_parking(request: Request) -> HTMLResponse:
+def student_parking(request: Request) -> Response:
     """S6. Parking booking (Planned)."""
-    return _student_page(
-        request,
-        "planned.html",
-        screen="S6. Parking booking",
-        reason="Not in M2's code yet (M2's Phase 3).",
-    )
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    reason = "Not in M2's code yet (M2's Phase 3)."
+    return _page(request, "planned.html", who, screen="S6. Parking booking", reason=reason)
+
+
+def _my_private_evs(request: Request, who: Principal) -> list[VehicleView]:
+    """The private EVs that the signed-in student owns (read from core)."""
+    found = get_core(request).queries.find_vehicles(VehicleFilter(ownership=Ownership.PRIVATE))
+    return [v for v in found if v.owner_user_id == who.user_id]
 
 
 @router.get("/student/vehicle")
-def student_private_ev(request: Request) -> HTMLResponse:
-    """S7. Register a private EV (Planned screen)."""
-    return _student_page(
-        request,
-        "planned.html",
-        screen="S7. My vehicle",
-        reason="The form goes to an M3 route, which does not exist yet.",
-    )
+def student_private_ev(request: Request) -> Response:
+    """S7. Register a private EV: the form and the student's saved vehicles."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    return _page(request, "student/vehicle.html", who, vehicles=_my_private_evs(request, who))
+
+
+@router.post("/student/vehicle")
+def student_register_ev(request: Request) -> Response:
+    """S7. Save the vehicle through M3's route; back to S7 when it is saved."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    form = read_form(request)
+    try:
+        body = {
+            "plate_or_code": form.get("plate_or_code", "").strip(),
+            "vehicle_type": form.get("vehicle_type", ""),
+            "battery_capacity_kwh": float(form.get("battery_capacity_kwh", "")),
+            "current_soc": float(form.get("current_soc", "")),
+            "connector_type": form.get("connector_type", "").strip(),
+        }
+    except ValueError:
+        body = {}  # M3 refuses the empty body and its message is shown
+    status, data = call(request, "POST", "/charging/private/vehicles", json=body)
+    if status != 200:
+        return _refused(
+            request, who, "save this vehicle", status, data, "student_private_ev", "Back"
+        )
+    return RedirectResponse(str(request.url_for("student_private_ev")), status_code=303)
 
 
 @router.get("/student/charging")
-def student_charging(request: Request) -> HTMLResponse:
-    """S8. Request or schedule charging (Planned)."""
-    return _student_page(
+def student_charging(request: Request) -> Response:
+    """S8. Request or schedule charging for a private EV, and the student's requests."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    status, sessions = call(request, "GET", "/charging/sessions")
+    if status != 200:
+        return _refused(
+            request, who, "show your charging", status, sessions, "student_hubs", "Back"
+        )
+    return _page(
         request,
-        "planned.html",
-        screen="S8. Charging",
-        reason="M3's code keeps only an in-memory queue, with no status and no route.",
+        "student/charging.html",
+        who,
+        vehicles=_my_private_evs(request, who),
+        hubs=get_core(request).queries.list_hubs(),
+        sessions=sessions,
     )
+
+
+@router.post("/student/charging")
+def student_request_charging(request: Request) -> Response:
+    """S8. Send the request to M3: "now" or at a chosen time (the time is read as ICT)."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    form = read_form(request)
+    body: dict[str, Any] = {
+        "request_id": f"REQ-{uuid4().hex[:12]}",  # the screen makes the ID, one for each click
+        "vehicle_id": form.get("vehicle_id", ""),
+        "hub_id": form.get("hub_id", ""),
+    }
+    if form.get("duration_minutes", "").isdigit():
+        body["duration_minutes"] = int(form["duration_minutes"])
+    path = "/charging/requests/immediate"
+    if form.get("when") == "schedule":
+        path = "/charging/requests/schedule"
+        try:  # the time is typed in ICT
+            start = datetime.fromisoformat(form["start_at"]).replace(tzinfo=ICT)
+            body["start_at"] = start.isoformat()
+        except (KeyError, ValueError):
+            body["start_at"] = form.get("start_at", "")  # M3 refuses it and says why
+    status, data = call(request, "POST", path, json=body)
+    if status != 200:
+        return _refused(request, who, "request charging", status, data, "student_charging", "Back")
+    return RedirectResponse(str(request.url_for("student_charging")), status_code=303)
 
 
 # ----------------------------------------------------------------------------------- operator
 
 
 @router.get("/operator/overview")
-def operator_overview(request: Request) -> HTMLResponse:
+def operator_overview(request: Request) -> Response:
     """O1. Network overview: the operator's home screen, Hub cards ordered by severity."""
-    return _operator_page(request, "operator/overview.html", hubs=_by_severity(sample_data.HUBS))
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    hubs = _by_severity(get_core(request).queries.list_hubs())
+    return _page(request, "operator/overview.html", who, hubs=hubs)
 
 
 @router.get("/operator/hubs/{hub_id}")
-def operator_hub(request: Request, hub_id: str) -> HTMLResponse:
+def operator_hub(request: Request, hub_id: str) -> Response:
     """O2. Hub detail. Not a tab: it opens from a Hub card or the alert strip."""
-    hub = _find_hub(hub_id)
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    core = get_core(request)
+    hub = _find_hub(core, hub_id)
     if hub is None:
-        error = ErrorInfo(
-            "We could not open this Hub",
-            "This item no longer exists.",
-            "NOT_FOUND",
-            (("Back to Overview", str(request.url_for("operator_overview"))),),
-        )
-        return _operator_page(request, "error.html", 404, error=error)
-    return _operator_page(
+        return _hub_not_found(request, who, "operator_overview", "Back to Overview")
+    return _page(
         request,
         "operator/hub.html",
+        who,
         hub=hub,
-        vehicles=[v for v in sample_data.VEHICLES if v.hub_id == hub_id],
-        spaces=[s for s in sample_data.SPACES if s.hub_id == hub_id],
-        charging_points=[p for p in sample_data.CHARGING_POINTS if p.hub_id == hub_id],
+        vehicles=core.queries.find_vehicles(VehicleFilter(hub_id=hub_id)),
+        spaces=core.queries.list_spaces(hub_id),
+        charging_points=core.queries.list_charging_points(hub_id),
     )
 
 
 @router.get("/operator/charging")
-def operator_charging(request: Request) -> HTMLResponse:
-    """O3. Charging coordination (Planned)."""
-    return _operator_page(
+def operator_charging(request: Request, hub_id: str | None = None) -> Response:
+    """O3. Charging coordination: the Hub's points (core) and its priority queue (M3)."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    core = get_core(request)
+    hubs = core.queries.list_hubs()
+    hub = _find_hub(core, hub_id) or (hubs[0] if hubs else None)
+    if hub is None:
+        return _hub_not_found(request, who, "operator_overview", "Back to Overview")
+    status, queue = call(request, "GET", "/charging/queue", params={"hub_id": hub.hub_id})
+    if status != 200:
+        return _refused(request, who, "show the queue", status, queue, "operator_overview", "Back")
+    points = core.queries.list_charging_points(hub.hub_id)
+    return _page(
         request,
-        "planned.html",
-        screen="O3. Charging",
-        reason="M3's code keeps only an in-memory queue, with no status and no route.",
+        "operator/charging.html",
+        who,
+        hubs=hubs,
+        hub=hub,
+        points=points,
+        in_use=sum(1 for p in points if p.status is ChargingPointStatus.CHARGING),
+        out_of_service=sum(1 for p in points if p.status is ChargingPointStatus.OUT_OF_SERVICE),
+        queue=queue,
     )
 
 
 @router.get("/operator/dispatch")
-def operator_dispatch(request: Request) -> HTMLResponse:
-    """O4. Dispatch tasks of M4."""
-    return _operator_page(request, "operator/dispatch.html", tasks=sample_data.DISPATCH_TASKS)
+def operator_dispatch(request: Request) -> Response:
+    """O4. Dispatch tasks of M4, most urgent first."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    status, tasks = call(request, "GET", "/allocation/tasks")
+    if status != 200:
+        return _refused(request, who, "show the tasks", status, tasks, "operator_overview", "Back")
+    for task in tasks:  # the screen's names for two fields of M4's answer
+        task["vehicle_type"] = VehicleType(task["vehicle_type"])
+        task["vehicle_ids"] = task["assigned_vehicles"]
+    tasks.sort(key=lambda t: t["priority"])
+    return _page(request, "operator/dispatch.html", who, tasks=tasks)
+
+
+@router.post("/operator/dispatch/plan")
+def dispatch_plan(request: Request) -> Response:
+    """O4. "Update recommendations": ask M4 for new tasks."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    status, data = call(request, "POST", "/allocation/tasks/plan", json={})
+    if status != 200:
+        return _refused(request, who, "update the tasks", status, data, "operator_dispatch", "Back")
+    return RedirectResponse(str(request.url_for("operator_dispatch")), status_code=303)
+
+
+@router.post("/operator/dispatch/{task_id}/{action}")
+def dispatch_action(request: Request, task_id: str, action: str) -> Response:
+    """O4. Approve, confirm pick-up, confirm delivery ("return") or cancel one task (M4)."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    if action not in ("approve", "pickup", "return", "cancel"):
+        return _refused(
+            request, who, "do this", 404, {"detail": "Unknown action."}, "operator_dispatch", "Back"
+        )
+    options: dict[str, Any] = {}
+    quantity = read_form(request).get("quantity")
+    if action == "approve" and quantity and quantity.isdigit():
+        options["json"] = {"adjusted_quantity": int(quantity)}
+    status, data = call(request, "POST", f"/allocation/tasks/{task_id}/{action}", **options)
+    if status != 200:
+        return _refused(
+            request, who, f"{action} this task", status, data, "operator_dispatch", "Back"
+        )
+    return RedirectResponse(str(request.url_for("operator_dispatch")), status_code=303)
 
 
 @router.get("/operator/incidents")
-def operator_incidents(request: Request) -> HTMLResponse:
-    """O5. Incident management (tickets of M5): most severe first, then oldest."""
-    incidents = sorted(
-        sample_data.INCIDENTS, key=lambda i: (SEVERITY_ORDER.index(i.severity), i.created_at)
-    )
-    return _operator_page(request, "operator/incidents.html", incidents=incidents)
+def operator_incidents(request: Request) -> Response:
+    """O5. Incidents of M5, most severe first, then oldest."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    status, incidents = call(request, "GET", "/api/v1/monitoring/incidents")
+    if status != 200:
+        return _refused(
+            request, who, "show the incidents", status, incidents, "operator_overview", "Back"
+        )
+    for incident in incidents:  # the pages show times as datetimes
+        incident["created_at"] = datetime.fromisoformat(incident["created_at"])
+    incidents.sort(key=lambda i: (SEVERITY_ORDER.index(i["severity"]), i["created_at"]))
+    return _page(request, "operator/incidents.html", who, incidents=incidents)
+
+
+@router.post("/operator/incidents/{incident_id}/{action}")
+def incident_action(request: Request, incident_id: str, action: str) -> Response:
+    """O5. Acknowledge, resolve (notes required) or close one ticket (M5)."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    if action not in ("acknowledge", "resolve", "close"):
+        return _refused(
+            request,
+            who,
+            "do this",
+            404,
+            {"detail": "Unknown action."},
+            "operator_incidents",
+            "Back",
+        )
+    options: dict[str, Any] = {}
+    if action == "resolve":
+        options["json"] = {"resolution_notes": read_form(request).get("notes", "").strip()}
+    path = f"/api/v1/monitoring/incidents/{incident_id}/{action}"
+    status, data = call(request, "POST", path, **options)
+    if status != 200:
+        return _refused(
+            request, who, f"{action} this incident", status, data, "operator_incidents", "Back"
+        )
+    return RedirectResponse(str(request.url_for("operator_incidents")), status_code=303)
 
 
 @router.get("/operator/simulation")
-def operator_simulation(request: Request) -> HTMLResponse:
-    """O6. What-if Simulation Lab (M6). ``hubs`` fills "Target Hubs"; ``seed`` is the run's."""
-    return _operator_page(
+def operator_simulation(request: Request) -> Response:
+    """O6. What-if Simulation Lab of M6 (sample data until connected)."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    return _page(
         request,
         "operator/simulation.html",
+        who,
+        sample=True,
         result=sample_data.SIMULATION_RESULT,
         seed=sample_data.SIMULATION_SEED,
-        hubs=sample_data.HUBS,
+        hubs=get_core(request).queries.list_hubs(),
     )
