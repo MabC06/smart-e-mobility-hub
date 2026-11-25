@@ -184,7 +184,7 @@ The authoritative schedule is `docs/task-assignment-timeline.md`. M8 milestones:
 | 18/11 | Integration execution, NFR measurements, execution report, consolidated defect log, Testing report draft |
 | 22/11 | Evaluation/conclusion integration, final consistency checklist and report assembly |
 
-Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(charging)/05(SC-01)/12/13/24 measurements are done on `01d68e7`; the execution report, NFR measurements, defect log and traceability sheet are updated. The 18/11 and 22/11 milestones were met late (23/11). NFR-14, NFR-04 allocation and NFR-05 SC-02–SC-05 are not complete.
+Actual status on 2026-11-23: integration, regression and NFR-01/02/03/04(charging)/05(SC-01)/12/13/14/24 measurements are done on `01d68e7`; the execution report, NFR measurements, defect log and traceability sheet are updated. The 18/11 and 22/11 milestones were met late (23/11). NFR-04 allocation and NFR-05 SC-02–SC-05 are not complete.
 
 ## 12. Risks and mitigations
 
@@ -223,10 +223,10 @@ Done on 2026-11-23 (`01d68e7`; details in `test-execution-report.md`, `nfr-measu
 - ruff, format, mypy clean; full suite 1,501 passed, 1 skipped (SQL-only foreign-key test); 7 integration, 66 focused, 25 NFR-22 tests passed.
 - NFR-24 coverage: core 98.8 %; reservation 96.3 %; charging 88.2 %; allocation 91.5 %; monitoring 87.3 %; simulation 92.4 %.
 - NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (DEF-M3-007, Accepted); NFR-05, 12, 13 pass for SC-01.
+- NFR-14 pass (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`, `1,501 passed, 1 skipped` in 95.66 s, Uvicorn startup verified with `hubs=10, parking_spaces=400, charging_points=61, vehicles=350, users=1005`)
 
 Open:
 
-- **NFR-14:** fresh-clone check by a member who did not write the setup instructions (≤ 15 min, ≤ 5 commands); keep time and commands.
 - **NFR-04 allocation:** rerun on `develop` after PR #54 is merged.
 - **NFR-05:** SC-02–SC-05 not implemented; reported as a limitation.
 - **NFR-26:** traceability gaps in `traceability-sheet.md` (FR-05; 9 BR; 17 UC) need owner confirmation or new TCs.
