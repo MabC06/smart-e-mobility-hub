@@ -1,9 +1,10 @@
 /*
   Styles of the UI (D-002: plain CSS, no build step).
 
-  Layout rules (Universal Design, principles 3 and 4):
+  Layout rules (Universal Design, principles 3 and 4; D-027):
   - Every bar (header, tabs, alert strip, footer) and the page content share one
-    1100 px column, so all text starts on the same left edge.
+    1200 px column, so all text starts on the same left edge.
+  - Body text is 16 px; nothing is smaller than 14 px (0.875rem).
   - Each block of content is a panel: white, bordered, with its heading inside. The page
     background is only the gap between panels.
   - A status is always one badge shape: symbol + word, border and tinted background, never
@@ -37,7 +38,7 @@
   --critical-line: #ec9c96;
   --neutral: #4b5563;
   --neutral-bg: #eef1f4;
-  --column: 1100px;
+  --column: 1200px;
   --gutter: 16px;
   /* Left and right padding that lines a full-width bar up with the content column. */
   --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
@@ -260,7 +261,7 @@ main .tabs a:hover { background: var(--link-tint); }
 .status-CRITICAL { color: var(--critical); background: var(--critical-bg); border-color: var(--critical-line); }
 .status-MAINTENANCE { color: var(--neutral); background: var(--neutral-bg); border-color: var(--panel-line); }
 
-.status-note { display: block; margin-top: 2px; color: var(--muted); font-size: 0.8125rem; }
+.status-note { display: block; margin-top: 2px; color: var(--muted); font-size: 0.875rem; }
 
 /* ------------------------------------------------------------------ tables */
 
@@ -393,7 +394,7 @@ main > p.simulation-banner ~ section.card { border: 2px dashed var(--warning-lin
   border: 1px dashed var(--panel-line);
   border-radius: 4px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 400;
 }
 
@@ -408,3 +409,62 @@ main > p.simulation-banner ~ section.card { border: 2px dashed var(--warning-lin
 
 .error-block h2 { margin: 0 0 4px; font-size: 1.125rem; color: var(--critical); }
 .error-block .details { color: var(--muted); font-size: 0.875rem; }
+
+/* ------------------------------------------------------------------ actions and filters (PR 4) */
+
+[hidden] { display: none !important; }
+
+.site-header nav a[aria-current="page"] { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+
+/* A filter bar: one toolbar line above the list it filters, not a panel. */
+main > form.filters { padding: 12px 20px; background: var(--head); }
+main > form.filters > p { margin: 0; }
+main > form.filters > p.note { margin-top: 6px; }
+section > form.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+}
+
+/* One action of a card or panel: label(s) and a button on one line. */
+form.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 8px;
+}
+main > form.actions { padding: 12px 20px; }
+form.actions label, section > form.filters label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+form.actions .button, form.inline .button { margin: 0; }
+
+/* A button inside a table cell or next to another one. */
+form.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 4px 0; }
+
+/* One item of a list that has its own actions (charging requests, recommendations). */
+.row-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.row-item:last-child { border-bottom: 0; }
+.row-item > p { margin: 0 0 8px; }
+
+/* O6: the two headline numbers side by side. */
+.compare { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; }
+.compare p {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 220px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+}
+.compare strong { color: var(--text); font-size: 1.5rem; }
+
+/* O4 settings: label above its field, in columns. */
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 20px; margin-bottom: 12px; }
+.settings label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.settings label span { font-weight: 400; color: var(--muted); }
+
+p.status { white-space: normal; border-radius: 8px; padding: 6px 12px; }

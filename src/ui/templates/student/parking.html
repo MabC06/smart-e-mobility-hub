@@ -1,0 +1,81 @@
+{#
+  S6. Parking for the student's own EV (wireframes-student.md), UC-M2-06 to UC-M2-08, FR-05,
+  FR-07. M2 holds a space from the start time for the planned stay; the student confirms the
+  arrival within 10 minutes of the start and the departure later. Times are typed in ICT.
+#}
+{% extends "base.html" %}
+{% block title %}Parking · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Parking</h1>
+<p>Book a space for your own EV. Arrive within 10 minutes of the start, or the booking ends.</p>
+
+{% if vehicles %}
+<form action="{{ url_for('student_book_parking') }}" method="post">
+  <p>
+    <label>My EV
+      <select name="vehicle_id">
+        {% for v in vehicles %}<option value="{{ v.vehicle_id }}">{{ v.plate_or_code }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Hub
+      <select name="hub_id">
+        {% for h in hubs %}<option value="{{ h.hub_id }}">{{ h.hub_id }} {{ h.name }} ({{ h.free_spaces }} free)</option>{% endfor %}
+      </select>
+    </label>
+  </p>
+  <p>
+    <label><input type="radio" name="when" value="now" checked> Now</label>
+    <label><input type="radio" name="when" value="later"> Later, at</label>
+    <label>Start (ICT) <input type="datetime-local" name="start_at"></label>
+    <label>Stay <input type="number" name="duration_minutes" min="30" max="240" value="120" size="4"> min (30 to 240)</label>
+  </p>
+  <p><button class="button primary" type="submit">Book a space</button></p>
+</form>
+{% elif not parked and not current %}
+<p>Register your EV first: <a href="{{ url_for('student_private_ev') }}">My EV</a>.</p>
+{% endif %}
+{% for v in parked %}
+{% if not current | selectattr("vehicle_id", "equalto", v.vehicle_id) | list %}
+<p class="note">{{ v.plate_or_code }} is parked at {{ v.hub_id }} without a booking; book again after it leaves.</p>
+{% endif %}
+{% endfor %}
+
+{% for stay in current %}
+<section class="card">
+  {% if stay.status == "CONFIRMED" %}
+  <h2>{{ stay.plate }} · Space {{ stay.parking_space_id }} at {{ stay.hub_id }} · Booked</h2>
+  <p>Arrive between <strong>{{ stay.start_at | ict }}</strong> and <strong>{{ stay.hold_expires_at | ict }}</strong> · planned end {{ stay.planned_end_at | ict }}</p>
+  <form class="actions" action="{{ url_for('parking_action', parking_id=stay.parking_id, action='arrive') }}" method="post">
+    <input type="hidden" name="version" value="{{ stay.version }}">
+    <button class="button primary" type="submit"{% if as_of < stay.start_at %} disabled{% endif %}>I have arrived</button>
+  </form>
+  <form class="actions" action="{{ url_for('parking_action', parking_id=stay.parking_id, action='cancel') }}" method="post">
+    <button class="button" type="submit">Cancel booking</button>
+  </form>
+  {% if as_of < stay.start_at %}<p class="note">You can confirm the arrival from {{ stay.start_at | ict }}.</p>{% endif %}
+  {% else %}
+  <h2>{{ stay.plate }} · Space {{ stay.parking_space_id }} at {{ stay.hub_id }} · Parked</h2>
+  {% if as_of >= stay.planned_end_at %}
+  <p class="status status-WARNING">⚠ Your planned stay ended at {{ stay.planned_end_at | ict }}. Please leave the space.</p>
+  {% endif %}
+  <p>Arrived {{ stay.arrived_at | ict }} · planned end <strong>{{ stay.planned_end_at | ict }}</strong></p>
+  <form class="actions" action="{{ url_for('parking_action', parking_id=stay.parking_id, action='depart') }}" method="post">
+    <input type="hidden" name="version" value="{{ stay.version }}">
+    <button class="button primary" type="submit">I have left</button>
+  </form>
+  {% endif %}
+  <p class="note">Booking {{ stay.parking_id }}</p>
+</section>
+{% endfor %}
+
+{% if earlier %}
+<section>
+  <h2>Earlier parking</h2>
+  <ul>
+    {% for stay in earlier %}
+    <li>{{ stay.plate }} · {{ stay.hub_id }} · {{ stay.status }} · start {{ stay.start_at | ict }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

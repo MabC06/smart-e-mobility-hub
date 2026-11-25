@@ -1,73 +1,80 @@
 {#
   O4. Dispatch (wireframes-operator.md), UC-M7-05, UC-M7-06. Tasks of M4 with the actions their
-  status allows: Approve on RECOMMENDED (the quantity can only be lowered), pick-up on APPROVED,
-  delivery on IN_PROGRESS, Cancel on APPROVED and IN_PROGRESS. Reject is Planned (no M4
-  endpoint). Each button posts to routes.dispatch_action, which calls M4's route.
+  status allows: Approve (the quantity can only be lowered) or Reject on RECOMMENDED, pick-up on
+  APPROVED, delivery on IN_PROGRESS, Cancel on APPROVED and IN_PROGRESS. Open tasks come first.
+  Tasks named TASK-SIM-... came from a Simulation Lab recommendation. The settings are M4's
+  (GET/PUT /allocation/config, UC-M4-09).
 #}
 {% extends "base.html" %}
 {% block title %}Dispatch · Smart E-Mobility Hub{% endblock %}
 {% block content %}
 <h1>Dispatch</h1>
-<form action="{{ url_for('dispatch_plan') }}" method="post">
-  <button class="button" type="submit">Update recommendations</button>
+
+<form class="filters" method="get" action="{{ url_for('operator_dispatch') }}">
+  <p>
+    <label>Status
+      <select name="status">
+        <option value="">all</option>
+        {% for s in statuses %}<option value="{{ s }}"{% if s == status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </p>
 </form>
 
-<p>
-  <label>Status <select disabled><option>all</option></select></label>
-  <span class="planned">Planned</span> Filter.
-</p>
+<form class="actions" action="{{ url_for('dispatch_plan') }}" method="post">
+  <button class="button primary" type="submit">Update recommendations</button>
+  <span class="note">M4 plans new tasks from the current demand; open tasks are kept.</span>
+</form>
 
 {% for task in tasks %}
 <section class="card">
-  <h2>{{ task.task_id }} · {{ task.source_hub_id }} → {{ task.target_hub_id }}</h2>
-  <p>
-    {{ task.vehicle_type | type_label }} · quantity {{ task.quantity }} · priority {{ task.priority }} ·
-    <strong>{{ task.status }}</strong>
-  </p>
+  <h2>{{ task.task_id }} · {{ task.source_hub_id }} → {{ task.target_hub_id }} · {{ task.status }}</h2>
+  <p>{{ task.vehicle_type | type_label }} · {{ task.quantity }} vehicle{{ "s" if task.quantity != 1 }} · priority {{ task.priority }}</p>
   <p>Reason: {{ task.reason }}</p>
-  <p>Vehicles: {{ task.vehicle_ids | join(", ") }}</p>
+  <p class="note">Vehicles: {{ task.vehicle_ids | join(", ") or "–" }}</p>
   {% if task.status == "RECOMMENDED" %}
-  <form action="{{ url_for('dispatch_action', task_id=task.task_id, action='approve') }}" method="post">
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='approve') }}" method="post">
     <label>Quantity
-      <input type="number" name="quantity" min="1" max="{{ task.quantity }}" value="{{ task.quantity }}">
+      <input type="number" name="quantity" min="1" max="{{ task.quantity }}" value="{{ task.quantity }}" size="4">
     </label>
     <button class="button primary" type="submit">Approve</button>
-    <button class="button" type="button" disabled>Reject</button>
-    <span class="planned">Planned</span>
+  </form>
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='reject') }}" method="post">
+    <label>Reason <input name="reason" size="30" placeholder="optional"></label>
+    <button class="button" type="submit">Reject</button>
   </form>
   {% elif task.status == "APPROVED" %}
-  <form action="{{ url_for('dispatch_action', task_id=task.task_id, action='pickup') }}" method="post">
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='pickup') }}" method="post">
     <button class="button primary" type="submit">Confirm pick-up</button>
   </form>
-  <form action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
     <button class="button" type="submit">Cancel</button>
   </form>
   {% elif task.status == "IN_PROGRESS" %}
-  <form action="{{ url_for('dispatch_action', task_id=task.task_id, action='return') }}" method="post">
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='return') }}" method="post">
     <button class="button primary" type="submit">Confirm delivery</button>
   </form>
-  <form action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
     <button class="button" type="submit">Cancel</button>
   </form>
   {% endif %}
 </section>
 {% else %}
-<p>No task is needed.</p>
+<p>No task{% if status %} with status {{ status }}{% endif %}.</p>
 {% endfor %}
 
 <details>
   <summary>Allocation settings</summary>
-  <p><span class="planned">Planned</span> Read and change M4's settings:</p>
-  <ul>
-    <li>horizon</li>
-    <li>safety stock</li>
-    <li>parking buffer</li>
-    <li>minimum dispatch battery</li>
-    <li>maximum tasks per Hub</li>
-    <li>maximum vehicles per task</li>
-    <li>task timeout</li>
-    <li>staleness limit</li>
-    <li>reservation lookahead</li>
-  </ul>
+  <form action="{{ url_for('dispatch_settings') }}" method="post">
+    <div class="settings">
+      {% for name, label, unit in config_fields %}
+      <label>{{ label }}
+        <span><input name="{{ name }}" value="{{ config[name] }}" size="6" inputmode="decimal"> {{ unit }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <p><button class="button primary" type="submit">Save settings</button></p>
+  </form>
 </details>
 {% endblock %}

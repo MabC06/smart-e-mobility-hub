@@ -19,7 +19,16 @@
     <a class="brand" href="{{ url_for('student_hubs') }}">Smart E-Mobility Hub</a>
     <span class="user">{{ user_id }}</span>
     <nav>
-      <a href="{{ url_for('student_bookings') }}">My bookings</a> |
+      {% for name, label in [
+        ("student_hubs", "Find a Hub"),
+        ("student_bookings", "My bookings"),
+        ("student_parking", "Parking"),
+        ("student_charging", "Charging"),
+        ("student_private_ev", "My EV"),
+      ] %}
+      {% set link = url_for(name) %}
+      <a href="{{ link }}"{% if request.url.path == link.path %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
       <a href="{{ url_for('logout') }}">Logout</a>
     </nav>
   </header>

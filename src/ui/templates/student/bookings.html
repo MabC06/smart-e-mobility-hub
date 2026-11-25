@@ -1,8 +1,9 @@
 {#
-  S5. My bookings: pick up, cancel, return (wireframes-student.md), UC-M2-03 to UC-M2-05.
+  S5. My bookings: pick up, cancel, return (wireframes-student.md), UC-M2-03 to UC-M2-05, FR-05.
   The bookings come from M2 (GET /reservations/mine). A CONFIRMED booking is shown as "Reserved",
   a booking with an open trip as "In progress"; the others are listed under "Earlier bookings".
-  Pick up and return send the vehicle version that M2 gave with the list.
+  During a trip the student can hold a return space for 10 minutes (M2 return-hold); the return
+  then uses that space. Pick up and return send the vehicle version that M2 gave with the list.
 #}
 {% extends "base.html" %}
 {% block title %}My bookings · Smart E-Mobility Hub{% endblock %}
@@ -13,50 +14,58 @@
 {% if booking.status == "CONFIRMED" %}
 <section class="card">
   {% set left = (booking.hold_expires_at - as_of).total_seconds() | int %}
-  <h2>RENTAL {{ booking.reservation_id }} · Reserved</h2>
-  <p>Vehicle {{ booking.vehicle_id }} · Pick up at {{ booking.origin_hub_id }}</p>
-  <p>
-    Pick up before {{ booking.hold_expires_at | ict }}
-    {% if left > 0 %}(time left {{ "%02d:%02d" | format(left // 60, left % 60) }}){% endif %}
-  </p>
-  <form action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='pickup') }}" method="post">
+  <h2>{{ booking.plate }} · Reserved</h2>
+  <p>Pick up at {{ booking.origin_hub_id }} before <strong>{{ booking.hold_expires_at | ict }}</strong>
+    {% if left > 0 %}(time left {{ "%02d:%02d" | format(left // 60, left % 60) }}){% endif %}</p>
+  <p class="note">Booking {{ booking.reservation_id }}</p>
+  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='pickup') }}" method="post">
     <input type="hidden" name="origin_hub_id" value="{{ booking.origin_hub_id }}">
     <input type="hidden" name="version" value="{{ booking.version }}">
     <button class="button primary" type="submit">I picked up the vehicle</button>
   </form>
-  <form action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='cancel') }}" method="post">
+  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='cancel') }}" method="post">
     <button class="button" type="submit">Cancel reservation</button>
   </form>
 </section>
 {% else %}
 {% set trip = booking.trip %}
+{% set hold = booking.hold %}
 <section class="card">
-  <h2>RENTAL {{ booking.reservation_id }} · In progress · Trip {{ trip.trip_id }}</h2>
-  <p>
-    Vehicle {{ booking.vehicle_id }} · Picked up {{ trip.picked_up_at | ict }} ·
-    Expected back {{ trip.expected_return_at | ict }}
-  </p>
-  <form action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='return') }}" method="post">
-    <input type="hidden" name="version" value="{{ booking.version }}">
-    <p>
-      <label>Return to
-        <select name="destination_hub_id">
-          {% for hub in hubs %}
-          <option value="{{ hub.hub_id }}"{% if hub.hub_id == booking.destination_hub_id %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </p>
-    <p>
-      <button class="button" type="button" disabled>Hold a return space for 10 min</button>
-      <span class="planned">Planned</span>
-      <button class="button primary" type="submit">Return the vehicle</button>
-    </p>
-  </form>
+  <h2>{{ booking.plate }} · In progress</h2>
   {% if trip.status == "OVERDUE" %}
   {% set late = ((as_of - trip.expected_return_at).total_seconds() // 60) | int %}
   <p class="status status-WARNING">⚠ You are {{ late }} minutes past the expected return time.</p>
   {% endif %}
+  <p>Picked up {{ trip.picked_up_at | ict }} at {{ trip.origin_hub_id }} · expected back <strong>{{ trip.expected_return_at | ict }}</strong></p>
+  <p class="note">Booking {{ booking.reservation_id }} · trip {{ trip.trip_id }}</p>
+
+  {% if hold %}
+  <p class="status status-ACTIVE">● Space {{ hold.parking_space_id }} at {{ hold.hub_id }} is held for you until {{ hold.hold_expires_at | ict }}</p>
+  {% else %}
+  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='hold') }}" method="post">
+    <label>Hold a space at
+      <select name="destination_hub_id">
+        {% for hub in hubs %}
+        <option value="{{ hub.hub_id }}"{% if hub.hub_id == booking.destination_hub_id %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }} ({{ hub.free_spaces }} free)</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Hold a return space for 10 min</button>
+  </form>
+  {% endif %}
+
+  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='return') }}" method="post">
+    <input type="hidden" name="version" value="{{ booking.version }}">
+    <label>Return to
+      <select name="destination_hub_id">
+        {% for hub in hubs %}
+        {% set wanted = hold.hub_id if hold else booking.destination_hub_id %}
+        <option value="{{ hub.hub_id }}"{% if hub.hub_id == wanted %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button primary" type="submit">Return the vehicle</button>
+  </form>
 </section>
 {% endif %}
 {% else %}
@@ -64,12 +73,14 @@
 {% endfor %}
 
 {% if earlier %}
-<h2>Earlier bookings</h2>
-<ul>
-  {% for booking in earlier %}
-  <li>RENTAL {{ booking.reservation_id }} · Vehicle {{ booking.vehicle_id }} · {{ booking.status }}</li>
-  {% endfor %}
-</ul>
+<section>
+  <h2>Earlier bookings</h2>
+  <ul>
+    {% for booking in earlier %}
+    <li>{{ booking.plate }} · {{ booking.status }} · booked {{ booking.confirmed_at | ict }} · {{ booking.reservation_id }}</li>
+    {% endfor %}
+  </ul>
+</section>
 {% endif %}
 
 <p>After a return you can charge your own vehicle in <a href="{{ url_for('student_charging') }}">Charging</a>.</p>
