@@ -152,7 +152,7 @@ python -m uvicorn --app-dir src main:create_app --factory --port 8000
 python -m pytest -q && ruff check . && ruff format --check . && mypy
 ```
 
-Activate the virtual environment again (step 4, second line) in every new terminal; without it Python cannot find the installed packages. `SECRET_KEY` is required and has no default: any text of at least 16 characters works locally. Set `SEED_ON_START=true` in `.env` to load the demo network into an empty database once the simulator (`src/iot_sim`, M8) provides `build_network_spec`.
+Activate the virtual environment again (step 4, second line) in every new terminal; without it Python cannot find the installed packages. `SECRET_KEY` is required and has no default: any text of at least 16 characters works locally. Set `SEED_ON_START=true` in `.env` to load the demo network from the simulator (`src/iot_sim`, M8) into an empty database. Also set `DEMO_PASSWORD` (at least 8 characters, chosen by you and never committed): every seeded account then logs in with it, students as `STU-0001` to `STU-1000` and operators as `OPS-01` to `OPS-05` (D-028). The password is set only when the demo network is loaded, so with a database file (`DATABASE_URL`) delete the file to load it again with a new password.
 
 ## Contributing
 
