@@ -89,6 +89,8 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-031 | NFR-16, NFR-21 | EP | F1 on the real Core app; student token | `GET /queue`, `GET /demand`, `POST /schedule/optimize` | 403 with error code `FORBIDDEN` on each | Pass | `test_student_gets_403_on_operator_endpoints_through_app` |
 | TC-M3-032 | NFR-16 | EP | F1; operator token | `GET /queue`, `GET /demand`, `POST /schedule/optimize`; `GET /sessions` | 200 on each; lists returned | Pass | `test_operator_token_reaches_operator_endpoints_through_app`, `test_operator_allowed_on_operator_endpoints`, `test_charging_router_private_endpoints`, `test_charging_router_demand_endpoint`, `test_charging_router_endpoints_success` |
 | TC-M3-033 | NFR-16 | EP | F1; `STU1` and `STU2` each have a session | `GET /sessions` as `STU1`, `STU2`, operator | Student sees only own session; operator sees both | Pass | `test_student_sees_only_own_sessions` |
+| TC-M3-037 | FR-06, FR-11, BR-M3-03, UC-M7-03 | Decision table | F1 on the real Core app; three queued requests | `GET /queue` as operator | Rank 1..3 in BR-M3-03 order; EMERGENCY_LOW_BATTERY at 14.9%, LOWEST_BATTERY_FIRST otherwise; owner STU1, ownership FLEET | Pass | `test_queue_route_gives_rank_reason_and_owner` |
+| TC-M3-038 | FR-06, UC-M3-08, UC-M7-03, NFR-16 | Failure injection | F1 on the real Core app; REQ-S1 charging on CP01 | CP01 goes OUT_OF_SERVICE; `GET /moved` as operator, as student, and for H2 | REQ-S1 from CP01 to REQ-S1-R1 on CP02 (SCHEDULED); 403 for a student; empty for H2 | Pass | `test_moved_route_lists_sessions_moved_after_a_failure` |
 
 ## 3. Not covered (known gaps)
 
@@ -110,3 +112,4 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-034 to TC-M3-036 | Move to another Hub through M4 | Integration (stub M4 port) / failure injection | FR-11.M3.3, BR-M3-02, UC-M4-07 | Pass |
 | TC-M3-027 to TC-M3-029 | Charging-point failure and events | Failure injection / state transition | FR-11.M3.3, UC-M3-08, BR-M3-02, NFR-10 | Pass |
 | TC-M3-030 to TC-M3-033 | Security and visibility | EP | NFR-16 | Pass |
+| TC-M3-037 to TC-M3-038 | Queue rank, reason, owner and moved sessions | Decision table / failure injection | FR-06, FR-11, BR-M3-03, UC-M3-08, UC-M7-03 | Pass |
