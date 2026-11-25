@@ -31,6 +31,7 @@ from core.services.transition_ctx import TransitionCtx
 from core.views import VehicleFilter, VehicleView
 from reservation import storage
 from reservation.models import (
+    ParkingStatus,
     RentalReservation,
     RentalTrip,
     ReservationStatus,
@@ -38,6 +39,7 @@ from reservation.models import (
     TripStatus,
     VehicleSearch,
 )
+from reservation.parking import live_return_hold
 from reservation.results import BookingError, BookingErrorCode, BookingResult, from_core
 
 logger = logging.getLogger(__name__)
@@ -347,8 +349,9 @@ class BookingService:
     ) -> BookingResult[RentalTrip]:
         """End an owned Trip at an available Hub space, or leave the whole Trip open.
 
-        Uses Core's safe destination selection, including future space claims.
-        Return-parking holds and alternative-Hub ranking are Phase 3 integrations.
+        Uses Core's safe destination selection, including future space claims. A live return
+        hold at this Hub is used and consumed (BR-M2-10); a hold at another Hub is left to
+        expire or be cancelled. Alternative-Hub ranking stays with M4 (DEV-16).
         """
         if not _id_valid(destination_hub_id) or not trip_id or not _version_valid(expected_version):
             return _error(BookingErrorCode.INVALID_INPUT, "Invalid return fields.")
@@ -379,15 +382,25 @@ class BookingService:
             vehicle = found.value
             now = uow.queries.get_config().as_of
             event = VehicleEvent.RETURN_FAULTY if vehicle.fault_flag else VehicleEvent.RETURN
+            hold = live_return_hold(self.core, trip.trip_id, now)
+            if hold is not None and hold.hub_id != destination_hub_id:
+                hold = None  # held at another Hub: not used here
+            ctx = TransitionCtx(hub_id=destination_hub_id)
+            if hold is not None:
+                ctx = TransitionCtx(
+                    hub_id=destination_hub_id,
+                    parking_space_id=hold.parking_space_id,
+                    claim_id=hold.claim_id,
+                )
             changed = uow.commands.transition_vehicle(
-                trip.vehicle_id,
-                event,
-                expected_version,
-                caller,
-                TransitionCtx(hub_id=destination_hub_id),
+                trip.vehicle_id, event, expected_version, caller, ctx
             )
             if isinstance(changed, Err):
                 return from_core(changed)
+            if hold is not None:
+                hold.status = ParkingStatus.COMPLETED
+                hold.arrived_at = now
+                storage.update(uow.repository, hold)
             trip.status = (
                 TripStatus.INCIDENT_ABORTED if vehicle.fault_flag else TripStatus.COMPLETED
             )

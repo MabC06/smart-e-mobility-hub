@@ -1,4 +1,4 @@
-"""Install the rental tables, student API and ReservationDemand port (D-013)."""
+"""Install the rental and parking tables, student API and ReservationDemand port (D-013)."""
 
 from fastapi import FastAPI
 
@@ -9,6 +9,7 @@ from core.providers import ProviderPort
 def install(core: CoreFacade, app: FastAPI) -> None:
     """Install the reservation module once per application."""
     from reservation.lifecycle import RentalLifecycle
+    from reservation.parking import ParkingService
     from reservation.providers import ReservationDemandProvider
     from reservation.router import create_router
     from reservation.service import BookingService
@@ -20,8 +21,10 @@ def install(core: CoreFacade, app: FastAPI) -> None:
     register_tables(core)
     service = BookingService(core)
     lifecycle = RentalLifecycle(core)
+    parking = ParkingService(core)
     if not core.providers.is_registered(ProviderPort.RESERVATION_DEMAND):
         core.register_provider(ProviderPort.RESERVATION_DEMAND, ReservationDemandProvider(core))
-    app.include_router(create_router(core, service, lifecycle))
+    app.include_router(create_router(core, service, lifecycle, parking))
     app.state.reservation = service
     app.state.reservation_lifecycle = lifecycle
+    app.state.reservation_parking = parking

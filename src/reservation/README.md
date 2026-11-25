@@ -84,9 +84,11 @@ registry correctly reports RESOURCE_UNAVAILABLE for an absent provider.
 
 Since November 25 `GET /reservations/vehicles` searches the rentable fleet
 vehicles of one Hub (FR-02), and the route sweep expires due bookings and marks
-overdue Trips. The following are **not implemented yet**: fault-before-pickup
-invalidation, parking lifecycle and return holds, M3 charging bundles, M4
-alternatives/hold consumption and full simulation integration. Core never
+overdue Trips. [parking.py](parking.py) adds the ten-minute return-space hold
+and private parking (reserve, arrive, depart, cancel, expire) under
+`/reservations/parking`. The following are **not implemented yet**:
+fault-before-pickup invalidation, M3 charging bundles, M4 alternatives/hold
+consumption and full simulation integration. Core never
 performs the expiry cleanup itself (D-017). This is not a complete production
 rental feature.
 
