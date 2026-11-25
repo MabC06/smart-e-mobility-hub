@@ -27,10 +27,10 @@
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | M2 reservation | — | | | | | | |
 | M3 charging | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
-| M4 allocation | 1 | 0 | 0 | 0 | 1 | 1 | 0 |
+| M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
 | M5 monitoring | — | | | | | | |
 | M6 simulation | 5 | 0 | 1 | 0 | 4 | 5 | 0 |
-| **Total** | **7** | **0** | **1** | **0** | **6** | **7** | **0** |
+| **Total** | **11** | **0** | **1** | **3** | **7** | **11** | **0** |
 
 All seven entries so far were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -71,6 +71,10 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
 | DEF-M4-001 | `allocation/service.py` kept five private copies of M2's port types | Low | Review of PR #27 (M4-6) | FR-10, D-020 | Closed | Copies removed; `ReservationDemand`, `UpcomingBookings`, `OpenTrips` imported from `core.providers`; behaviour unchanged | PR #39, `abeb4ca` |
+| DEF-M4-002 | `approve_task()` raised nested `UnitOfWork` error when rolling back failed claim allocations | Medium | PR #27 review & lifecycle tests | UC-M4-02, BR-M4-04 | Closed | Extracted `_mark_task_failed()` outside claim UoW context so failure transition runs in independent transaction | PR #27, `9f4a825` |
+| DEF-M4-003 | `carry_out_return()` failed to supply `parking_space_id` and `claim_id` in `TransitionCtx` | Medium | PR #27 review & lifecycle tests | UC-M4-03, BR-M1-02 | Closed | Extracted active `SPACE` claim ID and parking space ID from task claims into `TransitionCtx` for `VehicleEvent.RETURN` | PR #27, `9f4a825` |
+| DEF-M4-004 | `AllocationService` and `AlternativeHubService` read simulated time directly from `core._clock.now()` | Low | PR #27 review (M4-3) | D-005, NFR-13 | Closed | Switched all service time reads to `core.queries.get_config().as_of` via injected runtime facade | PR #27, `9f4a825` |
+| DEF-M4-005 | Router endpoints allowed unauthenticated operator operations without token verification | Medium | PR #27 review (M4-7) | D-023, NFR-16 | Closed | Guarded all 12 endpoints with `Depends(require_operator)` and constructed actors via `acting_as(principal, "allocation")` | PR #27, `4cdf184` |
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->

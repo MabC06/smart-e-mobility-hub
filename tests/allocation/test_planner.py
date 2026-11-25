@@ -1,5 +1,7 @@
 """Tests for Redistribution Planning Engine (FR-10.1 - FR-10.3, BR-M4-03 - BR-M4-06, NFR-13)."""
 
+import pytest
+
 from allocation.config import AllocationConfig
 from allocation.planner import HubDemandInfo, HubStateView, HubVehicleInfo, plan_redistribution
 from core.domain.enums import Ownership, VehicleState, VehicleType
@@ -20,6 +22,7 @@ def _make_vehicle(
     )
 
 
+@pytest.mark.tc_m4_001
 def test_planner_worked_example_matches_design_doc():
     """Verify worked example from docs/design/architecture/allocation-algorithm-design.md §4.3.
 
@@ -93,6 +96,7 @@ def test_planner_worked_example_matches_design_doc():
     assert len(tasks[2].assigned_vehicles) == 2
 
 
+@pytest.mark.tc_m4_002
 def test_balanced_network_yields_no_tasks():
     """When demand is covered, no redistribution task is proposed."""
     hubs = [
@@ -103,6 +107,7 @@ def test_balanced_network_yields_no_tasks():
     assert tasks == []
 
 
+@pytest.mark.tc_m4_003
 def test_source_never_drops_below_safety_stock():
     """BR-M4-05: Source hub must retain safety stock S available vehicles."""
     cfg = AllocationConfig(safety_stock=5)
@@ -116,6 +121,7 @@ def test_source_never_drops_below_safety_stock():
     assert tasks[0].quantity == 1  # only 1 can be dispatched without violating S=5
 
 
+@pytest.mark.tc_m4_004
 def test_destination_parking_buffer_respected():
     """BR-M4-04: Destination free spaces after dispatch cannot drop below buffer B."""
     cfg = AllocationConfig(safety_stock=0, parking_buffer=3)
@@ -128,6 +134,7 @@ def test_destination_parking_buffer_respected():
     assert tasks[0].quantity == 1
 
 
+@pytest.mark.tc_m4_005
 def test_low_battery_vehicles_excluded():
     """BR-M4-03: Vehicles with battery below min_dispatch_battery are not dispatched."""
     cfg = AllocationConfig(safety_stock=0, min_dispatch_battery=40.0)
@@ -148,6 +155,7 @@ def test_low_battery_vehicles_excluded():
     assert tasks[0].assigned_vehicles == ["V_HIGH"]
 
 
+@pytest.mark.tc_m4_006
 def test_plan_is_deterministic():
     """NFR-13: Pure planning function produces identical output on repeated runs."""
     h1 = HubStateView("H01", free_spaces=10, vehicles=[_make_vehicle(f"V1_{i}") for i in range(8)])
