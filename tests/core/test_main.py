@@ -259,6 +259,82 @@ def test_a_demo_network_that_core_refuses_stops_the_start(monkeypatch):
         main.build_app(settings(SEED_ON_START="true"))
 
 
+# ------------------------------------------------------------------- demo password (D-028)
+
+DEMO_PASSWORD = "demo-pass-123"  # test data, not a real password
+
+
+@pytest.fixture
+def passwordless_simulator(monkeypatch):
+    """Like M8's iot_sim: two accounts without a password, one with its own password."""
+    module = types.ModuleType("iot_sim")
+    spec = demo_spec()
+    module.build_network_spec = lambda seed: NetworkSpec(
+        hubs=spec.hubs,
+        users=(
+            UserSpec("U-0001", "STU-0001", Role.STUDENT),
+            UserSpec("OP-01", "OPS-01", Role.OPERATOR),
+            UserSpec("U1", "2452001", Role.STUDENT, hash_password("pw-student", 1000)),
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "iot_sim", module)
+    return module
+
+
+def refused(client, code, password):
+    response = client.post("/auth/login", json={"code": code, "password": password})
+    return response.status_code == 401
+
+
+def test_the_demo_password_is_optional_long_enough_and_never_shown():
+    assert settings().demo_password is None
+    assert settings(DEMO_PASSWORD="   ").demo_password is None
+    parsed = settings(DEMO_PASSWORD=DEMO_PASSWORD)
+    assert parsed.demo_password == DEMO_PASSWORD
+    assert DEMO_PASSWORD not in repr(parsed)
+
+    with pytest.raises(main.SettingsError, match="DEMO_PASSWORD") as raised:
+        settings(DEMO_PASSWORD="short")
+    assert "short" not in str(raised.value)
+
+
+def test_seeded_accounts_log_in_with_the_demo_password(passwordless_simulator, caplog):
+    app = main.build_app(
+        settings(SEED_ON_START="true", DEMO_PASSWORD=DEMO_PASSWORD, PASSWORD_HASH_ITERATIONS="1000")
+    )
+
+    with TestClient(app) as client:
+        student = login(client, "STU-0001", DEMO_PASSWORD)
+        assert client.get("/me", headers=student).json()["role"] == "STUDENT"
+        operator = login(client, "OPS-01", DEMO_PASSWORD)
+        assert client.get("/hubs/H01/spaces", headers=operator).status_code == 200
+        assert refused(client, "STU-0001", "wrong-password")
+        # An account that already had a password keeps it and does not get the demo one.
+        login(client, "2452001", "pw-student")
+        assert refused(client, "2452001", DEMO_PASSWORD)
+    assert DEMO_PASSWORD not in caplog.text
+
+
+def test_without_a_demo_password_the_seeded_accounts_cannot_log_in(passwordless_simulator, caplog):
+    app = main.build_app(settings(SEED_ON_START="true", LOG_LEVEL="WARNING"))
+
+    with TestClient(app) as client:
+        assert refused(client, "STU-0001", DEMO_PASSWORD)
+        assert refused(client, "OPS-01", "any-password")
+    assert "DEMO_PASSWORD is not set" in caplog.text
+
+
+def test_the_real_simulator_accounts_log_in_with_the_demo_password():
+    """Closes F1 of iot-sim-review.md: M8's seeded student and operator can sign in."""
+    app = main.build_app(
+        settings(SEED_ON_START="true", DEMO_PASSWORD=DEMO_PASSWORD, PASSWORD_HASH_ITERATIONS="1000")
+    )
+
+    with TestClient(app) as client:
+        login(client, "STU-0001", DEMO_PASSWORD)
+        login(client, "OPS-01", DEMO_PASSWORD)
+
+
 def test_a_given_repository_is_not_closed_by_the_application():
     repo = SqlRepository.open("sqlite://")
     try:

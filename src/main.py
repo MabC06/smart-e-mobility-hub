@@ -18,6 +18,8 @@ A module takes part by exposing, in its package ``__init__``:
 
 A module folder with no ``install`` (or no code yet) is skipped. Demo data: with
 ``SEED_ON_START=true`` and an empty database, ``iot_sim.build_network_spec(seed)`` (M8) is loaded.
+The simulator gives its accounts no password; ``DEMO_PASSWORD`` gives every seeded account that
+password, so the demo can log in without a password in the repository (D-028, NFR-17).
 """
 
 import importlib
@@ -25,7 +27,7 @@ import logging
 import os
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -33,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.actor import Actor
 from core.api import create_app as create_core_app
-from core.auth import AuthConfig
+from core.auth import DEFAULT_ITERATIONS, AuthConfig, hash_password
 from core.clock import Clock
 from core.config import CoreConfig
 from core.domain.enums import Role
@@ -41,6 +43,7 @@ from core.facade import CoreFacade
 from core.repository.base import Repository
 from core.repository.sql import SqlRepository
 from core.result import Err
+from core.seed import NetworkSpec
 
 logger = logging.getLogger("main")
 
@@ -49,6 +52,7 @@ ENVIRONMENTS = ("development", "test", "production-demo")
 MODULES = ("reservation", "charging", "allocation", "monitoring", "simulation", "ui")
 SEEDER = Actor("SIM", Role.OPERATOR, "iot_sim")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEMO_PASSWORD_MIN_LENGTH = 8
 
 
 class SettingsError(ValueError):
@@ -104,6 +108,7 @@ class Settings:
     frontend_origin: str | None = None
     seed_on_start: bool = False
     iot_sim_seed: int = 0
+    demo_password: str | None = field(default=None, repr=False)  # never printed or logged
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -138,6 +143,12 @@ class Settings:
         seed_text = text("SEED_ON_START", "false").lower()
         if seed_text not in {"true", "false"}:
             raise SettingsError(f"SEED_ON_START must be true or false, got {seed_text!r}")
+        demo_password = text("DEMO_PASSWORD", "") or None
+        if demo_password is not None and len(demo_password) < DEMO_PASSWORD_MIN_LENGTH:
+            # The value itself is never put in the message or the log.
+            raise SettingsError(
+                f"DEMO_PASSWORD must be at least {DEMO_PASSWORD_MIN_LENGTH} characters"
+            )
         try:
             core_config = CoreConfig.from_env(env)
         except ValueError as exc:
@@ -157,6 +168,7 @@ class Settings:
             frontend_origin=text("FRONTEND_ORIGIN", "") or None,
             seed_on_start=seed_text == "true",
             iot_sim_seed=number("IOT_SIM_SEED", 0, 0, 2**31 - 1),
+            demo_password=demo_password,
         )
 
 
@@ -185,7 +197,26 @@ def install_modules(core: CoreFacade, app: FastAPI, names: tuple[str, ...] = MOD
     return installed
 
 
-def seed_network(core: CoreFacade, seed: int) -> None:
+def with_demo_password(spec: NetworkSpec, password_hash: str) -> NetworkSpec:
+    """Give every account of ``spec`` that has no password the demo password (D-028).
+
+    One hash serves all the accounts: hashing 1005 accounts one by one at the default cost would
+    take minutes at start, and every demo account has the same password anyway. An account that
+    already has a password keeps it.
+    """
+    users = tuple(
+        replace(user, password_hash=password_hash) if user.password_hash is None else user
+        for user in spec.users
+    )
+    return replace(spec, users=users)
+
+
+def seed_network(
+    core: CoreFacade,
+    seed: int,
+    demo_password: str | None = None,
+    hash_iterations: int = DEFAULT_ITERATIONS,
+) -> None:
     """Load the demo network from the simulator into an empty core."""
     try:
         simulator = importlib.import_module("iot_sim")
@@ -194,7 +225,12 @@ def seed_network(core: CoreFacade, seed: int) -> None:
     build = getattr(simulator, "build_network_spec", None)
     if build is None:
         raise StartupError("SEED_ON_START needs iot_sim.build_network_spec(seed) -> NetworkSpec")
-    result = core.commands.load_network(build(seed), SEEDER)
+    spec = build(seed)
+    if demo_password is not None:
+        spec = with_demo_password(spec, hash_password(demo_password, hash_iterations))
+    elif any(user.password_hash is None for user in spec.users):
+        logger.warning("DEMO_PASSWORD is not set: the seeded accounts cannot log in")
+    result = core.commands.load_network(spec, SEEDER)
     if isinstance(result, Err):
         raise StartupError(f"the demo network could not be loaded: {result.message}")
     logger.info("demo network loaded: %s", result.value)
@@ -235,7 +271,12 @@ def build_app(
                 allow_headers=["Authorization", "Content-Type"],
             )
         if settings.seed_on_start and not core.queries.list_hubs():
-            seed_network(core, settings.iot_sim_seed)
+            seed_network(
+                core,
+                settings.iot_sim_seed,
+                settings.demo_password,
+                settings.auth.hash_iterations,
+            )
         install_modules(core, app, module_names)
     except BaseException:
         if owns_repository and isinstance(repo, SqlRepository):
