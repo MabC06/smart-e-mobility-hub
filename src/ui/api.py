@@ -1,7 +1,7 @@
-"""Calls from a page to the REST routes of M3, M4 and M5 with the user's own token.
+"""Calls from a page to the REST routes of M2 to M6 with the user's own token.
 
 ``ui`` may not import those modules (NFR-22). The call stays inside the application (no network).
-Use call() and read_form() only from a normal ``def`` route.
+Use call(), read_form() and read_form_list() only from a normal ``def`` route.
 """
 
 from typing import Any
@@ -33,6 +33,12 @@ def read_form(request: Request) -> dict[str, str]:
     """The fields of a submitted HTML form (FastAPI's ``Form`` needs one more package)."""
     body = anyio.from_thread.run(request.body)
     return {name: values[0] for name, values in parse_qs(body.decode("utf-8", "replace")).items()}
+
+
+def read_form_list(request: Request, name: str) -> list[str]:
+    """Every value of one form field, such as the ticked checkboxes of a list."""
+    body = anyio.from_thread.run(request.body)
+    return parse_qs(body.decode("utf-8", "replace")).get(name, [])
 
 
 def explain(status: int, data: Any) -> tuple[str, str]:

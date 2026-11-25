@@ -2,7 +2,7 @@
   O6. What-if Simulation Lab (wireframes-operator.md), UC-M7-09, UC-M7-10. Only the demand-surge
   scenario exists in M6's code; the other four are Planned. The form has M6's default values and
   sets no allowed ranges, because M6's design and code differ (M6 checks the inputs). The result
-  has the fields of M6's SimulationReport. "Run" only reloads this page in Phase 2.
+  has the fields of M6's SimulationReport. "Run" sends the form to M6 (POST /simulation/runs).
 #}
 {% extends "base.html" %}
 {% block title %}Simulation Lab · Smart E-Mobility Hub{% endblock %}
@@ -10,7 +10,7 @@
 <h1>Simulation Lab</h1>
 <p class="simulation-banner">SIMULATION: a copy of the state, nothing real changes</p>
 
-<form action="{{ url_for('operator_simulation') }}">
+<form action="{{ url_for('operator_run_simulation') }}" method="post">
   <p>
     <label>Scenario
       <select name="scenario">
@@ -38,7 +38,7 @@
   <p>
     <label>Time horizon <input name="time_horizon_minutes" value="120" size="5"> min</label>
     <label>Time step <input name="time_step_minutes" value="5" size="5"> min</label>
-    <label>Random seed <input name="random_seed" value="{{ seed }}" size="5"></label>
+    <label>Random seed <input name="random_seed" value="{{ seed or 42 }}" size="5"></label>
     <button class="button primary" type="submit">Run</button>
   </p>
 </form>
@@ -77,8 +77,8 @@
   {% for rec in result.recommendations %}
   <p>
     {{ loop.index }}. Move {{ rec.batch_size }} vehicle{{ 's' if rec.batch_size != 1 }} {{ rec.source_hub_id }} → {{ rec.destination_hub_id }}
-    · {{ rec.status }} · → {{ rec.target_module }}<br>
-    reason: {{ rec.trigger_reason }}<br>
+    · {{ rec.recommendation_type }}<br>
+    reason: {{ rec.reason }}<br>
     <button class="button" type="button" disabled>Approve</button>
     <button class="button" type="button" disabled>Reject</button>
     <span class="planned">Planned</span> How an approved recommendation reaches M4 is not
