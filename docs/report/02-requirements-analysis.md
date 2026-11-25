@@ -53,8 +53,8 @@ Baseline §9 provides FR -> UC -> BR -> diagram -> V-M2 scenario traceability, w
 ## M3 contribution - Charging & Smart Scheduling
 
 > **Author:** Võ Thanh An (M3)  
-> **Date:** 2026-11-06  
-> **Status:** Phase 1 Draft for Integration Review
+> **Date:** 2026-11-17 (revised to match the Phase 3 implementation)  
+> **Status:** Revised after implementation; open items are listed in `docs/report/08-implementation.md` §4.4
 
 ---
 
@@ -66,10 +66,10 @@ The charging infrastructure at Mobility Hubs faces two primary engineering chall
    Internal rental electric vehicles serving students require immediate, plug-and-play charging (`FR-06.1`) to optimize vehicle turnaround time. Conversely, private EV owners (`FR-07.M3`) demand guaranteed access and reserved power slots (`FR-07.M3.2`). Failing to separate these user models creates queuing congestion that disrupts fleet availability.
 
 2. **Hardware Interoperability & Safety Interlocks:**
-   Private EVs feature diverse connector standards (CCS2, Type 2), battery capacities, and maximum C-rates. Without a registration and parameter validation mechanism (`FR-07.M3.1`), connecting an incompatible vehicle risks equipment damage or circuit breaker trips. Parameter verification prior to energy transfer is therefore a mandatory system constraint.
+   Private EVs feature diverse connector standards (CCS2, Type 2), battery capacities, and maximum C-rates. Without a registration mechanism (`FR-07.M3.1`) that stores these parameters with the owner, connecting an incompatible vehicle risks equipment damage or circuit breaker trips. M3 therefore registers each private vehicle with its connector type, battery capacity and owner before it can request a slot.
 
 3. **Grid Capacity Limits & Dynamic Scheduling Algorithms:**
-   Traditional First-Come, First-Served (FCFS) queuing fails in EV charging environments: a vehicle at 80% SoC should not block a port required by a vehicle at 5% SoC needed for an upcoming trip. Consequently, requirements `FR-11.M3.1` and `FR-11.M3.2` replace FCFS with dynamic priority scoring.
+   Traditional First-Come, First-Served (FCFS) queuing fails in EV charging environments: a vehicle at 80% SoC should not block a port required by a vehicle at 5% SoC needed for an upcoming trip. Consequently, requirements `FR-11.M3.1` and `FR-11.M3.2` replace FCFS with dynamic priority ranking and earliest-slot binding.
 
 ---
 
@@ -78,33 +78,33 @@ The charging infrastructure at Mobility Hubs faces two primary engineering chall
 #### 1. Session Control Requirements (`FR-06`, `FR-07`)
 
 - **Risk of Omission:** Allowing users to occupy charging bays indefinitely without validation or time bounds leads to stalled sessions (fully charged vehicles remaining plugged in).
-- **Analytical Resolution:** `FR-06.3` enforces strict reservation modification and cancellation thresholds, immediately releasing unused capacity back to the available Hub pool (`AVAILABLE`).
+- **Analytical Resolution:** `FR-06.3` lets the owner (or an operator) modify a `SCHEDULED` request to a new time slot, or cancel a `SCHEDULED` or `QUEUED` request. A modification must start no earlier than the current time and needs a free bay for the new slot; a cancellation releases the bay and vehicle claims immediately, so unused capacity returns to the available Hub pool (`AVAILABLE`). A minimum notice period for modify/cancel is not enforced in the current implementation (see §4.4 of the implementation report).
 
 #### 2. Planning & Conflict Resolution Requirements (`FR-11`)
 
-- **Risk of Omission:** When a charging port faults (`FAULTED`), failing to trigger automated reassignment (`FR-11.M3.3`) stalls active sessions and breaks the downstream travel schedule.
-- **Analytical Resolution:** A 3-tiered fault resolution cascade is established (local port reallocation $\rightarrow$ time-window shifting $\rightarrow$ cross-Hub routing via M4).
+- **Risk of Omission:** When a charging point becomes unavailable (`OUT_OF_SERVICE` or `MAINTENANCE`), failing to trigger automated reassignment (`FR-11.M3.3`) stalls active sessions and breaks the downstream travel schedule.
+- **Analytical Resolution:** M3 subscribes to the Core event `ChargingPointStatusChanged`. For each affected request it interrupts the charging session, releases its claims, and resubmits it so that it is rebound through the fallback cascade (local bay $\rightarrow$ later time window $\rightarrow$ cross-Hub via M4).
 
 ---
 
 ### Requirements Traceability & Behavioral Mapping
 
-Functional requirements are systematically mapped to the system's Use-Case architecture to ensure complete coverage:
+Functional requirements are mapped to the system's Use-Case architecture to ensure complete coverage:
 
 ![M3 Use-Case Diagram](../requirements/use-case-diagrams/uc-m3-charging.svg)
 
 - **Traceability Matrix:**
 
-| Requirement (FR) | Solved Technical Problem                                        | Mapped Use Case | Enforced Business Rule (BR)                         |
-| :--------------- | :-------------------------------------------------------------- | :-------------- | :-------------------------------------------------- |
-| **FR-06.1**      | Immediate session initialization for returned rental EVs.       | `UC-M3-01`      | `BR-M3-01` (Port availability verification)         |
-| **FR-06.2**      | Mitigating peak-hour station congestion via advance scheduling. | `UC-M3-02`      | `BR-M3-01` (Future capacity reservation)            |
-| **FR-06.3**      | Preventing power capacity waste when travel plans change.       | `UC-M3-03`      | N/A (Releasing allocated capacity)                  |
-| **FR-07.M3.1**   | Preventing voltage and connector mismatch for private EVs.      | `UC-M3-04`      | N/A (Persisting hardware specs)                     |
-| **FR-07.M3.2**   | Segmenting dedicated charging ports for private EV users.       | `UC-M3-05`      | `BR-M3-01` (Securing private bay allocation)        |
-| **FR-11.M3.1**   | Overcoming FCFS limitations; prioritizing depleted batteries.   | `UC-M3-06`      | `BR-M3-03` (Dynamic priority scoring)               |
-| **FR-11.M3.2**   | Preventing voltage sags and transformer overloads at Hubs.      | `UC-M3-07`      | `BR-M3-03` (Load regulation and schedule smoothing) |
-| **FR-11.M3.3**   | Ensuring high availability during hardware point failures.      | `UC-M3-08`      | `BR-M3-02` (3-tier flexible reallocation)           |
+| Requirement (FR) | Solved Technical Problem                                        | Mapped Use Case | Enforced Business Rule (BR)                                   |
+| :--------------- | :-------------------------------------------------------------- | :-------------- | :------------------------------------------------------------ |
+| **FR-06.1**      | Immediate session initialization for returned rental EVs.       | `UC-M3-01`      | `BR-M3-01` (Port availability verification)                   |
+| **FR-06.2**      | Mitigating peak-hour station congestion via advance scheduling. | `UC-M3-02`      | `BR-M3-01` (Future capacity reservation through claims)       |
+| **FR-06.3**      | Preventing power capacity waste when travel plans change.       | `UC-M3-03`      | N/A (Releasing allocated claims)                              |
+| **FR-07.M3.1**   | Recording connector type, capacity and owner of a private EV.   | `UC-M3-04`      | N/A (Persisting vehicle specs through Core)                   |
+| **FR-07.M3.2**   | Reserving a charging slot for a registered private EV.          | `UC-M3-05`      | `BR-M3-01` (Securing the bay for the requested interval)      |
+| **FR-11.M3.1**   | Overcoming FCFS limitations; prioritizing depleted batteries.   | `UC-M3-06`      | `BR-M3-03` (Priority ranking and low-battery override)        |
+| **FR-11.M3.2**   | Using free capacity: binding waiting requests to the earliest slot. | `UC-M3-07`  | `BR-M3-03` (Requests are bound in priority order)             |
+| **FR-11.M3.3**   | Ensuring high availability during charging-point failures.      | `UC-M3-08`      | `BR-M3-02` (Fallback reallocation, see below)                 |
 
 ---
 
@@ -112,26 +112,28 @@ Functional requirements are systematically mapped to the system's Use-Case archi
 
 #### BR-M3-01: Port Approval & Faulty Equipment Isolation
 
-- **Analytical Rationale:** From an electrical safety standpoint, closing high-power relays when a charging bay reports thermal warnings or ground faults can cause severe equipment damage. `BR-M3-01` forces the system to isolate ports flagged as `OUT_OF_SERVICE` or `FAULTED` directly at the database query level, excluding them from scheduler allocation pools.
+- **Analytical Rationale:** From an electrical safety standpoint, a bay that is `OUT_OF_SERVICE` or in `MAINTENANCE` must never receive a new session. `BR-M3-01` excludes such bays from the bay search, so the scheduler only considers available bays whose interval is free of other claims (Core `ResourceClaim`, D-017). The vehicle must also not hold an overlapping claim.
 
-#### BR-M3-02: Three-Tiered Conflict Resolution Strategy (Fallback Cascade)
+#### BR-M3-02: Tiered Conflict Resolution Strategy (Fallback Cascade)
 
 - **Analytical Rationale:** Station overload cannot be resolved through outright service rejection. The fallback mechanism escalates operational costs progressively:
-  1. _Local Port Swap (Zero transit cost):_ Reassigning to an idle port of matching rating within the same Hub.
-  2. _Time Window Shift (Low operational impact):_ Adjusting the charging start time if the vehicle has no immediate departure requirement.
-  3. _M4 Delegation (High cost - physical vehicle relocation):_ Invoking `UC-M4-07` to route the vehicle to an adjacent Hub when the current station reaches maximum capacity.
+  1. _Local Port Swap (Zero transit cost):_ Binding the request to another free bay at the same Hub for the requested time.
+  2. _Time Window Shift (Low operational impact):_ Trying later start times every 15 minutes for up to 2 hours. If no slot exists, the request stays `QUEUED` and `optimize_queue` (`UC-M3-07`) retries it when capacity is freed.
+  3. _M4 Delegation (High cost - physical vehicle relocation):_ When the current Hub has no slot within the window, `optimize_queue` asks M4 (`ALTERNATIVE_CHARGING`, `UC-M4-07`) for another Hub. M4 only suggests; M3 checks the suggested bay again and binds the request there as `SCHEDULED`. If M4 finds nothing or is not available, the request stays `QUEUED`.
 
-#### BR-M3-03: Dynamic Priority Scoring & Low Battery Override
+#### BR-M3-03: Dynamic Priority Ranking & Low Battery Override
 
-- **Analytical Rationale:** Priority weighting evaluates remaining State of Charge (% SoC) alongside proximity to scheduled trip departures.
-- **Emergency Override Threshold:** The rule defines a critical threshold at $\text{SoC} \le 15\%$ (`LOW_BATTERY_THRESHOLD`). When battery levels drop below this boundary, deep discharge risks escalate sharply, triggering an immediate priority override flag that places the vehicle at the front of the active charging queue.
+- **Analytical Rationale:** Queued requests are ordered by (1) the emergency flag, (2) whether the vehicle has a booking at that Hub within the next hour (from the `RESERVATION_DEMAND` port), (3) the lowest current SoC, (4) the earliest request time. If the reservation port returns an error, M3 falls back to the battery-only order instead of failing.
+- **Emergency Override Threshold:** A request is an emergency when SoC $\le$ the configured low-battery threshold (15%, `LOW_BATTERY_THRESHOLD`). Deep discharge risk grows sharply below this level, so these requests go to the front of the queue.
 
 ---
 
 ### Quality Attribute Trade-offs
 
-- **Performance vs. Complexity (NFR-04):** Recalculating queue rankings within **5 seconds** requires priority algorithms to maintain low computational complexity ($\mathcal{O}(N \log N)$), preventing database table lock contention during peak concurrent requests.
-- **Safety vs. Availability (NFR-08/09):** Tripping high-voltage power relays within **100 ms** upon detecting electrical or thermal faults (`FAULTED`) may interrupt user charging sessions, but this is a mandatory trade-off to ensure absolute infrastructure and vehicle safety.
+- **Performance vs. Complexity (NFR-04):** Ranking the queue is a single sort, $\mathcal{O}(N \log N)$, with at most one reservation-port call per Hub, so recomputing it stays well inside the 5-second target.
+- **Consistency vs. Throughput (NFR-08/09):** Each queued request is bound in its own unit of work. A failure on one request leaves the others unchanged, and a commit never leaves half-placed claims, at the cost of one commit per request.
+- **Safety:** Cutting power to a faulty socket (relay trip) belongs to M5 (`BR-M5-03`). M3 reacts to the resulting status event and moves the affected sessions.
+- **Authorization (NFR-16):** Students act only on their own requests and sessions; queue, demand and optimize endpoints require the operator role.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
@@ -193,14 +195,14 @@ Rule IDs and use-case IDs follow D-011. Key interface and architectural uncertai
 #### Monitoring & Incident Handling (Module M5 — Đỗ Hoàng Việt)
 
 - **FR-08: System Monitoring**
-  - **FR-08.1 (Real-Time Resource Tracking):** Ingests live telemetry streams from `iot_sim` covering vehicle states, battery percentages ($SoC\%$), space occupancy, and charger operational health.
+  - **FR-08.1 (Real-Time Resource Tracking):** Ingests verified domain events emitted by Core (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SpaceOccupancyChanged`, `SensorEventRejected`, `SensorHeartbeat`) covering vehicle states, battery percentages ($SoC\%$), space occupancy, and equipment health.
   - **FR-08.2 (Utilization & Metrics Computation):** Computes real-time capacity ratios (parking occupancy %, charger utilization %) and fleet availability metrics per Hub.
   - **FR-08.3 (Capacity Warning & Alerting):** Automatically flags Hubs approaching or exceeding warning thresholds ($\ge 90\%$) and raises visual alerts on the Operator Dashboard.
   - **FR-08.4 (Network State Synchronization):** Evaluates Hub operational health and records state changes into the core domain store using `core.set_hub_status()`.
 
 - **FR-09: Operational Incident Handling**
-  - **FR-09.1 (Automated Incident Detection):** Identifies equipment malfunctions, telemetry timeouts, and resource capacity overflows from error codes and sensor signals.
-  - **FR-09.2 (Classification & Ticket Instantiation):** Maps incidents to standardized taxonomy codes (`INC-HW-01`, `INC-CAP-01`, `INC-BAT-01`, etc.), assesses severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), and creates tickets with status `OPEN`.
+  - **FR-09.1 (Automated Incident Detection):** Identifies equipment malfunctions, telemetry timeouts (> 30s heartbeat loss), rejected sensor anomalies, and resource capacity overflows from domain event signals.
+  - **FR-09.2 (Classification & Ticket Instantiation):** Maps incidents to standardized taxonomy codes (`INC-HW-01`, `INC-HW-02`, `INC-CAP-01`, `INC-CAP-02`, `INC-BAT-01`, `INC-COMM-01`, `INC-USR-01`), assesses severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), and creates tickets with status `OPEN`.
   - **FR-09.3 (Automated Safety Interlocks):** Executes immediate protective interlocks (cuts power to faulty charging sockets, locks out depleted vehicles $\le 15\%$ from the rental pool).
   - **FR-09.4 (Incident Lifecycle Tracking):** Manages ticket transitions through `OPEN` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `ESCALATED` $\rightarrow$ `RESOLVED` $\rightarrow$ `CLOSED` with complete audit trail logging (`NFR-25`).
 

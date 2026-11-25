@@ -129,6 +129,7 @@ def allocation_world() -> tuple[CoreFacade, AllocationService, Actor]:
     return core, service, operator
 
 
+@pytest.mark.tc_m4_018
 def test_full_dispatch_task_lifecycle(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -196,6 +197,7 @@ def test_full_dispatch_task_lifecycle(
     assert core.check_invariants() == []
 
 
+@pytest.mark.tc_m4_019
 def test_carry_out_return_uses_held_destination_space_when_others_claimed(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -245,6 +247,7 @@ def test_carry_out_return_uses_held_destination_space_when_others_claimed(
     assert core.check_invariants() == []
 
 
+@pytest.mark.tc_m4_020
 def test_cancel_approved_task_releases_claims(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -279,6 +282,7 @@ def test_cancel_approved_task_releases_claims(
     assert core.check_invariants() == []
 
 
+@pytest.mark.tc_m4_021
 def test_service_plan_and_queries(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -302,6 +306,51 @@ def test_service_plan_and_queries(
     assert missing.is_err
 
 
+@pytest.mark.tc_m4_021
+def test_replan_supersedes_old_recommended_and_respects_hub_limit(
+    allocation_world: tuple[CoreFacade, AllocationService, Actor],
+) -> None:
+    """FR-10.7, UC-M4-08, BR-M4-06: Re-plan supersedes old RECOMMENDED tasks and caps hub tasks."""
+    core, service, operator = allocation_world
+
+    first_res = service.plan(operator, slot_id="SLOT-A")
+    assert isinstance(first_res, Ok) and len(first_res.value) == 1
+    first_id = first_res.value[0].task_id
+
+    # Re-plan with a new slot_id: old RECOMMENDED task is superseded (CANCELLED), no duplicates
+    second_res = service.plan(operator, slot_id="SLOT-B")
+    assert isinstance(second_res, Ok)
+    old_task = core.get_entity(DispatchTask, first_id)
+    assert old_task is not None and old_task.status is DispatchTaskStatus.CANCELLED
+
+    # Enforce BR-M4-06: when active approved tasks reach max_tasks_per_hub, no new task is proposed
+    service.set_config(
+        AllocationConfig(
+            safety_stock=1,
+            parking_buffer=2,
+            min_dispatch_battery=30.0,
+            max_tasks_per_hub=1,
+        )
+    )
+    active_task = DispatchTask(
+        task_id="TASK-CAP-001",
+        source_hub_id="H01",
+        target_hub_id="H02",
+        vehicle_type=VehicleType.E_BIKE,
+        quantity=1,
+        vehicle_ids="V000",
+        status=DispatchTaskStatus.APPROVED,
+        priority=1,
+    )
+    with core.unit_of_work() as uow:
+        uow.repository.add(active_task)
+        assert isinstance(uow.commit(), Ok)
+
+    capped_res = service.plan(operator, slot_id="SLOT-C")
+    assert isinstance(capped_res, Ok) and capped_res.value == []
+
+
+@pytest.mark.tc_m4_022
 def test_plan_requires_reservation_demand_provider_and_complete_methods() -> None:
     """D-020, M4-2: Missing or incomplete ReservationDemand returns RESOURCE_UNAVAILABLE."""
     now = datetime(2026, 11, 10, 9, 0, tzinfo=UTC)
@@ -332,6 +381,7 @@ def test_plan_requires_reservation_demand_provider_and_complete_methods() -> Non
     assert res_partial.code is ErrorCode.RESOURCE_UNAVAILABLE
 
 
+@pytest.mark.tc_m4_023
 def test_plan_counts_m2_bookings_and_open_trips_with_horizon_and_expired_claims() -> None:
     """M4-1, D-017: Reads M2 demand types, skips None destinations and expired claims."""
     now = datetime(2026, 11, 10, 9, 0, tzinfo=UTC)
@@ -432,6 +482,7 @@ def test_plan_counts_m2_bookings_and_open_trips_with_horizon_and_expired_claims(
     assert res.value[0].quantity == 2
 
 
+@pytest.mark.tc_m4_024
 def test_approve_task_claim_conflict_marks_failed_cleanly(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -484,6 +535,7 @@ def test_approve_task_claim_conflict_marks_failed_cleanly(
     assert core.check_invariants() == []
 
 
+@pytest.mark.tc_m4_025
 def test_approve_task_errors_and_skips_claimed_dest_spaces(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -556,6 +608,7 @@ def test_approve_task_errors_and_skips_claimed_dest_spaces(
     assert [c.resource_id for c in held_spaces] == [space_id("H02", 2)]
 
 
+@pytest.mark.tc_m4_026
 def test_invalid_lifecycle_transitions(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:
@@ -580,6 +633,7 @@ def test_invalid_lifecycle_transitions(
     assert service.carry_out_return(task.task_id, operator).is_err
 
 
+@pytest.mark.tc_m4_026
 def test_pickup_validates_vehicle_location(
     allocation_world: tuple[CoreFacade, AllocationService, Actor],
 ) -> None:

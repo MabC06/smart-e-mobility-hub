@@ -10,12 +10,12 @@
 <p>
   <label>Zone <select disabled><option>all</option></select></label>
   <label>Status <select disabled><option>all</option></select></label>
-  <span class="planned">Planned</span> Filters (Phase 3).
+  <span class="planned">Planned</span> Filters.
 </p>
 
 <div class="cards"
   hx-get="{{ url_for('operator_overview') }}"
-  hx-trigger="every 5s"
+  hx-trigger="every 3s"
   hx-select=".cards"
   hx-select-oob="#as-of"
   hx-swap="outerHTML">

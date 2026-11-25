@@ -104,7 +104,10 @@ def site():
 
 @pytest.mark.parametrize("method,path,payload", ENDPOINTS)
 def test_all_eleven_endpoints_require_authentication(site: Site, method: str, path: str, payload):
-    """NFR-16, D-014: Any request without token is rejected with 401 UNAUTHENTICATED."""
+    """TC-M5-017 · SEC · Any request without token is rejected with 401 UNAUTHENTICATED.
+
+    Verifies: NFR-16, D-014, D-023.
+    """
     kwargs = {"json": payload} if payload is not None else {}
     response = site.client.request(method, path, **kwargs)
     assert response.status_code == 401
@@ -113,7 +116,10 @@ def test_all_eleven_endpoints_require_authentication(site: Site, method: str, pa
 
 @pytest.mark.parametrize("method,path,payload", ENDPOINTS)
 def test_all_eleven_endpoints_refuse_student_role(site: Site, method: str, path: str, payload):
-    """NFR-16, D-014: Any student calling operator endpoints is rejected with 403 FORBIDDEN."""
+    """TC-M5-018 · SEC · Any student calling operator endpoints is rejected with 403 FORBIDDEN.
+
+    Verifies: NFR-16, D-014, D-023.
+    """
     kwargs = {"headers": site.student()}
     if payload is not None:
         kwargs["json"] = payload
@@ -124,7 +130,10 @@ def test_all_eleven_endpoints_refuse_student_role(site: Site, method: str, path:
 
 
 def test_operator_can_call_endpoints(site: Site):
-    """Authorized operator can successfully access metrics and incident workflows."""
+    """TC-M5-019 · SEC · Authorized operator can access metrics and incident workflows.
+
+    Verifies: NFR-16, D-014, D-023.
+    """
     headers = site.operator()
 
     # 1. Metrics
