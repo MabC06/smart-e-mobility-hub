@@ -1,11 +1,11 @@
 ## 3.4 User-interface Design
 
-> Revised for Phase 3 · Owner: M7 · Date: 2026-11-21
+> Revised for Phase 3 · Owner: M7 · Date: 2026-11-25
 > Full wireframes: `docs/design/ui/wireframes-student.md` and `wireframes-operator.md`. Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. "Planned" means the screen follows a requirement for which there is no code yet. Figure numbers are provisional.
 
 ### 3.4.1 Approach and principles
 
-The interface is a set of server-rendered web pages (Jinja2, with HTMX to refresh parts of a page by polling) served by the `ui` module in the same application as the API (D-002). A page may call `core` directly and keeps the login token in a cookie. For the charging, allocation and monitoring modules it calls their REST routes with the user's token, through a small internal client (`src/ui/api.py`, `httpx` with `ASGITransport`), because `ui` may not import another module (NFR-22). There are two interfaces: nine screens for the student (S1 to S9) and six for the operator (O1 to O6). The role of the logged-in account (A-06) decides which one is shown. The wireframes show content, actions and feedback, not colours or spacing.
+The interface is a set of server-rendered web pages (Jinja2, with HTMX to refresh parts of a page by polling) served by the `ui` module in the same application as the API (D-002). A page may call `core` directly and keeps the login token in a cookie. For the reservation, charging, allocation, monitoring and simulation modules it calls their REST routes with the user's token, through a small internal client (`src/ui/api.py`, `httpx` with `ASGITransport`), because `ui` may not import another module (NFR-22). There are two interfaces: nine screens for the student (S1 to S9) and six for the operator (O1 to O6). The role of the logged-in account (A-06) decides which one is shown. The wireframes show content, actions and feedback, not colours or spacing.
 
 Principles:
 
@@ -13,7 +13,7 @@ Principles:
 2. **Critical status is visible without navigation (NFR-20).** The operator's alert strip is on every screen.
 3. **Every refusal explains itself (NFR-21).** It gives the cause, an alternative when there is one, and the error code under "Details". No stack trace is shown.
 4. **Data shows its age.** Screens show the time of the data (`as_of`).
-5. **A slow answer is not reported as a failure.** For rental commands the screen reads the booking again before saying "failed", and a retry uses the same reservation ID.
+5. **A slow answer is not reported as a failure (Planned).** For rental commands the screen reads the booking again before saying "failed", and a retry uses the same reservation ID.
 
 ### 3.4.2 Major user flows and navigation
 
@@ -29,7 +29,7 @@ flowchart TD
     S2 --> S8([S8 Charging])
     S3 --> S4([S4 Confirm rental])
     S4 -->|reserved| S5
-    S4 -->|refused| S3
+    S4 -->|refused| S2
     S5 -->|after a return| S8
     S6 -->|also charge| S8
 
@@ -55,11 +55,9 @@ flowchart TD
     O6 -->|open| O3
     O6 -->|open| O4
 
-    classDef planned stroke-dasharray: 5 4
-    class O6 planned
 ```
 
-*Figure 3.9 — Operator flows. A dashed box is Planned.*
+*Figure 3.9 — Operator flows.*
 
 ### 3.4.3 Information shown to each actor
 
@@ -68,7 +66,7 @@ flowchart TD
 | S2 Find a Hub | For each Hub: vehicles available, free spaces, charging points in use, status in words, time of the data |
 | S3 Search | Vehicles of the Hub (code, type, battery); free spaces at the return Hub, marked "not a reservation" |
 | S4 Confirm | Vehicle, pick-up Hub, return Hub (space not held), planned minutes, the 10-minute deadline |
-| S5 My bookings | Booking state, pick-up deadline, expected return time, overdue notice, return receipt |
+| S5 My bookings | Booking state, pick-up deadline, expected return time, overdue notice, earlier bookings with their status |
 | S6 Parking (Planned) | Assigned space, arrival window, planned end |
 | S7 My vehicle | Registered private EVs and their state |
 | S8 Charging | The student's charging requests and their status |
@@ -80,7 +78,7 @@ flowchart TD
 | O3 Charging | Charging queue with battery, target, status, point (read-only); charging points in use |
 | O4 Dispatch | Tasks with route, vehicles, status, priority, reason; allocation settings |
 | O5 Incidents | Tickets with type, severity, status, age, history |
-| O6 Simulation (Planned) | Scenario inputs, baseline against mitigated results, recommendations |
+| O6 Simulation | Scenario inputs, baseline shortage rate and result per Hub, recommendations; mitigated results Planned |
 
 ```
 +--------------------------------------------------------------------------+
@@ -229,10 +227,11 @@ flowchart TD
 
 | Student action | On success | When refused |
 |---|---|---|
-| Reserve a vehicle (S4) | Booking "Reserved" with its deadline and "Return space not reserved" | "Someone else just reserved this vehicle", "This vehicle can no longer be rented", or "You already have a rental" |
+| Reserve a vehicle (S4) | Booking "Reserved" in S5 with its deadline and a countdown | "Someone else just reserved this vehicle", "This vehicle can no longer be rented", or "You already have a rental" |
 | Pick up (S5) | "In progress" with the expected return time | "The time to pick up has passed. Make a new reservation" |
-| Return (S5) | A receipt with Hub, space and time | "No space is free at this Hub", with nearby Hubs; nothing changes |
-| Cancel, hold a return space (S5, Planned) | "Cancelled"; a 10-minute hold | "The trip has started. Return the vehicle instead" |
+| Return (S5) | The booking listed as "Completed" (a receipt with Hub, space and time is Planned) | "No space is free at this Hub"; nothing changes |
+| Cancel (S5) | The booking listed as "Cancelled" | Offered only before pick-up |
+| Hold a return space (S5, Planned) | A 10-minute hold | "The trip has started. Return the vehicle instead" |
 | Parking (S6, Planned) | Space, arrival window, planned end | "The Hub is full and takes no new parking bookings" |
 | Register a private EV (S7) | Vehicle listed as "Away" | "This plate is already registered" |
 | Charging (S8) | "Queued", "Scheduled" or "Charging" | "No charging point is free then", with another time, port or Hub |
@@ -242,7 +241,8 @@ flowchart TD
 | Change a vehicle, point or Hub state (O2) | New state and a new line in the history | "Cannot be changed directly now. Handle its reservation or trip first", or "Changed by someone else. Refreshed" |
 | Plan, approve, pick-up, delivery, cancel (O4) | The task with its new status | The task keeps its reason when it fails, or the request is refused with the cause |
 | Acknowledge, resolve, close (O5) | Ticket "In progress", "Resolved" or "Closed" | The action is hidden when the status does not allow it |
-| Run a simulation, approve a recommendation (O6) | The report; the recommendation sent to its module | A field message for invalid inputs; the receiving module may refuse |
+| Run the demand surge (O6) | The result under the form | M6's message for an invalid input |
+| Approve a recommendation (O6, Planned) | The recommendation sent to its module | The receiving module may refuse |
 
 Every refusal uses the same block: what failed, the cause, up to two alternatives, and the code under "Details".
 
@@ -258,7 +258,7 @@ Every refusal uses the same block: what failed, the cause, up to two alternative
 | O2 | State history under the vehicle; only the button that fits the state | The operator sees how the vehicle got there before overriding |
 | O4 | "Update recommendations" is a button; a failed task keeps its reason | Planning writes data, so it must be deliberate; no need to ask why a task failed |
 | O5 | Active tickets first, most severe and oldest on top; only the actions the status allows; history under the ticket | The operator handles the worst ticket first and cannot close a ticket before it is resolved |
-| O6 | Banner that the screen works on a copy; baseline next to the mitigated result; seed shown | Simulated results are not mistaken for real state, and the same seed gives the same result (NFR-13) |
+| O6 | Banner that the screen works on a copy; baseline and result per Hub (mitigated result Planned); seed shown | Simulated results are not mistaken for real state, and the same seed gives the same result (NFR-13) |
 | All | Loading, empty and error states | The user can tell "nothing here" from "something failed" |
 
 ### 3.4.6 Interfaces for ordinary users and operators
@@ -290,22 +290,22 @@ A private EV owner is a student with a registered vehicle and uses the student i
 | NFR-20 | Alert strip on every operator screen; O1 ordered by severity |
 | NFR-21 | One refusal block with cause, alternative and code |
 
-Review of NFR-20 and NFR-21 (Phase 3): the alert strip lists the Hubs in WARNING or CRITICAL and counts the active incidents on every operator screen (TC-M7-006, TC-M7-020). A refusal shows its cause and code in one block, never a stack trace (TC-M7-005, TC-M7-021, TC-M7-024, TC-M7-027). Limits: Section 4.4, DEV-10 to DEV-13.
+Review of NFR-20 and NFR-21 (Phase 3): the alert strip lists the Hubs in WARNING or CRITICAL and counts the active incidents on every operator screen (TC-M7-006, TC-M7-020). A refusal shows its cause and code in one block, never a stack trace (TC-M7-005, TC-M7-021, TC-M7-024, TC-M7-027, TC-M7-030, TC-M7-032). Limits: Section 4.4, DEV-10 to DEV-13.
 
 ### 3.4.8 Consistency with the data design and status
 
 Every field on a screen was traced to a `core` query, a table in Section 3.2.2, a function of the reservation, allocation or monitoring module, or a requirement of the charging or simulation module. Three points matter:
 
 - Some `core` queries have no REST route (the next claim on a resource, one vehicle by ID, the configured limits). A page calls them directly, so they do not block the interface.
-- A page reads `core` directly and calls M3, M4 and M5 through their routes (`ui/api.py`). M2 and M6 had no router when this section was revised, so S4 (the reservation step), S5 and O6 still show sample data and say so on the page.
+- A page reads `core` directly and calls M2 to M6 through their routes (`ui/api.py`, D-026). No screen shows sample data.
 - The charging screens show the session states of M3: Queued, Scheduled, Charging, Completed, Interrupted, Cancelled.
 
 | Backend | Status |
 |---|---|
 | `core`: login, Hubs, vehicles, spaces, charging points, history | Implemented |
-| Reservation (M2): reserve, pick up, return | Implemented as a service, no route yet; S4 and S5 show sample data |
-| Reservation (M2): cancel, parking, return-space hold | Planned |
+| Reservation (M2): reserve, pick up, cancel, return | Implemented with routes; S4 and S5 are connected (TC-M7-028 to TC-M7-030) |
+| Reservation (M2): parking, return-space hold | Planned |
 | Charging (M3): requests, schedule, sessions, queue, private EV | Implemented with routes; S7, S8 and O3 are connected (S8: no change or cancel yet) |
 | Allocation (M4): plan, approve, pick-up, delivery, cancel | Implemented and connected in O4; reject and settings planned |
 | Monitoring (M5): incidents and metrics | Incidents connected in O5 (acknowledge, resolve, close); remote reset and stale data planned |
-| Simulation (M6) | Demand surge implemented; no route in `develop` when revised, so O6 shows sample data; the other scenarios planned |
+| Simulation (M6) | Demand surge implemented with a route and connected in O6 (TC-M7-031, TC-M7-032); the other scenarios and approval planned |
