@@ -92,6 +92,7 @@ def client() -> TestClient:
     return _make_client(with_demand_provider=True)
 
 
+@pytest.mark.tc_m4_028
 def test_plan_and_list_tasks_api(client: TestClient) -> None:
     res = client.post("/allocation/tasks/plan", json={"slot_id": "test_slot"})
     assert res.status_code == 200
@@ -108,6 +109,7 @@ def test_plan_and_list_tasks_api(client: TestClient) -> None:
     assert get_res.json()["task_id"] == task_id
 
 
+@pytest.mark.tc_m4_028
 def test_plan_returns_503_when_reservation_demand_missing() -> None:
     client_no_provider = _make_client(with_demand_provider=False)
     res = client_no_provider.post("/allocation/tasks/plan", json={"slot_id": "test_slot"})
@@ -115,6 +117,7 @@ def test_plan_returns_503_when_reservation_demand_missing() -> None:
     assert res.json()["detail"]["code"] == "RESOURCE_UNAVAILABLE"
 
 
+@pytest.mark.tc_m4_029
 def test_suggest_alternative_hubs_api(client: TestClient) -> None:
     res = client.get("/allocation/alternatives/hubs?requested_hub_id=H02&require_vehicle=true")
     assert res.status_code == 200
@@ -126,6 +129,7 @@ def test_suggest_alternative_hubs_api(client: TestClient) -> None:
     assert bad_res.status_code == 400
 
 
+@pytest.mark.tc_m4_029
 def test_arbitrate_api(client: TestClient) -> None:
     body = {
         "requests": [
@@ -150,6 +154,7 @@ def test_arbitrate_api(client: TestClient) -> None:
     assert res.json()["winner_request_id"] == "R2"
 
 
+@pytest.mark.tc_m4_028
 def test_task_lifecycle_api(client: TestClient) -> None:
     plan_res = client.post("/allocation/tasks/plan", json={"slot_id": "slot_api"})
     assert plan_res.status_code == 200
@@ -170,6 +175,7 @@ def test_task_lifecycle_api(client: TestClient) -> None:
     assert ret_res.json()["status"] == "COMPLETED"
 
 
+@pytest.mark.tc_m4_028
 def test_cancel_task_api(client: TestClient) -> None:
     plan_res = client.post("/allocation/tasks/plan", json={"slot_id": "slot_cancel"})
     task_id = plan_res.json()[0]["task_id"]
@@ -182,6 +188,7 @@ def test_cancel_task_api(client: TestClient) -> None:
     assert cancel_res.json()["status"] == "CANCELLED"
 
 
+@pytest.mark.tc_m4_029
 def test_suggest_alternative_charging_api(client: TestClient) -> None:
     body = {
         "displaced_requests": [{"request_id": "REQ-1"}],
@@ -197,6 +204,7 @@ def test_suggest_alternative_charging_api(client: TestClient) -> None:
     assert data[0]["charging_point_id"] == charging_point_id("H02", 1)
 
 
+@pytest.mark.tc_m4_030
 def test_config_endpoints(client: TestClient) -> None:
     get_res = client.get("/allocation/config")
     assert get_res.status_code == 200
@@ -220,6 +228,7 @@ def test_config_endpoints(client: TestClient) -> None:
     assert get_res2.json()["safety_stock"] == 5
 
 
+@pytest.mark.tc_m4_031
 def test_endpoints_reject_unauthenticated() -> None:
     """NFR-16, D-014, D-023: Requests without bearer token return 401 UNAUTHENTICATED."""
     raw_client = _make_client()
@@ -255,6 +264,7 @@ def test_endpoints_reject_unauthenticated() -> None:
         assert res.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
+@pytest.mark.tc_m4_032
 def test_endpoints_refuse_student_with_403() -> None:
     """NFR-16, D-023: Operator endpoints return 403 FORBIDDEN for student tokens."""
     client = _make_client()

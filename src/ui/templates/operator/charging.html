@@ -1,0 +1,45 @@
+{# O3. Charging coordination (wireframes-operator.md), UC-M7-03. Read-only: points from core,
+   queue from M3 (`/charging/queue`). "!" is the low-battery override (`is_emergency`). #}
+{% extends "base.html" %}
+{% block title %}Charging · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Charging</h1>
+
+<form method="get" action="{{ url_for('operator_charging') }}">
+  <label>Hub
+    <select name="hub_id" onchange="this.form.submit()">
+      {% for h in hubs %}
+      <option value="{{ h.hub_id }}"{% if h.hub_id == hub.hub_id %} selected{% endif %}>{{ h.hub_id }} {{ h.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <noscript><button class="button" type="submit">Show</button></noscript>
+</form>
+
+<p>
+  Charging points {{ points | length }}: in use {{ in_use }} · out of service {{ out_of_service }}
+</p>
+
+<h2>Queue</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Vehicle</th><th>Battery → target</th><th>Status</th><th>Point</th></tr>
+    </thead>
+    <tbody>
+      {% for item in queue %}
+      <tr>
+        <td>{{ item.vehicle_id }}</td>
+        <td>{{ item.current_soc | round | int }}% → {{ item.target_soc | round | int }}%{% if item.is_emergency %} !{% endif %}</td>
+        <td>{{ item.status }}</td>
+        <td>{{ item.charger_id or "–" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No vehicle is waiting to charge at this Hub.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p>! = low-battery override (battery at or below the low-battery limit).</p>
+<p><span class="planned">Planned</span> Owner filter, priority score, and the list of sessions moved after a charging-point failure.</p>
+{% endblock %}
