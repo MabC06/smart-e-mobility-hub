@@ -1,8 +1,8 @@
 # Wireframes: Student Interface
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-21 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`.
-> Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `origin/feat/reservation-booking-flow`; M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text) and M3's code on `origin/feat/charging-phase2`; `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
+> Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `develop` (`src/reservation`, routes in `router.py`); M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text) and M3's code on `origin/feat/charging-phase2`; `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
 
 Each screen is marked **Implemented** (the backend function exists in the code I read) or **Planned** (only in the requirements; no code yet). Wording of labels and messages is my own choice, not a requirement of another module.
 
@@ -83,7 +83,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Planned (M2 search): order by battery, highest first, then by vehicle ID (`FR-02`); hide vehicles that are not eligible (`BR-M2-02`); never offer a vehicle at or below 15% (`BR-M5-05`); when nothing matches, show nearby Hubs that have vehicles (`NO_VEHICLE`).
 - Why: the note "Not a reservation" stops the student from thinking a return space is held.
 
-### S4. Confirm the reservation (Hub and vehicle from `core`; reservation not connected, M2 has no router) · `UC-M2-02`, `FR-03`
+### S4. Confirm the reservation (Implemented) · `UC-M2-02`, `FR-03`
 
 ```
 +--------------------------------------------------------------------------+
@@ -100,12 +100,12 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- `reserve` takes: a reservation ID (made by the screen), vehicle, origin Hub, the vehicle `version` read in S3, optional destination Hub, minimum battery, and planned minutes (5 to 120, default 30).
+- "Confirm reservation" calls M2's `POST /reservations` with a reservation ID (made by the screen), vehicle, origin Hub, the vehicle `version` shown in S4, the destination Hub if one was chosen in S3, and planned minutes (5 to 120, default 30). The minimum battery is left at M2's 20%.
 - Success: the booking is `CONFIRMED` and `hold_expires_at` is 10 minutes after confirmation. The screen goes to S5.
-- Refusals keep the student here and hold nothing: `CONFLICT` "Someone else just reserved this vehicle"; `RESOURCE_UNAVAILABLE` "This vehicle can no longer be rented"; `LIMIT_REACHED` "You already have a rental"; `INVALID_INPUT` shows the field message.
+- Refusals hold nothing. The error block shows M2's cause and code and a link to choose a vehicle (S2). Planned messages (DEV-13): `CONFLICT` "Someone else just reserved this vehicle"; `RESOURCE_UNAVAILABLE` "This vehicle can no longer be rented"; `LIMIT_REACHED` "You already have a rental"; `INVALID_INPUT` shows the field message.
 - Why: the 10-minute deadline, the planned time and the missing return space are shown before the student commits.
 
-### S5. My bookings: pick up, cancel, return (sample data: M2 has no router and no list of a student's bookings) · `UC-M2-03` to `UC-M2-05`
+### S5. My bookings: pick up, cancel, return (Implemented; return-space hold Planned) · `UC-M2-03` to `UC-M2-05`
 
 ```
 +--------------------------------------------------------------------------+
@@ -126,12 +126,12 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- Data: the student's rows in `rental_reservations` and `rental_trips` (status, `hold_expires_at`, `expected_return_at`, return Hub, return space, `returned_at`). M2 has no function yet that lists a student's bookings (Planned).
+- Data: M2's `GET /reservations/mine`: the student's bookings (status, `hold_expires_at`), the open trips (`picked_up_at`, `expected_return_at`, status) and the current `version` of each vehicle. Newest booking first. A `CONFIRMED` booking is shown as Reserved and a booking with an open trip as In progress; the others are listed under "Earlier bookings" with their status.
 - **Pick up** (Implemented): only while `CONFIRMED` and before the deadline. Refusals: `EXPIRED` "The time to pick up has passed. Make a new reservation"; wrong Hub (`INVALID_INPUT`) "Pick the vehicle up at {origin Hub}"; `INVALID_STATE` "This booking is no longer reserved". If the vehicle is no longer eligible, the code returns `RESOURCE_UNAVAILABLE` and changes nothing; M2's design says the booking is then cancelled (Planned).
-- **Return** (Implemented): shows a receipt with Hub, space and time. A second click shows the same receipt. If no space is free (`NO_PARKING`), nothing changes, the trip stays open and the screen shows nearby Hubs (Planned). If a fault was reported during the trip, the trip ends as `INCIDENT_ABORTED`.
-- **Cancel** and **Hold a return space** are Planned (`UC-M2-03`, `UC-M2-06`).
+- **Return** (Implemented): M2's `POST /reservations/{id}/return` with the Hub chosen in the list. Afterwards S5 lists the booking as `COMPLETED`; a receipt with Hub, space and time is Planned, because M2's list has no closed trips (DEV-10). If no space is free (`NO_PARKING`), nothing changes, the trip stays open and the screen shows nearby Hubs (Planned). If a fault was reported during the trip, the trip ends as `INCIDENT_ABORTED`.
+- **Cancel** (Implemented, `UC-M2-03`): only on a Reserved booking; it then moves to "Earlier bookings" as `CANCELLED`. **Hold a return space** is Planned (`UC-M2-06`), because M2 has no route for it (DEV-15).
 - **OVERDUE:** the status exists in the code. M5 sets it (Planned). It informs only; there are no fines (A-07).
-- Pick up and return need the vehicle's current `version`. A page reads it with `core.queries.get_vehicle(vehicle_id)`, also for a vehicle in use. REST has no route for that.
+- Pick up and return need the vehicle's current `version`. S5 sends the one in M2's list (`vehicle_versions`).
 - Why: only the actions allowed in the booking's state are shown, and the deadline is shown as a time and a countdown.
 
 ### S6. Parking booking (Planned) · `UC-M2-06` to `UC-M2-08`
@@ -223,7 +223,7 @@ Every refusal shows what failed, the cause in plain words, up to two alternative
 
 ## 3. Messages for M2's error codes
 
-These are the codes in `BookingErrorCode` in the M2 code. M2's own messages are short English texts for developers, so the screen writes its own.
+These are the codes in `BookingErrorCode` in the M2 code. M2's own messages are short English texts for developers, so the screen should write its own. These messages are Planned (DEV-13); today the error block shows M2's message and code.
 
 | Code | Message to the student | Alternative |
 |---|---|---|
@@ -242,7 +242,7 @@ The M2 documents also use `HUB_CRITICAL`, `NO_VEHICLE`, `ALREADY_CANCELLED` and 
 
 ## 4. Open points
 
-1. Settled with M1: a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`. S4 (the reservation step) and S5 wait for a router of M2.
+1. Settled with M1 (D-026): a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`.
 2. The 5-second rule is M2's proposal and asks M1 and M7 to review. This file uses it.
 3. Settled: the charging screens use the session states of M3's code (see S8).
 4. M3's branch holds report text in `fr-06-07-11-charging.md`. The `FR-06` and `UC-M3` text used here is the version on `develop`.

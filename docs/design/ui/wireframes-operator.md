@@ -1,6 +1,6 @@
 # Wireframes: Operator Dashboard
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-21 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. Student screens: `wireframes-student.md`.
 > Sources: operator use cases `UC-M7-01` to `UC-M7-10` (`use-case-operator-support.md`); M4's code (`router.py`, `service.py`, `config.py`) on `origin/feat/allocation-phase2`; M5's `fr-08-09-monitoring.md` (Final v1.1), `incident-data-model.md` and `monitoring-sequence-diagram.md` on `origin/docs/monitoring-phase1`, and its code (`router.py`, `service.py`, `schema.py`) on `origin/feat/monitoring-incident`; M6's `m6-simulation-design.md` and code on `origin/feat/m6-simulation-impl`; M3's `fr-06-07-11-charging.md` (version on `develop`); `core` (facade, `permissions.py`, `vehicle-state-machine.md`). Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
 
@@ -190,7 +190,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M6's code has the demand-surge scenario only. Its route (`POST /simulation/runs`) was in an open pull request and not in `develop` when this was revised, so the screen shows sample data (DEV-11, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
+- M6's code has the demand-surge scenario only. "Run" calls its route `POST /simulation/runs` with a simulation ID made by the screen and shows the result under the form; the other scenarios, the mitigated run, Approve, Reject, Export and Discard are Planned (DEV-11, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
 - Five scenarios: demand surge, Hub at capacity, charging surge, charging-point failure, vehicle imbalance. Common inputs: scenario, time horizon, time step, random seed. The form changes with the scenario. Inputs per scenario (from the design):
 
 | Scenario | Inputs |
@@ -201,8 +201,8 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 | Charging-point failure | failed point IDs, failure start offset, estimated repair time (default 30 min), fallback policy (`FLEET_FIRST` or `FCFS`) |
 | Vehicle imbalance | surplus Hubs, deficit Hubs, batch size, transit delay |
 
-- The screen does not fix the allowed ranges, because M6's design and code differ (for demand surge the design says duration 15 to 240 and horizon 60 to 360; the code accepts 15 to 360 and 30 to 360). M6 checks the inputs before running. Its code raises plain `ValueError` text, so the screen writes its own message for each field.
-- Result: the code returns `baseline_shortage_rate_pct` and, for each Hub, total requests, unmet requests and shortage rate, plus a list of recommendations. The design adds the mitigated run, the comparison, assumptions and errors, and four metrics (shortage rate, Hub overflow or return rejection, average charging queue wait, critical battery count). The wireframe shows the design.
+- The screen does not fix the allowed ranges, because M6's design and code differ (for demand surge the design says duration 15 to 240 and horizon 60 to 360; the code accepts 15 to 360 and 30 to 360). M6 checks the inputs before running and answers a wrong value with `INVALID_INPUT` and its own text (for example "time_step_minutes must be between 1 and 15"), which the error block shows. A message per field is Planned (DEV-13).
+- Result: the code returns `baseline_shortage_rate_pct` and, for each Hub, total requests, unmet requests and shortage rate, plus a list of recommendations (type, source and destination Hub, batch size, reason). The design adds the mitigated run, the comparison, assumptions and errors, and four metrics (shortage rate, Hub overflow or return rejection, average charging queue wait, critical battery count). The wireframe shows the design.
 - A recommendation has a type, Hubs, quantity, reason, target module, feasibility and approval status. It stays advice until the operator approves. Approve sends it to the owning module (M4, M3 or M2), which checks it against the real state and may refuse. How M6 passes a recommendation to M4 is not defined: M4's router has no endpoint that creates a task from outside. Until then the operator uses O4 or O3.
 - The banner "SIMULATION: a copy of the state" is only on this screen. The seed is shown with each result (NFR-13). Export format is open; I propose a JSON file of the report.
 
@@ -231,8 +231,8 @@ In Phase 3 the error block shows the cause text that the module sends, with its 
 
 ## 4. Open points
 
-1. Settled with M1: a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`. O6 waits for the route of M6.
+1. Settled with M1 (D-026): a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`.
 2. M3: what the operator may change in the queue (the session states are settled, see O3).
 3. M4: a reject endpoint; how a recommendation from M6 becomes a task.
 4. M5: the remote-reset command, how stale data is reported, alert records, the polled route in its sequence, and the 5-minute escalation timer.
-5. M6: the route is in an open pull request (demand surge only); final input ranges, how an approved recommendation is sent, and the export format.
+5. M6: final input ranges, how an approved recommendation is sent, and the export format.

@@ -1,7 +1,7 @@
 """User interface module (M7): the pages for students and operators.
 
 All screens of the wireframes exist. Login is real, and the pages read ``core`` or call the routes
-of M3, M4 and M5. S5 and O6 still show ``ui.sample_data`` (and say so) until M2 and M6 have routes.
+of M2 to M6.
 
 The pages are Jinja2 templates served by the same FastAPI application (D-002), under the ``/ui``
 prefix so they never clash with core's REST routes (core-api-spec.md, 8).

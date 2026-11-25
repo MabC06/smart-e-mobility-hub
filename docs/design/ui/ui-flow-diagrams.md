@@ -1,6 +1,6 @@
 # UI Flow Diagrams
 
-> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Reviewer: M5 (Đỗ Hoàng Việt)
+> Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > One diagram for each actor. Screens `S1` to `S9` are in `wireframes-student.md`, `O1` to `O6` in `wireframes-operator.md`.
 > A box is a screen. A dashed box is a screen that is only in the requirements, not in the code yet. A line is a move from one screen to another. The commands on each screen and what happens when they are refused are in the tables. `iot_sim` has no screen.
 
@@ -16,12 +16,12 @@ flowchart TD
     S2 --> S8([S8 Charging])
     S3 --> S4([S4 Confirm rental])
     S4 -->|reserved| S5
-    S4 -->|refused| S3
+    S4 -->|refused| S2
     S5 -->|after a return| S8
     S6 -->|also charge| S8
 
     classDef planned stroke-dasharray: 5 4
-    class S6,S7,S8 planned
+    class S6 planned
 ```
 
 *Student flows.*
@@ -30,13 +30,15 @@ After login the student lands on S2. My bookings and Logout are in the header of
 
 | Screen | Commands | Use cases | Backend | If refused |
 |---|---|---|---|---|
-| S3, S4 | Search, `reserve` | `UC-M2-01`, `UC-M2-02` | `reserve` implemented; M2 search planned | Error with alternatives, back to S3 |
+| S3, S4 | Search, `reserve` | `UC-M2-01`, `UC-M2-02` | `reserve` implemented (M2 route); M2 search planned | Error block with M2's cause, link to S2 |
 | S5 | Pick up | `UC-M2-04` | Implemented | Expired: make a new reservation |
-| S5 | Return | `UC-M2-05` | Implemented | No space: nearby Hubs, the trip stays open |
-| S5 | Cancel, hold a return space | `UC-M2-03`, `UC-M2-06` | Planned | Trip already started: return the vehicle |
+| S5 | Return | `UC-M2-05` | Implemented | No space: the trip stays open (nearby Hubs planned) |
+| S5 | Cancel | `UC-M2-03` | Implemented | Offered only before pick-up |
+| S5 | Hold a return space | `UC-M2-06` | Planned | Trip already started: return the vehicle |
 | S6 | Reserve, arrive, leave, cancel parking | `UC-M2-06` to `UC-M2-08` | Planned | Hub full: other Hub or time |
-| S7 | Register a private EV | `UC-M3-04` | `core` command implemented; M3 route planned | Duplicate plate: field message |
-| S8 | Request, change, cancel charging | `UC-M3-01` to `UC-M3-03`, `UC-M3-05` | Planned | No port free: other time, port or Hub |
+| S7 | Register a private EV | `UC-M3-04` | Implemented (M3 route) | Duplicate plate: error block |
+| S8 | Request charging now or at a time | `UC-M3-01`, `UC-M3-02` | Implemented (M3 route) | Error block with M3's cause |
+| S8 | Change, cancel charging | `UC-M3-03`, `UC-M3-05` | Planned | No port free: other time, port or Hub |
 
 ## 2. Operator
 
@@ -53,9 +55,6 @@ flowchart TD
     O5 -.->|manual override only| O2
     O6 -->|open| O3
     O6 -->|open| O4
-
-    classDef planned stroke-dasharray: 5 4
-    class O3,O6 planned
 ```
 
 *Operator flows.*
@@ -65,17 +64,19 @@ After login the operator lands on O1. The tab bar and the alert strip are on eve
 | Screen | Commands | Use cases | Backend | If refused |
 |---|---|---|---|---|
 | O1, O2 | View; change the state of a vehicle, point or Hub | `UC-M7-01`, `UC-M7-02`, `UC-M7-07` | Reads implemented; actions and M5 alerts planned | Not allowed in this state: handle the reservation or trip first; changed by someone else: refreshed |
-| O3 | Change slot, recalculate | `UC-M7-03`, `UC-M7-04` | Planned (M3) | Not offered by M3 |
-| O4 | Plan, approve, pick-up, delivery, cancel, settings | `UC-M7-05`, `UC-M7-06`, `UC-M4-09` | Implemented | Task `FAILED` or request refused, with the reason on the card |
-| O4 | Reject | `UC-M4-02` | Planned | |
-| O5 | Acknowledge, resolve, close | `UC-M7-08` | Implemented (M5's code, not yet merged) | Action hidden when the status does not allow it |
-| O6 | Run on a copy, approve a recommendation | `UC-M7-09`, `UC-M7-10` | Demand surge implemented; rest planned (M6) | Field message for invalid inputs; the owning module may refuse |
+| O3 | View the queue of a Hub | `UC-M7-03` | Implemented (M3 route, read-only) | Error block with M3's cause |
+| O3 | Change slot, recalculate | `UC-M7-04` | Planned | Not offered in the screen |
+| O4 | Plan, approve, pick-up, delivery, cancel | `UC-M7-05`, `UC-M7-06` | Implemented | Task `FAILED` or request refused, with the reason on the card |
+| O4 | Reject, settings | `UC-M4-02`, `UC-M4-09` | Planned | |
+| O5 | Acknowledge, resolve, close | `UC-M7-08` | Implemented | Action hidden when the status does not allow it |
+| O6 | Run the demand surge on a copy | `UC-M7-09` | Implemented (M6 route) | M6's message for an invalid input |
+| O6 | Other scenarios, approve a recommendation | `UC-M7-09`, `UC-M7-10` | Planned | The owning module may refuse |
 
 ## 3. Behaviour shared by the flows
 
 - **Session.** The token is kept in a cookie and lasts 60 minutes by default. When it is no longer valid, any screen goes to S1 and returns to the same screen after login.
 - **Role.** A student cannot reach O1 to O6. After login each role goes to its own home screen.
-- **Slow commands.** For rental commands M2 proposes that after 5 seconds without an answer the screen says "Outcome unknown, checking status" and reads the booking again before saying "failed". A retry reuses the same reservation ID. No timeout rule exists for the operator's commands.
+- **Slow commands (Planned).** For rental commands M2 proposes that after 5 seconds without an answer the screen says "Outcome unknown, checking status" and reads the booking again before saying "failed". A retry reuses the same reservation ID. No timeout rule exists for the operator's commands.
 - **Refresh.** Parts of a page are re-read by polling every 3 seconds, so a change appears within 5 seconds (NFR-01).
 - **Empty, loading and error states.** Every list and form has them (M8 tests them).
 - **Events.** The UI never talks to `iot_sim` and gets no push. `core` publishes events inside the process after a commit and does not store them, so the UI re-reads the state and shows `as_of`.

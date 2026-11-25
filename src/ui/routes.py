@@ -1,7 +1,7 @@
 """Pages of the UI: one route for each screen of the wireframes (``docs/design/ui``).
 
-S2 to S4, O1 and O2 read ``core``. S7, S8 and O3 to O5 call the routes of M3, M4 and M5 through
-``ui.api``. S5 and O6 still show ``ui.sample_data`` and say so on the page.
+S2, S3, O1 and O2 read ``core``. S4, S5, S7, S8 and O3 to O6 call the routes of M2 to M6 through
+``ui.api``.
 """
 
 from dataclasses import dataclass
@@ -26,13 +26,11 @@ from core.domain.enums import (
 from core.facade import CoreFacade
 from core.result import Err
 from core.views import HubView, VehicleFilter, VehicleView
-from ui import sample_data
-from ui.api import call, explain, read_form
+from ui.api import call, explain, read_form, read_form_list
 from ui.auth import TOKEN_COOKIE, current_user, get_auth, get_core
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ICT = timezone(timedelta(hours=7), "ICT")  # D-005: times are shown in ICT (UTC+7)
-SAMPLE_NOTE = "Sample data: this screen is not connected to its module yet."
 ALERT_STATUSES = (HubStatus.CRITICAL, HubStatus.WARNING)  # alert strip, most severe first
 ACTIVE_INCIDENT_STATUSES = ("OPEN", "IN_PROGRESS", "ESCALATED")  # M5 statuses before RESOLVED
 SEVERITY_ORDER = ("CRITICAL", "HIGH", "MEDIUM", "LOW")  # M5 IncidentSeverity, most severe first
@@ -93,15 +91,12 @@ def _page(
     template: str,
     who: Principal,
     status_code: int = 200,
-    sample: bool = False,
     **context: Any,
 ) -> HTMLResponse:
     """Render a screen. An operator page also gets the alert strip (NFR-20)."""
     core = get_core(request)
     context["user_id"] = who.user_id
-    # A sample screen uses the time of its sample data, so ages and deadlines on it stay right.
-    context["as_of"] = sample_data.AS_OF if sample else core.queries.get_config().as_of
-    context["sample_note"] = SAMPLE_NOTE if sample else None
+    context["as_of"] = core.queries.get_config().as_of
     if who.role is Role.OPERATOR:
         hubs = core.queries.list_hubs()
         context["actor"] = "operator"
@@ -259,7 +254,7 @@ def student_confirm(
     vehicle_id: str | None = None,
     return_hub_id: str | None = None,
 ) -> Response:
-    """S4. Confirm the vehicle chosen in S3 (the reservation itself needs a route of M2)."""
+    """S4. Confirm the vehicle chosen in S3."""
     who = _check_login(request, Role.STUDENT)
     if isinstance(who, Response):
         return who
@@ -282,28 +277,99 @@ def student_confirm(
         request,
         "student/confirm.html",
         who,
-        sample=True,
         hub=hub,
         vehicle=vehicle,
         return_hub=_find_hub(core, return_hub_id),
     )
 
 
-@router.get("/student/bookings")
-def student_bookings(request: Request) -> Response:
-    """S5. My bookings: pick up, cancel, return. Sample data until M2 has a route for it."""
+def _whole_number(text: str) -> int | str:
+    """A typed whole number as an int; anything else is sent as it is and M2 refuses it."""
+    return int(text) if text.isdigit() else text
+
+
+@router.post("/student/reserve")
+def student_reserve(request: Request) -> Response:
+    """S4. Send the reservation to M2; then S5, where the booking is listed."""
     who = _check_login(request, Role.STUDENT)
     if isinstance(who, Response):
         return who
+    form = read_form(request)
+    body: dict[str, Any] = {
+        "reservation_id": f"RES-{uuid4().hex[:12]}",  # the screen makes the ID, one for each click
+        "vehicle_id": form.get("vehicle_id", ""),
+        "origin_hub_id": form.get("hub_id", ""),
+        "expected_version": _whole_number(form.get("version", "")),  # the version S4 showed
+        "planned_duration_minutes": _whole_number(form.get("planned_minutes", "")),
+    }
+    if form.get("return_hub_id"):
+        body["destination_hub_id"] = form["return_hub_id"]
+    status, data = call(request, "POST", "/reservations", json=body)
+    if status != 200:
+        return _refused(
+            request, who, "reserve this vehicle", status, data, "student_hubs", "Choose a vehicle"
+        )
+    return RedirectResponse(str(request.url_for("student_bookings")), status_code=303)
+
+
+@router.get("/student/bookings")
+def student_bookings(request: Request) -> Response:
+    """S5. My bookings from M2, newest first, with the actions each booking allows."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    status, mine = call(request, "GET", "/reservations/mine")
+    if status != 200:
+        return _refused(request, who, "show your bookings", status, mine, "student_hubs", "Back")
+    trips = {trip["reservation_id"]: trip for trip in mine["open_trips"]}
+    for booking in mine["bookings"]:  # the page shows times as datetimes
+        booking["hold_expires_at"] = datetime.fromisoformat(booking["hold_expires_at"])
+        booking["version"] = mine["vehicle_versions"].get(booking["vehicle_id"])
+        trip = trips.get(booking["reservation_id"])
+        if trip is not None:
+            trip["picked_up_at"] = datetime.fromisoformat(trip["picked_up_at"])
+            trip["expected_return_at"] = datetime.fromisoformat(trip["expected_return_at"])
+        booking["trip"] = trip
+    bookings = sorted(mine["bookings"], key=lambda b: b["confirmed_at"], reverse=True)
+    # open: reserved, or picked up and not returned yet; the others are only listed
+    current = [b for b in bookings if b["status"] == "CONFIRMED" or b["trip"] is not None]
+    earlier = [b for b in bookings if b["status"] != "CONFIRMED" and b["trip"] is None]
     hubs = get_core(request).queries.list_hubs()
-    return _page(
-        request,
-        "student/bookings.html",
-        who,
-        sample=True,
-        bookings=sample_data.BOOKINGS,
-        hubs=hubs,
-    )
+    return _page(request, "student/bookings.html", who, current=current, earlier=earlier, hubs=hubs)
+
+
+BOOKING_ACTIONS = {  # S5 action -> what the error block says could not be done
+    "pickup": "pick up this vehicle",
+    "cancel": "cancel this booking",
+    "return": "return this vehicle",
+}
+
+
+@router.post("/student/bookings/{reservation_id}/{action}")
+def booking_action(request: Request, reservation_id: str, action: str) -> Response:
+    """S5. Pick up, cancel or return one booking (M2); back to S5."""
+    who = _check_login(request, Role.STUDENT)
+    if isinstance(who, Response):
+        return who
+    if action not in BOOKING_ACTIONS:
+        return _refused(
+            request, who, "do this", 404, {"detail": "Unknown action."}, "student_bookings", "Back"
+        )
+    form = read_form(request)
+    options: dict[str, Any] = {}
+    version = _whole_number(form.get("version", ""))  # the vehicle version S5 showed
+    if action == "pickup":
+        hub_id = form.get("origin_hub_id", "")
+        options["json"] = {"origin_hub_id": hub_id, "expected_version": version}
+    elif action == "return":
+        hub_id = form.get("destination_hub_id", "")
+        options["json"] = {"destination_hub_id": hub_id, "expected_version": version}
+    status, data = call(request, "POST", f"/reservations/{reservation_id}/{action}", **options)
+    if status != 200:
+        return _refused(
+            request, who, BOOKING_ACTIONS[action], status, data, "student_bookings", "Back"
+        )
+    return RedirectResponse(str(request.url_for("student_bookings")), status_code=303)
 
 
 @router.get("/student/parking")
@@ -564,16 +630,39 @@ def incident_action(request: Request, incident_id: str, action: str) -> Response
 
 @router.get("/operator/simulation")
 def operator_simulation(request: Request) -> Response:
-    """O6. What-if Simulation Lab of M6 (sample data until connected)."""
+    """O6. What-if Simulation Lab of M6: the form, with no result yet."""
     who = _check_login(request, Role.OPERATOR)
     if isinstance(who, Response):
         return who
+    hubs = get_core(request).queries.list_hubs()
+    return _page(request, "operator/simulation.html", who, result=None, hubs=hubs)
+
+
+@router.post("/operator/simulation")
+def operator_run_simulation(request: Request) -> Response:
+    """O6. Run the demand surge (SC-01) in M6 and show its result under the form."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    form = read_form(request)
+    body = {
+        "simulation_id": f"SIM-{uuid4().hex[:12]}",  # the screen makes the ID, one for each run
+        "scenario_id": form.get("scenario", ""),
+        "target_hub_ids": read_form_list(request, "target_hub_ids"),
+        # M6 reads these numbers from the typed text and refuses a wrong one (422)
+        "surge_multiplier": form.get("surge_multiplier", ""),
+        "duration_minutes": form.get("duration_minutes", ""),
+        "time_horizon_minutes": form.get("time_horizon_minutes", ""),
+        "time_step_minutes": form.get("time_step_minutes", ""),
+        "random_seed": form.get("random_seed", ""),
+    }
+    status, result = call(request, "POST", "/simulation/runs", json=body)
+    if status != 200:
+        return _refused(
+            request, who, "run the simulation", status, result, "operator_simulation", "Back"
+        )
+    result["executed_at"] = datetime.fromisoformat(result["executed_at"])
+    hubs = get_core(request).queries.list_hubs()
     return _page(
-        request,
-        "operator/simulation.html",
-        who,
-        sample=True,
-        result=sample_data.SIMULATION_RESULT,
-        seed=sample_data.SIMULATION_SEED,
-        hubs=get_core(request).queries.list_hubs(),
+        request, "operator/simulation.html", who, result=result, seed=body["random_seed"], hubs=hubs
     )

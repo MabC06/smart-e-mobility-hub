@@ -2,7 +2,7 @@
   Styles of the UI (D-002: plain CSS, no build step).
 
   Layout rules (Universal Design, principles 3 and 4):
-  - Every bar (prototype note, header, tabs, alert strip, footer) and the page content share one
+  - Every bar (header, tabs, alert strip, footer) and the page content share one
     1100 px column, so all text starts on the same left edge.
   - Each block of content is a panel: white, bordered, with its heading inside. The page
     background is only the gap between panels.
@@ -67,14 +67,6 @@ main {
   max-width: var(--column);
   margin: 0 auto;
   padding: 24px var(--gutter) 32px;
-}
-
-.prototype-note {
-  margin: 0;
-  padding: 6px var(--bar-pad);
-  background: #e3e9f6;
-  color: var(--text);
-  font-size: 0.875rem;
 }
 
 .site-header,

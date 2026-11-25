@@ -1,12 +1,11 @@
 """The UI (src/ui) in Phase 3: real login, and pages that read ``core``.
 
 The network below is loaded into a real ``core`` behind the real application (``main.build_app``),
-so the pages show what ``core`` holds. Screens of M2 to M6 that are not connected yet still show
-``ui.sample_data``; their tests say so. Each test names its TC, the technique (M7 uses EP, DT, SEC,
+so the pages show what ``core`` holds, and the pages of M2 to M6 call those modules' routes.
+Each test names its TC, the technique (M7 uses EP, DT, SEC,
 UX, INT), what it verifies and the expected result.
 """
 
-import dataclasses
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -21,7 +20,7 @@ from core.domain.enums import HubStatus, Role, VehicleType
 from core.repository.memory import InMemoryRepository
 from core.result import Ok
 from core.seed import HubSpec, NetworkSpec, UserSpec, VehicleSpec
-from ui import routes, sample_data
+from ui import routes
 from ui.api import explain
 
 KEY = "test-secret-key-0123456789"  # test data, not a real secret
@@ -57,9 +56,8 @@ def app():
         auth=AuthConfig(KEY, token_minutes=30, hash_iterations=COST),
         log_level="WARNING",
     )
-    app = main.build_app(
-        settings, InMemoryRepository(), module_names=("charging", "allocation", "monitoring", "ui")
-    )
+    modules = ("reservation", "charging", "allocation", "monitoring", "simulation", "ui")
+    app = main.build_app(settings, InMemoryRepository(), module_names=modules)
     fleet = tuple(
         VehicleSpec(f"V{n}", f"RENT-{n}", VehicleType.E_BIKE, battery)
         for n, battery in ((1, 90.0), (2, 40.0), (3, 12.0))
@@ -306,7 +304,7 @@ def test_wrong_input_gives_the_error_block(student, path, status, code):
 def test_alert_strip_shows_hubs_at_risk_on_every_operator_screen(operator, app, path):
     """TC-M7-006 · DT · The alert strip lists Hubs in CRITICAL or WARNING, most severe first.
 
-    Verifies: NFR-20
+    Verifies: UC-M7-07, NFR-20
     Expected: "■ H02 CRITICAL" before "▲ H01 WARNING", then "Incidents: 0 active".
     """
     set_hub_status(app, "H01", HubStatus.WARNING)
@@ -322,7 +320,7 @@ def test_alert_strip_shows_hubs_at_risk_on_every_operator_screen(operator, app, 
 def test_hub_detail_shows_every_vehicle_to_an_operator(operator):
     """TC-M7-017 · INT · O2 lists the vehicles, spaces and charging points of the Hub from core.
 
-    Verifies: FR-01, FR-08
+    Verifies: FR-01, FR-08, UC-M7-01
     Expected: fleet and private vehicles (operators see both), a space and a charging point of H01.
     """
     html = operator.get("/ui/operator/hubs/H01").text
@@ -331,19 +329,16 @@ def test_hub_detail_shows_every_vehicle_to_an_operator(operator):
     assert "H01-S002" in html and "H01-CP01" in html
 
 
-def test_screens_that_are_not_connected_say_so(student, operator):
-    """TC-M7-018 · UX · A screen that still shows sample data says so; a connected one does not.
+def test_no_screen_shows_sample_data(student, operator):
+    """TC-M7-018 · UX · No screen shows sample data: every screen is connected to its module.
 
     Verifies: NFR-21
-    Expected: the note on S5 and O6 (M2 and M6 have no route yet); no note on the other screens.
+    Expected: no "Sample data" note on any student or operator screen.
     """
-    assert "Sample data" in student.get("/ui/student/bookings").text
-    assert "Sample data" in operator.get("/ui/operator/simulation").text
-    for path in ("/ui/student/hubs", "/ui/student/vehicle", "/ui/student/charging"):
+    for path in STUDENT_PAGES:
         assert "Sample data" not in student.get(path).text
-    for path in ("/ui/operator/overview", "/ui/operator/charging", "/ui/operator/dispatch"):
+    for path in OPERATOR_PAGES:
         assert "Sample data" not in operator.get(path).text
-    assert "Sample data" not in operator.get("/ui/operator/incidents").text
 
 
 # ------------------------------------------- screens that call the routes of M3, M4 and M5
@@ -420,7 +415,7 @@ def create_incident(operator) -> str:
 def test_dispatch_offers_the_actions_the_task_status_allows(operator, monkeypatch, status, buttons):
     """TC-M7-007 · DT · O4 shows on a task only the actions its status allows.
 
-    Verifies: FR-10
+    Verifies: FR-10, UC-M7-06
     Expected: the listed buttons and no other of the four task actions.
     """
     fake_call(monkeypatch, {"/allocation/tasks": (200, [a_task(status)])})
@@ -446,7 +441,7 @@ def test_incidents_offer_the_actions_the_ticket_status_allows(
 ):
     """TC-M7-008 · DT · O5 shows on a ticket only the actions its status allows.
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: the listed buttons and no other of Acknowledge, Resolve, Close.
     """
     answers = {"/api/v1/monitoring/incidents": (200, [a_ticket("INC-1", status=status)])}
@@ -461,7 +456,7 @@ def test_incidents_offer_the_actions_the_ticket_status_allows(
 def test_incidents_are_listed_most_severe_first_then_oldest(operator, monkeypatch):
     """TC-M7-011 · UX · O5 lists tickets by severity, then by age (oldest first).
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: CRITICAL before HIGH before LOW; of two HIGH tickets the older one first.
     """
     tickets = [
@@ -482,7 +477,7 @@ def test_incidents_are_listed_most_severe_first_then_oldest(operator, monkeypatc
 def test_incident_goes_through_its_life_in_the_screen(operator):
     """TC-M7-019 · INT · An operator acknowledges, resolves and closes a ticket of M5 in O5.
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: after each button the ticket shows the next status; Resolve without notes is
     refused with M5's cause.
     """
@@ -505,7 +500,7 @@ def test_incident_goes_through_its_life_in_the_screen(operator):
 def test_active_incidents_are_counted_on_the_alert_strip(operator):
     """TC-M7-020 · DT · The alert strip counts the tickets that are not RESOLVED or CLOSED.
 
-    Verifies: NFR-20
+    Verifies: UC-M7-07, NFR-20
     Expected: "Incidents: 0 active" with no ticket, "Incidents: 1 active" after one is created.
     """
     assert "Incidents: 0 active" in operator.get("/ui/operator/overview").text
@@ -518,7 +513,7 @@ def test_active_incidents_are_counted_on_the_alert_strip(operator):
 def test_a_refused_task_action_shows_the_cause_of_m4(operator):
     """TC-M7-021 · EP · A task that does not exist: the error block shows M4's code and cause.
 
-    Verifies: FR-10, NFR-21
+    Verifies: FR-10, UC-M7-06, NFR-21
     Expected: an error block with "NOT_FOUND" and a link back, no stack trace.
     """
     response = operator.post("/ui/operator/dispatch/TASK-none/approve")
@@ -528,27 +523,25 @@ def test_a_refused_task_action_shows_the_cause_of_m4(operator):
     assert "Traceback" not in response.text
 
 
-def test_dispatch_screen_shows_why_m4_cannot_plan(operator):
-    """TC-M7-022 · EP · O4 opens, and "Update recommendations" shows M4's refusal in words.
+def test_dispatch_screen_asks_m4_for_new_tasks(operator):
+    """TC-M7-022 · INT · O4 opens, and "Update recommendations" asks M4 to plan.
 
-    In this test app the reservation module (M2) is not installed, so M4 cannot read the demand
-    and answers RESOURCE_UNAVAILABLE.
-    Verifies: FR-10, NFR-21
-    Expected: O4 opens (200); the button gives an error block with M4's code, no stack trace.
+    M2 is installed, so M4 can read the demand and plan.
+    Verifies: FR-10, UC-M7-05
+    Expected: O4 opens (200); after the button O4 opens again with no error block.
     """
     assert operator.get("/ui/operator/dispatch").status_code == 200
 
     response = operator.post("/ui/operator/dispatch/plan")
 
-    assert response.status_code == 502
-    assert "Details: RESOURCE_UNAVAILABLE" in response.text
-    assert "Traceback" not in response.text
+    assert response.status_code == 200
+    assert "Dispatch" in response.text and 'class="error-block"' not in response.text
 
 
 def test_operator_sees_the_charging_queue_of_a_hub(operator):
     """TC-M7-023 · INT · O3 shows the charging points of core and the queue of M3.
 
-    Verifies: FR-06
+    Verifies: FR-06, UC-M7-03
     Expected: H01 has 2 charging points, none in use; the empty queue is said in words.
     """
     html = operator.get("/ui/operator/charging?hub_id=H01").text
@@ -597,6 +590,35 @@ def test_student_requests_charging_for_a_private_ev(student):
     assert "P1 ·" in response.text
 
 
+def a_booking_on_a_trip(trip_status: str, minutes_left: int) -> dict:
+    """M2's answer to GET /reservations/mine: one booking that is on a trip."""
+    now = datetime.now(UTC)
+    return {
+        "bookings": [
+            {
+                "reservation_id": "RES-1",
+                "vehicle_id": "V1",
+                "origin_hub_id": "H01",
+                "destination_hub_id": None,
+                "confirmed_at": (now - timedelta(minutes=40)).isoformat(),
+                "hold_expires_at": (now - timedelta(minutes=30)).isoformat(),
+                "status": "ACTIVE",
+            }
+        ],
+        "open_trips": [
+            {
+                "trip_id": "TRIP:RES-1",
+                "reservation_id": "RES-1",
+                "vehicle_id": "V1",
+                "picked_up_at": (now - timedelta(minutes=35)).isoformat(),
+                "expected_return_at": (now + timedelta(minutes=minutes_left)).isoformat(),
+                "status": trip_status,
+            }
+        ],
+        "vehicle_versions": {"V1": 3},
+    }
+
+
 def test_a_student_cannot_use_the_operator_actions(student):
     """TC-M7-026 · SEC · The action routes of O4 and O5 are for operators only.
 
@@ -613,16 +635,12 @@ def test_bookings_warn_when_the_trip_is_overdue(student, monkeypatch):
     Verifies: FR-04
     Expected: the warning, with the minutes late, only for the OVERDUE trip.
     """
-    on_time = sample_data.BOOKINGS[1]
-    late = dataclasses.replace(
-        on_time,
-        trip_status="OVERDUE",
-        expected_return_at=sample_data.AS_OF - timedelta(minutes=20),
-    )
+    on_time = a_booking_on_a_trip("IN_PROGRESS", minutes_left=8)
+    late = a_booking_on_a_trip("OVERDUE", minutes_left=-20)
 
-    monkeypatch.setattr(sample_data, "BOOKINGS", [on_time])
+    fake_call(monkeypatch, {"/reservations/mine": (200, on_time)})
     assert "past the expected return time" not in student.get("/ui/student/bookings").text
-    monkeypatch.setattr(sample_data, "BOOKINGS", [late])
+    fake_call(monkeypatch, {"/reservations/mine": (200, late)})
     html = student.get("/ui/student/bookings").text
 
     assert "You are 20 minutes past the expected return time" in html
@@ -640,7 +658,8 @@ def test_main_paths_can_be_clicked_through(student, operator):
     vehicles = student.get(s3).text
     confirm = student.get(form_action(vehicles), params={"hub_id": "H01", "vehicle_id": "V1"})
     assert confirm.status_code == 200 and "Confirm your rental" in confirm.text
-    bookings = student.get(form_action(confirm.text), params={"planned_minutes": "30"})
+    form = {"hub_id": "H01", "vehicle_id": "V1", "version": "1", "planned_minutes": "30"}
+    bookings = student.post(form_action(confirm.text), data=form)
     assert bookings.status_code == 200 and "My bookings" in bookings.text
     s8 = next(t for t in links(bookings.text) if t.endswith("/ui/student/charging"))
     assert student.get(s8).status_code == 200
@@ -673,3 +692,120 @@ def test_every_answer_shape_of_the_modules_becomes_one_error_block(status, data,
     Expected: the pair the error block S9 shows.
     """
     assert explain(status, data) == expected
+
+
+# ------------------------------------------- screens that call the routes of M2 and M6
+
+
+def reserve(student, app, vehicle_id="V1"):
+    """Send the S4 form for a vehicle at H01, with the version core holds now."""
+    version = app.state.core.queries.get_vehicle(vehicle_id).value.version
+    form = {"hub_id": "H01", "vehicle_id": vehicle_id, "version": str(version)}
+    return student.post("/ui/student/reserve", data={**form, "planned_minutes": "30"})
+
+
+def test_student_reserves_and_cancels_a_vehicle(student, app):
+    """TC-M7-028 · INT · S4 reserves through M2; S5 lists the booking and cancels it.
+
+    Verifies: FR-03, FR-04, UC-M2-02, UC-M2-03
+    Expected: after Confirm, S5 shows the booking as Reserved with V1; after Cancel it is listed
+    under "Earlier bookings" as CANCELLED.
+    """
+    response = reserve(student, app)
+
+    assert response.status_code == 200 and 'class="error-block"' not in response.text
+    assert "· Reserved" in response.text and "Vehicle V1" in response.text
+    reservation_id = re.search(r"RENTAL (RES-\w+) · Reserved", response.text).group(1)
+
+    response = student.post(f"/ui/student/bookings/{reservation_id}/cancel")
+
+    assert "Earlier bookings" in response.text
+    assert f"RENTAL {reservation_id} · Vehicle V1 · CANCELLED" in response.text
+
+
+def test_student_picks_up_and_returns_a_vehicle(student, app):
+    """TC-M7-029 · INT · S5 picks up a reserved vehicle and returns it to another Hub (M2).
+
+    Verifies: FR-04, UC-M2-04, UC-M2-05
+    Expected: after pick-up the booking is In progress; after the return to H02 it is COMPLETED
+    and V1 is parked at H02 in core.
+    """
+    html = reserve(student, app).text
+    reservation_id = re.search(r"RENTAL (RES-\w+) · Reserved", html).group(1)
+    version = re.search(r'name="version" value="(\d+)"', html).group(1)
+
+    pickup = {"origin_hub_id": "H01", "version": version}
+    html = student.post(f"/ui/student/bookings/{reservation_id}/pickup", data=pickup).text
+    assert "· In progress" in html and 'class="error-block"' not in html
+    version = re.search(r'name="version" value="(\d+)"', html).group(1)
+
+    back = {"destination_hub_id": "H02", "version": version}
+    html = student.post(f"/ui/student/bookings/{reservation_id}/return", data=back).text
+
+    assert f"RENTAL {reservation_id} · Vehicle V1 · COMPLETED" in html
+    assert app.state.core.queries.get_vehicle("V1").value.hub_id == "H02"
+
+
+def test_a_refused_reservation_shows_the_cause_of_m2(student, app):
+    """TC-M7-030 · EP · A second rental while one is open is refused with M2's code and cause.
+
+    Verifies: FR-03, UC-M2-02, NFR-21
+    Expected: an error block with "LIMIT_REACHED" and a link back, no stack trace.
+    """
+    assert "· Reserved" in reserve(student, app, "V1").text
+
+    response = reserve(student, app, "V2")
+
+    assert response.status_code == 400
+    assert "Details: LIMIT_REACHED" in response.text
+    assert "Traceback" not in response.text
+
+
+SIMULATION_FORM = {
+    "scenario": "SCENARIO_01_DEMAND_SURGE",
+    "target_hub_ids": ["H01", "H02"],
+    "surge_multiplier": "1.5",
+    "duration_minutes": "60",
+    "time_horizon_minutes": "120",
+    "time_step_minutes": "5",
+    "random_seed": "42",
+}
+
+
+def test_operator_runs_the_demand_surge_in_m6(operator):
+    """TC-M7-031 · INT · O6 sends the form to M6 and shows its result under the form.
+
+    Verifies: FR-12, UC-M7-09
+    Expected: the baseline shortage rate and one row for each Hub of the network, no error block.
+    """
+    response = operator.post("/ui/operator/simulation", data=SIMULATION_FORM)
+
+    assert response.status_code == 200 and 'class="error-block"' not in response.text
+    assert "Vehicle shortage rate (baseline)" in response.text
+    assert "<td>H01</td>" in response.text and "<td>H02</td>" in response.text
+
+
+def test_a_wrong_simulation_value_shows_the_error_block(operator):
+    """TC-M7-032 · EP · A surge multiplier below 1 is refused by M6 and explained.
+
+    Verifies: FR-12, UC-M7-09, NFR-21
+    Expected: 400 and an error block with INVALID_INPUT, no stack trace.
+    """
+    form = {**SIMULATION_FORM, "surge_multiplier": "0.5"}
+
+    response = operator.post("/ui/operator/simulation", data=form)
+
+    assert response.status_code == 400
+    assert "Details: INVALID_INPUT" in response.text
+    assert "Traceback" not in response.text
+
+
+def test_each_role_can_use_only_its_own_new_actions(student, operator):
+    """TC-M7-033 · SEC · Reserving is for students and running a simulation is for operators.
+
+    Verifies: NFR-16
+    Expected: 403 for an operator on S4 and S5 actions, and for a student on O6.
+    """
+    assert operator.post("/ui/student/reserve").status_code == 403
+    assert operator.post("/ui/student/bookings/RES-1/cancel").status_code == 403
+    assert student.post("/ui/operator/simulation").status_code == 403

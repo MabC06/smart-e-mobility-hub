@@ -1,6 +1,6 @@
 {#
-  S4. Confirm the reservation (wireframes-student.md), UC-M2-02, FR-03. In Phase 2 "Confirm
-  reservation" only opens S5 (the step after "reserved" in ui-flow-diagrams.md); nothing is held.
+  S4. Confirm the reservation (wireframes-student.md), UC-M2-02, FR-03. "Confirm reservation"
+  sends it to M2 (POST /reservations) with the vehicle version shown here; then S5 lists it.
 #}
 {% extends "base.html" %}
 {% block title %}Confirm your rental · Smart E-Mobility Hub{% endblock %}
@@ -9,7 +9,11 @@
 <p><a href="{{ back }}">&lt; Back</a></p>
 <h1>Confirm your rental</h1>
 
-<form action="{{ url_for('student_bookings') }}">
+<form action="{{ url_for('student_reserve') }}" method="post">
+  <input type="hidden" name="hub_id" value="{{ hub.hub_id }}">
+  <input type="hidden" name="vehicle_id" value="{{ vehicle.vehicle_id }}">
+  <input type="hidden" name="version" value="{{ vehicle.version }}">
+  {% if return_hub %}<input type="hidden" name="return_hub_id" value="{{ return_hub.hub_id }}">{% endif %}
   <table>
     <tbody>
       <tr>

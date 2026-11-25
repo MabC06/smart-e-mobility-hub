@@ -14,10 +14,6 @@
   <script src="{{ url_for('ui-static', path='htmx.min.js') }}" defer></script>
 </head>
 <body>
-  {% if sample_note %}
-  <p class="prototype-note">{{ sample_note }}</p>
-  {% endif %}
-
   {% if actor == "student" %}
   <header class="site-header">
     <a class="brand" href="{{ url_for('student_hubs') }}">Smart E-Mobility Hub</a>
