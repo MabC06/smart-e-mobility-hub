@@ -1,8 +1,8 @@
 # Software Architecture
 
 **Owner:** M1 — Đoàn Nhật Minh (2452738)
-**Status:** v1.0 · 2026-11-04 (released with the Core API spec v1.0; decided by the Lead)
-**Related:** D-002, D-003, D-004, D-005, D-006, D-007, `tech-stack-proposal.md`, `core-api-spec.md`, `../structural/class-diagram-core.md`, `../behavioral/vehicle-state-machine.md`, `docs/report/03-architecture.md` (report text built from this file)
+**Status:** v1.1 · 2026-11-21 (v1.0 released with the Core API spec v1.0 on 2026-11-04; v1.1 records how the UI reaches the modules, D-026)
+**Related:** D-002, D-003, D-004, D-005, D-006, D-007, D-026, `tech-stack-proposal.md`, `core-api-spec.md`, `../structural/class-diagram-core.md`, `../behavioral/vehicle-state-machine.md`, `docs/report/03-architecture.md` (report text built from this file)
 
 ## 1. Scope
 
@@ -33,8 +33,8 @@ flowchart TB
     end
     DB[("SQLite database")]
 
-    UIS -->|"HTTP + JSON, polling"| API
-    UIO -->|"HTTP + JSON, polling"| API
+    UIS -->|"HTML pages, HTMX polling"| API
+    UIO -->|"HTML pages, HTMX polling"| API
     API --> APP
     API -->|"read endpoints"| FAC
     API -->|"scenario runs"| SIM
@@ -74,7 +74,7 @@ Solid arrows are calls; dashed arrows go from `core` to a module but are not imp
 | Provider ports | The few calls that go from `core` to a module: demand data, alternative Hubs or bays, consuming a reservation hold. | The interface lives in `core`, the module registers an implementation at start-up, so the import still points into `core` (`core-api-spec.md` §6.1). |
 | State-update interface for sensors and seed data | `iot_sim` → `core` (`apply_sensor_event`, `load_network`). | Malformed events are rejected as a whole, logged and announced (NFR-10). `iot_sim` never writes to the database; it hands `core` a `NetworkSpec` for the first load. |
 | Snapshot | `core` → `simulation`. | Read-only copy with no live references (§7). |
-| HTTP + JSON | UI ↔ API layer. | Polling; the OpenAPI schema generated from the Pydantic models is the interface document for M7. |
+| HTTP | Browser ↔ `ui` pages (HTML, HTMX polling); `ui` → the REST routes of the modules, inside the process with the user's token (D-026). | The pages take no business decision (§5). Each module route checks the token and the role itself (D-023). The OpenAPI schema generated from the Pydantic models is the interface document for M7. |
 
 Allowed imports, checked by an import-boundary test in CI (NFR-22):
 
@@ -84,7 +84,7 @@ Allowed imports, checked by an import-boundary test in CI (NFR-22):
 | `reservation`, `charging`, `allocation`, `monitoring` | `core` (public API) | another module's internals, `iot_sim` |
 | `simulation` | `core` (snapshot types and the read-only rules it reuses) | write paths of `core`, other modules' internals |
 | `iot_sim` | `core` (state-update interface) | all other modules |
-| `ui` | nothing from `src/` Python; talks HTTP | — |
+| `ui` | `core` (public API: the read queries of `CoreFacade`, views, enums, `core.api.security`) | other modules (it calls their REST routes instead, D-026), `iot_sim` |
 
 ## 5. Where the business logic is
 
@@ -203,7 +203,7 @@ sequenceDiagram
 ## 11. Decisions behind this version
 
 1. **Composition root and API layer.** Done in the draft: `src/main.py` reads the settings, builds `core` on the database, then calls `install(core, app)` of each module in the order `reservation`, `charging`, `allocation`, `monitoring`, `simulation`, `ui`. A module registers its providers (`core.register_provider`), subscribes to events and mounts its routers there. Modules never import `main`. It is outside the folder list of the README; recorded as D-013.
-2. **Frontend delivery.** Decided (D-002): server-rendered pages, Jinja2 + HTMX, no Node toolchain. The `ui` module renders HTML and may call `core` in-process, keeping the token in a cookie; the browser does not need the JSON endpoints, but they stay available (`/openapi.json`) for tools and tests. The arrow "browser calls the JSON endpoints of `core`" in the diagram above applies only if a page script is added later.
+2. **Frontend delivery.** Decided (D-002, D-026): server-rendered pages, Jinja2 + HTMX, no Node toolchain. The `ui` module renders HTML and keeps the token in a cookie. It reads the state from `core` in-process, and it calls the other modules through their REST routes with the user's token, inside the process over `httpx.ASGITransport` (D-026), so the sign-in and role checks of D-023 apply to the screens too. The browser does not call the JSON endpoints; they stay available (`/openapi.json`) for tools and tests. The arrows from the student and operator UI to the API layer in the diagram above are these page requests.
 3. **Where authentication lives.** Decided in the draft: `core/auth.py` (seeded accounts, A-06; salted password hashes; signed tokens; the account is re-read on every request) and `core/api` (login, token check, roles). The key `SECRET_KEY` has no default.
 4. **Sensor intake path.** In-process call from `iot_sim`, or `POST /sensor-events` (operator-level service credential). Decided: both, same function (`apply_sensor_event`; the REST route calls it).
 5. **Start-up order.** Done in `src/main.py`: settings, database, `core`, the modules in the fixed order, then (only if `SEED_ON_START=true` and the database is empty) the demo network from `iot_sim.build_network_spec(seed)` (a proposal for M8). The simulator's event feed starts separately. A module that fails to install stops the start with its name; a module with no code yet is skipped.
