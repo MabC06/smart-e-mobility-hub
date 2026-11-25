@@ -21,8 +21,8 @@
         {% endfor %}
       </select>
     </label>
-    <label>Minimum battery
-      <input type="number" name="min_battery" value="{{ min_battery }}" min="20" max="100" size="4"> %
+    <label>Minimum battery (%)
+      <input type="number" name="min_battery" value="{{ min_battery }}" min="20" max="100" size="4">
     </label>
     <button class="button" type="submit">Search</button>
     <span class="note">A vehicle needs at least 20% battery to be rented.</span>
@@ -38,7 +38,7 @@
     <label class="choice">
       <input type="radio" name="vehicle_id" value="{{ vehicle.vehicle_id }}" required>
       <span class="choice-title">{{ vehicle.plate_or_code }}</span>
-      <span class="choice-meta">{{ vehicle.vehicle_type | type_label }} · <strong>{{ vehicle.battery_pct | round | int }}%</strong></span>
+      <span class="choice-meta"><strong>{{ vehicle.battery_pct | round | int }}%</strong> · {{ vehicle.vehicle_type | type_label }}</span>
     </label>
     {% endfor %}
   </fieldset>

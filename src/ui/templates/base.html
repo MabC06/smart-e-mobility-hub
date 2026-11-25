@@ -10,7 +10,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Smart E-Mobility Hub{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('ui-static', path='app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('ui-static', path='app.css') }}?v={{ css_version }}">
   <script src="{{ url_for('ui-static', path='htmx.min.js') }}" defer></script>
 </head>
 <body{% if actor %} class="{{ actor }}"{% endif %}>

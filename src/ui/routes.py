@@ -84,6 +84,9 @@ def status_symbol(status: HubStatus) -> str:
     return STATUS_SYMBOLS[status]
 
 
+# A browser keeps app.css in its cache; the file's change time in the link makes it fetch a new one.
+STYLESHEET = TEMPLATES_DIR.parent / "static" / "app.css"
+templates.env.globals["css_version"] = STYLESHEET.stat().st_mtime_ns
 templates.env.filters["ict"] = to_ict
 templates.env.filters["ict_day"] = to_ict_day
 templates.env.filters["ict_hm"] = to_ict_hm
