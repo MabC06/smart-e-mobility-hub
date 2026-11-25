@@ -116,8 +116,11 @@ def measure_nfr01(
         if write.status_code != 200:
             write_errors.append({"request_id": request_id, "status": write.status_code})
             continue
+        # M3 may move the request to another Hub when it binds the queue (BR-M3-02), so the
+        # next read is of the Hub the write answered with.
+        hub_now = write.json().get("hub_id", vehicle.hub_id)
         elapsed, read = timed(
-            client, "GET", "/charging/sessions", params={"hub_id": vehicle.hub_id}, headers=headers
+            client, "GET", "/charging/sessions", params={"hub_id": hub_now}, headers=headers
         )
         samples.append(elapsed)
         statuses.append(read.status_code)
@@ -134,7 +137,7 @@ def measure_nfr01(
     return result
 
 
-QUEUE_ACTOR = Actor("NFR-M8", Role.OPERATOR, "charging")
+QUEUE_ACTOR = Actor("OP-01", Role.OPERATOR, "charging")  # an account of DS-STD
 
 
 def fill_queue(env: Env, hub_id: str, depth: int, prefix: str) -> int:
