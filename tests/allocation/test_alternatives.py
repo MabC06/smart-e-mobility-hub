@@ -74,6 +74,7 @@ def network_core() -> CoreFacade:
     return core
 
 
+@pytest.mark.tc_m4_011
 def test_alternative_services_implement_core_provider_protocols(network_core: CoreFacade) -> None:
     """D-020, M4-4: M4 services register on ProviderRegistry using Core Protocol types."""
     hub_provider: AlternativeHubProvider = AlternativeHubService(network_core)
@@ -98,6 +99,7 @@ def test_alternative_services_implement_core_provider_protocols(network_core: Co
     assert chg_res.value.alternatives[0].status == "FOUND"
 
 
+@pytest.mark.tc_m4_012
 def test_suggest_alternative_hubs_ranks_by_closeness_and_battery(network_core: CoreFacade) -> None:
     """UC-M4-05, BR-M4-10: Ranks hubs closer first, then resource count and battery."""
     distances = {
@@ -120,6 +122,7 @@ def test_suggest_alternative_hubs_ranks_by_closeness_and_battery(network_core: C
     assert result.value.as_of == network_core.queries.get_config().as_of
 
 
+@pytest.mark.tc_m4_013
 def test_suggest_alternative_hubs_no_vehicle_found(network_core: CoreFacade) -> None:
     """UC-M4-05, BR-M4-10: Returns NO_VEHICLE when requested type is not available."""
     service = AlternativeHubService(network_core)
@@ -132,6 +135,7 @@ def test_suggest_alternative_hubs_no_vehicle_found(network_core: CoreFacade) -> 
     assert result.value.reason_code == "NO_VEHICLE"
 
 
+@pytest.mark.tc_m4_014
 def test_suggest_alternative_hubs_ignores_private_evs_and_expired_claims(
     network_core: CoreFacade,
 ) -> None:
@@ -180,6 +184,7 @@ def test_suggest_alternative_hubs_ignores_private_evs_and_expired_claims(
     assert "H03" not in hub_ids
 
 
+@pytest.mark.tc_m4_015
 def test_suggest_alternative_hubs_validates_input(network_core: CoreFacade) -> None:
     """Rejects blank hub_id and non-positive limit."""
     service = AlternativeHubService(network_core)
@@ -195,6 +200,7 @@ def test_suggest_alternative_hubs_validates_input(network_core: CoreFacade) -> N
     assert bad_limit.code is ErrorCode.INVALID_INPUT
 
 
+@pytest.mark.tc_m4_016
 def test_find_alternative_charging_allocates_chargers(network_core: CoreFacade) -> None:
     """UC-M4-07, BR-M4-10: Displaced charging requests find free chargers at nearest hubs."""
     distances = {
@@ -232,6 +238,7 @@ def test_find_alternative_charging_allocates_chargers(network_core: CoreFacade) 
     assert allocated[2].status == "NO_CHARGER"
 
 
+@pytest.mark.tc_m4_017
 def test_find_alternative_charging_skips_occupied_or_claimed_bays(
     network_core: CoreFacade,
 ) -> None:

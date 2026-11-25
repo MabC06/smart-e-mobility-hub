@@ -28,22 +28,25 @@ class ChargingError:
 type ChargingResult[T] = Ok[T] | ChargingError
 
 
+_CORE_ERROR_MAP: dict[ErrorCode, ChargingErrorCode] = {
+    ErrorCode.INVALID_INPUT: ChargingErrorCode.INVALID_INPUT,
+    ErrorCode.FORBIDDEN: ChargingErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND: ChargingErrorCode.NOT_FOUND,
+    ErrorCode.RESOURCE_UNAVAILABLE: ChargingErrorCode.RESOURCE_UNAVAILABLE,
+    ErrorCode.CLAIM_CONFLICT: ChargingErrorCode.CONFLICT,
+    ErrorCode.VERSION_CONFLICT: ChargingErrorCode.CONFLICT,
+    ErrorCode.INVALID_TRANSITION: ChargingErrorCode.INVALID_STATE,
+    ErrorCode.HUB_FULL: ChargingErrorCode.INVALID_STATE,
+    ErrorCode.SPACE_NOT_FREE: ChargingErrorCode.INVALID_STATE,
+    ErrorCode.BATTERY_TOO_LOW: ChargingErrorCode.INVALID_INPUT,
+}
+
+
 def from_core_error(err: Err) -> ChargingError:
-    mapping = {
-        ErrorCode.INVALID_INPUT: ChargingErrorCode.INVALID_INPUT,
-        ErrorCode.FORBIDDEN: ChargingErrorCode.FORBIDDEN,
-        ErrorCode.NOT_FOUND: ChargingErrorCode.NOT_FOUND,
-        ErrorCode.INVALID_STATE: ChargingErrorCode.INVALID_STATE,
-        ErrorCode.RESOURCE_UNAVAILABLE: ChargingErrorCode.RESOURCE_UNAVAILABLE,
-        getattr(ErrorCode, "CLAIM_CONFLICT", None): ChargingErrorCode.CONFLICT,
-        getattr(ErrorCode, "VERSION_CONFLICT", None): ChargingErrorCode.CONFLICT,
-        getattr(ErrorCode, "INVALID_TRANSITION", None): ChargingErrorCode.INVALID_STATE,
-        getattr(ErrorCode, "HUB_FULL", None): ChargingErrorCode.INVALID_STATE,
-        getattr(ErrorCode, "SPACE_NOT_FREE", None): ChargingErrorCode.INVALID_STATE,
-        getattr(ErrorCode, "BATTERY_TOO_LOW", None): ChargingErrorCode.INVALID_INPUT,
-    }
-    clean_mapping = {k: v for k, v in mapping.items() if k is not None}
-    return ChargingError(clean_mapping.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message)
+    """Translate a refused Core command into a charging error (FR-07)."""
+    return ChargingError(
+        _CORE_ERROR_MAP.get(err.code, ChargingErrorCode.INTERNAL_ERROR), err.message
+    )
 
 
 class ChargingSessionStatus(StrEnum):

@@ -23,7 +23,7 @@ def install(core: CoreFacade, app: FastAPI) -> None:
     1. Register relational tables into core's transaction manager (D-018).
     2. Instantiate the MonitoringService.
     3. Subscribe to domain events (SpaceOccupancyChanged, ChargingPointStatusChanged,
-       VehicleBatteryChanged).
+       VehicleBatteryChanged, SensorEventRejected, SensorHeartbeat).
     4. Mount the monitoring API router on the FastAPI application.
     """
     # Register schemas
@@ -39,6 +39,8 @@ def install(core: CoreFacade, app: FastAPI) -> None:
         EventType.CHARGING_POINT_STATUS_CHANGED, service.on_charging_point_status_changed
     )
     core.events.subscribe(EventType.VEHICLE_BATTERY_CHANGED, service.on_vehicle_battery_changed)
+    core.events.subscribe(EventType.SENSOR_EVENT_REJECTED, service.on_sensor_event_rejected)
+    core.events.subscribe(EventType.SENSOR_HEARTBEAT, service.on_sensor_heartbeat)
 
     # Inject service into router and mount
     set_service(service)
