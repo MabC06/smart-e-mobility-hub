@@ -57,6 +57,9 @@ unless another file is stated.
 | TC-M2-024 Authenticated rental journey | FR-03/04, UC-M2-02/03/04/05, D-015/023, NFR-07/09/16 | INT/ST | H | F3, student token | Reserve, list bookings, pick up and return. Retry the same operations. Separately cancel a confirmed booking | HTTP 200. Pickup opens one trip and vacates its origin. Return occupies the destination and closes the trip. Cancel preserves parked occupancy. Retries return the stored outcome | 2 HTTP tests passed | Pass | [`test_router.py`][router-tests] |
 | TC-M2-025 API authorization, validation and failures | D-023, BR-M2-09/10, NFR-09/16/18, M2-1 | INT/EP/FI | H | F3, two student tokens and an operator token | Try all endpoints without a token and as the operator. Try foreign and missing IDs, invalid input, stale versions and a full Hub. Inject write and list storage failures | 401/403 for access denial, identical 404 for foreign and missing records, 400 for invalid rental input, and 409 for a stale version or full Hub. Write failure returns 500 and rolls back. List failure returns 503. No storage details leak | 3 HTTP tests passed | Pass | [`test_router.py`][router-tests] |
 | TC-M2-026 ReservationDemand over Core | D-020/021, BR-M2-04/15, FR-03/04 | INT/BVA | H | F1, installed provider | Read pickup demand at active and expired boundaries. Try an invalid horizon and an unknown Hub. Read open trips at origin and planned destination before and after the overdue boundary and after return | Sorted live holds and open trips. An omitted destination stays absent. Overdue is reported only after due time plus 60 min. Completed trips are excluded. Reads do not change shared state | 8 cases passed across memory and SQLite | Pass | [`test_provider.py`][provider-tests] |
+| TC-M2-027 Vehicle search | FR-02, UC-M2-01, BR-M2-02, NFR-16/18 | INT/EP | H | F4, student and operator tokens | Search H1 with no filter, by type and by minimum battery; reserve one vehicle as another student and search again. Search without a token, as the operator, with a minimum over 100, an unknown type and an unknown Hub | Fleet vehicles at 20% or more, sorted by battery then ID; filters apply; a reserved vehicle is left out. 401, 403, 400 for invalid input and 404 for an unknown Hub; no shared state changes | 2 HTTP tests passed | Pass | [`test_search_sweep.py`][sweep-tests] |
+| TC-M2-028 Expiry on the next request | FR-03, UC-M2-03, BR-M2-04, D-017 | INT/BVA/ST | H | F4, Confirmed R1 | Reserve a second vehicle before the deadline; set the clock to the deadline and list bookings; search and reserve again | Second booking refused with LIMIT_REACHED; at the deadline the next request records R1 as EXPIRED and frees V1; the new booking is Confirmed | 1 HTTP test passed | Pass | [`test_search_sweep.py`][sweep-tests] |
+| TC-M2-029 Overdue Trip | FR-04, UC-M2-05, BR-M2-15 | INT/BVA/ST | H | F4, picked-up R1 | List bookings at due + 60 min and one second later; return the vehicle | Still IN_PROGRESS at the boundary, OVERDUE after it with the booking ACTIVE; the return completes the Trip | 1 HTTP test passed | Pass | [`test_search_sweep.py`][sweep-tests] |
 
 ## Execution record
 
@@ -64,12 +67,15 @@ unless another file is stated.
 |---|---|---|---|---|---|
 | 2026-11-23 | `bb5c622` | Windows, Python 3.14.4, memory and SQLite | `python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60` | 159 passed, 96.01% (313/326) | [M2 validation evidence](../evidence/m2-validation-2026-11-23.json) |
 | 2026-11-24 | `6488bc2` (PR #54) | Windows, Python 3.14.4, memory and SQLite | `python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60` | 172 passed, 96.70% (439/454). TC-M2-024 to TC-M2-026 accounted for 13 passes | [Code revision][router-revision] |
+| 2026-11-25 | branch `fix/reservation-search-expiry-overdue` | Windows, Python 3.12.10, memory and SQLite | `python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60` | 176 passed, 95.61% (523/547). TC-M2-027 to TC-M2-029 accounted for 4 passes | [`test_search_sweep.py`][sweep-tests] |
 
 The November 23 baseline covers TC-M2-001 through TC-M2-023. The November 24
 run also covers the authenticated API and the `ReservationDemand` provider
-from PR #54. FR-02 search, FR-05 parking, FR-07 parking/charging coordination,
-automatic maintenance, `HoldConsumer` and browser-based student rental remain
-outside this evidence.
+from PR #54. The November 25 run adds FR-02 search and the sweep that expires due
+bookings and marks overdue Trips on the next request. FR-05 parking, FR-07
+parking/charging coordination and `HoldConsumer` remain outside this evidence.
+Fixture `F4` is the HTTP app of `test_search_sweep.py`: H1 with five fleet
+vehicles (one under 20%), H2 with two free spaces, two students and an operator.
 Use the [Phase 2 guide](../reservation-phase2.md) for the historical execution
 and the [defect log](../defect-log.md) for regression disposition. A successful
 coverage run supports the NFR-24 threshold for M2. M8 records team sign-off.
@@ -77,4 +83,5 @@ coverage run supports the NFR-24 threshold for M2. M8 records team sign-off.
 [router-install]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_booking.py#L480
 [router-tests]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_router.py
 [provider-tests]: https://github.com/MabC06/smart-e-mobility-hub/blob/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53/tests/reservation/test_provider.py
+[sweep-tests]: ../../../tests/reservation/test_search_sweep.py
 [router-revision]: https://github.com/MabC06/smart-e-mobility-hub/commit/6488bc2c3ae7b369b3b5f969fb395d658b4c0e53

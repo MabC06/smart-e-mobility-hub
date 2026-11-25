@@ -1,9 +1,13 @@
 """M2-owned rental records; Core owns vehicles, spaces and claims (D-018)."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import ClassVar
+
+from core.views import VehicleView
+
+OVERDUE_GRACE = timedelta(minutes=60)  # BR-M2-15: an open Trip is OVERDUE after due + 60 min
 
 
 class ReservationStatus(StrEnum):
@@ -36,6 +40,15 @@ class ReserveRequest:
     destination_hub_id: str | None = None
     min_battery: float = 20.0
     planned_duration_minutes: int = 30
+
+
+@dataclass(frozen=True, slots=True)
+class VehicleSearch:
+    """FR-02 result: rentable fleet vehicles at one Hub, best battery first, as of Core time."""
+
+    hub_id: str
+    as_of: datetime
+    vehicles: list[VehicleView]
 
 
 @dataclass(slots=True)

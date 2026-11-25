@@ -1,18 +1,24 @@
-"""Student booking API. Identity and role always come from Core (D-023)."""
+"""Student booking API. Identity and role always come from Core (D-023).
+
+Every route checks the student, then runs the lifecycle sweep, so due bookings
+expire and late Trips become OVERDUE before the request reads or changes anything
+(D-017, BR-M2-15).
+"""
 
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from core.api.security import Principal, acting_as, require_student
+from core.domain.enums import VehicleType
 from core.facade import CoreFacade
 from core.repository.base import RepositoryError
 from core.result import Err
 from reservation import storage
 from reservation.lifecycle import RentalLifecycle
-from reservation.models import RentalReservation, RentalTrip, ReserveRequest
+from reservation.models import RentalReservation, RentalTrip, ReserveRequest, VehicleSearch
 from reservation.results import BookingError, BookingErrorCode, BookingResult
 from reservation.service import BookingService
 
@@ -71,17 +77,35 @@ def _value[T](result: BookingResult[T]) -> T:
 def create_router(
     core: CoreFacade, service: BookingService, lifecycle: RentalLifecycle
 ) -> APIRouter:
-    """Mount the five M2 operations with Core's authenticated student dependency."""
+    """Mount the M2 operations with Core's authenticated student dependency."""
     router = APIRouter(prefix="/reservations", tags=["reservation"])
 
+    def swept_student(who: Student) -> Principal:
+        """The checked student, after due bookings expired and late Trips were marked."""
+        lifecycle.sweep()
+        return who
+
+    Caller = Annotated[Principal, Depends(swept_student)]
+
+    @router.get("/vehicles")
+    def search(
+        who: Caller,
+        hub_id: str,
+        vehicle_type: Annotated[VehicleType | None, Query(alias="type")] = None,
+        min_battery: Annotated[float, Query(ge=0, le=100)] = 20.0,
+    ) -> VehicleSearch:
+        return _value(
+            service.search(hub_id, vehicle_type, min_battery, acting_as(who, "reservation"))
+        )
+
     @router.post("")
-    def reserve(body: ReserveIn, who: Student) -> RentalReservation:
+    def reserve(body: ReserveIn, who: Caller) -> RentalReservation:
         return _value(
             service.reserve(ReserveRequest(**body.model_dump()), acting_as(who, "reservation"))
         )
 
     @router.get("/mine")
-    def mine(who: Student, response: Response) -> StudentRentals:
+    def mine(who: Caller, response: Response) -> StudentRentals:
         actor = acting_as(who, "reservation")
         response.headers["Cache-Control"] = "no-store"
         try:
@@ -107,7 +131,7 @@ def create_router(
             ) from None
 
     @router.post("/{reservation_id}/pickup")
-    def pickup(reservation_id: str, body: PickupIn, who: Student) -> RentalTrip:
+    def pickup(reservation_id: str, body: PickupIn, who: Caller) -> RentalTrip:
         return _value(
             service.pickup(
                 reservation_id,
@@ -118,11 +142,11 @@ def create_router(
         )
 
     @router.post("/{reservation_id}/cancel")
-    def cancel(reservation_id: str, who: Student) -> RentalReservation:
+    def cancel(reservation_id: str, who: Caller) -> RentalReservation:
         return _value(lifecycle.cancel(reservation_id, acting_as(who, "reservation")))
 
     @router.post("/{reservation_id}/return")
-    def return_vehicle(reservation_id: str, body: ReturnIn, who: Student) -> RentalTrip:
+    def return_vehicle(reservation_id: str, body: ReturnIn, who: Caller) -> RentalTrip:
         return _value(
             service.return_trip(
                 f"TRIP:{reservation_id}",
