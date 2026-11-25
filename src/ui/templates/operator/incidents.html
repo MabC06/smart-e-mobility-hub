@@ -67,10 +67,10 @@
   </p>
   <p>
     {% if incident.status in ("OPEN", "ESCALATED") %}
-    <a class="button" href="{{ request.url }}">Acknowledge</a>
+    <a class="button primary" href="{{ request.url }}">Acknowledge</a>
     {% endif %}
     {% if incident.status in ("IN_PROGRESS", "ESCALATED") %}
-    <a class="button" href="{{ request.url }}">Resolve</a>
+    <a class="button primary" href="{{ request.url }}">Resolve</a>
     {% endif %}
     {% if incident.status == "RESOLVED" %}
     <a class="button" href="{{ request.url }}">Close</a>

@@ -1,23 +1,57 @@
-/* Styles of the UI prototype (Phase 2). Plain CSS, no build step (D-002). */
+/*
+  Styles of the UI (D-002: plain CSS, no build step).
+
+  Layout rules (Universal Design, principles 3 and 4):
+  - Every bar (prototype note, header, tabs, alert strip, footer) and the page content share one
+    1100 px column, so all text starts on the same left edge.
+  - Each block of content is a panel: white, bordered, with its heading inside. The page
+    background is only the gap between panels.
+  - A status is always one badge shape: symbol + word, border and tinted background, never
+    colour alone.
+  - The main action of a block is `.button.primary`; a disabled control looks disabled.
+
+  Hooks the templates must keep: .site-header, .tabs, .alert-strip, .site-footer, .card,
+  .cards, .table-wrap, .status + .status-<STATUS>, .button (+ .primary), .simulation-banner,
+  .error-block, .login, .planned, and <section>/<form>/<details> directly inside <main>.
+*/
 
 :root {
   --text: #1f2933;
-  --muted: #616e7c;
-  --line: #cbd2d9;
+  --muted: #5b6876;
+  --line: #d9dee4;          /* rows inside a table */
+  --panel-line: #b8c2cc;    /* edge of a panel: visible against the page */
   --surface: #ffffff;
-  --page: #f5f7fa;
+  --page: #eef1f5;
+  --head: #f4f6f8;          /* table header and toolbar background */
   --link: #1f5fbf;
+  --link-dark: #174a96;
+  --link-tint: #eaf1fb;
   --ok: #1e7b45;
-  --warning: #9a5b00;      /* amber badge for WARNING (operator O1 notes) */
+  --ok-bg: #e6f4ea;
+  --ok-line: #9fd3b0;
+  --warning: #8a5100;
   --warning-bg: #fff4dc;
-  --critical: #b3261e;     /* red badge for CRITICAL */
+  --warning-line: #e9b95c;
+  --critical: #b3261e;
   --critical-bg: #fde7e6;
+  --critical-line: #ec9c96;
+  --neutral: #4b5563;
+  --neutral-bg: #eef1f4;
+  --column: 1100px;
+  --gutter: 16px;
+  /* Left and right padding that lines a full-width bar up with the content column. */
+  --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
 }
 
 * { box-sizing: border-box; }
 
+/* ------------------------------------------------------------------ page frame */
+
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
   background: var(--page);
@@ -25,16 +59,22 @@ body {
 }
 
 a { color: var(--link); }
+a:hover { color: var(--link-dark); }
 
-main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+main {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: 24px var(--gutter) 32px;
+}
 
 .prototype-note {
   margin: 0;
-  padding: 6px 16px;
-  background: #e8eefc;
-  color: var(--muted);
+  padding: 6px var(--bar-pad);
+  background: #e3e9f6;
+  color: var(--text);
   font-size: 0.875rem;
-  text-align: center;
 }
 
 .site-header,
@@ -43,119 +83,336 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: center;
-  padding: 10px 16px;
+  padding: 12px var(--bar-pad);
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--panel-line);
 }
 
-.site-header .brand { font-weight: 600; color: var(--text); text-decoration: none; }
-.site-header .user { color: var(--muted); }
-.site-header nav { margin-left: auto; }
+.site-header .brand { font-weight: 700; color: var(--text); text-decoration: none; }
+.site-header .user {
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.site-header nav { margin-left: auto; color: var(--muted); }
+.site-header nav a { padding: 4px 6px; font-weight: 600; text-decoration: none; }
+.site-header nav a:hover { text-decoration: underline; }
 
 .site-footer {
-  border-top: 1px solid var(--line);
+  margin-top: auto;
+  border-top: 1px solid var(--panel-line);
   border-bottom: 0;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-.tabs {
+/* Operator tab bar: the active tab is marked by weight and an underline, not colour alone. */
+body > .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px 16px 0;
+  padding: 0 var(--bar-pad);
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--panel-line);
 }
 
-.tabs a {
-  padding: 6px 12px;
-  border: 1px solid transparent;
-  border-bottom: 0;
+body > .tabs a {
+  padding: 10px 14px 8px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.tabs a[aria-current="page"] {
-  border-color: var(--line);
-  background: var(--page);
+body > .tabs a:hover { color: var(--link); }
+
+body > .tabs a[aria-current="page"] {
+  border-bottom-color: var(--link);
   color: var(--text);
-  font-weight: 600;
 }
 
 .alert-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
   margin: 0;
-  padding: 8px 16px;
+  padding: 8px var(--bar-pad);
+  background: var(--head);
+  border-bottom: 1px solid var(--panel-line);
+  font-size: 0.9375rem;
+}
+
+.alert-strip a.status { text-decoration: none; }
+
+/* ------------------------------------------------------------------ headings */
+
+main > h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 4px;
+  font-size: 1.625rem;
+  line-height: 1.3;
+}
+
+main > h1 small { color: var(--muted); font-size: 0.9375rem; font-weight: 400; }
+main > h1 + p { margin-top: 0; color: var(--muted); }
+
+/* ------------------------------------------------------------------ panels */
+
+main > section:not(.login):not(.error-block),
+main > form,
+main > details,
+main > .table-wrap,
+.card,
+.login {
+  margin: 0 0 24px;
+  padding: 16px 20px;
   background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+
+main > .table-wrap { padding: 0; overflow-x: auto; }
+
+main > section > h2,
+.card > h2,
+main > section > h3,
+.card > h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
+  font-size: 1.125rem;
+  line-height: 1.35;
 }
 
-/* A status is always shown as a word (and a symbol on operator screens), never by colour only. */
-.status { font-weight: 600; }
-.status-ACTIVE { color: var(--ok); }
-.status-WARNING { color: var(--warning); background: var(--warning-bg); padding: 0 4px; }
-.status-CRITICAL { color: var(--critical); background: var(--critical-bg); padding: 0 4px; }
-.status-MAINTENANCE { color: var(--muted); }
-
-table { width: 100%; border-collapse: collapse; background: var(--surface); }
-th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
-th { color: var(--muted); font-weight: 600; }
-
-.table-wrap { overflow-x: auto; }
-
-.button {
-  display: inline-block;
-  padding: 6px 14px;
-  border: 1px solid var(--link);
-  border-radius: 4px;
-  background: var(--surface);
-  text-decoration: none;
-}
-
-.card {
-  margin: 0 0 16px;
-  padding: 12px 16px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.card h2 { margin: 0 0 4px; font-size: 1.1rem; }
-
-.note { color: var(--muted); font-size: 0.875rem; }
+.card > h3, main > section > h3 { font-size: 1rem; margin-top: 16px; }
+.card > :last-child, main > section > :last-child { margin-bottom: 0; }
 
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  margin-bottom: 24px;
 }
 
-.cards .card { margin: 0; }
+.cards .card { display: flex; flex-direction: column; margin: 0; }
+/* The badge always sits on its own line under the Hub name, whatever the name's length. */
+.cards .card > h2 { flex-direction: column; align-items: flex-start; }
+.cards .card > :last-child { margin-top: auto; }
 
-meter { width: 100%; }
+main > details > summary { cursor: pointer; font-weight: 600; }
+main > details[open] > summary { margin-bottom: 12px; }
 
-.simulation-banner {
-  padding: 6px 12px;
-  border: 2px dashed var(--warning);
-  background: var(--warning-bg);
+/* A row of filters: one toolbar line above the panel it filters. */
+main > p:has(select),
+main > section > p:has(select) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+/* Inside O2 the "tabs" jump to sections of the same page: a small link row, not a second tab bar. */
+main .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+main .tabs a {
+  padding: 4px 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+main .tabs a:hover { background: var(--link-tint); }
+
+/* ------------------------------------------------------------------ status badge */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 10px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.status-ACTIVE { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
+.status-WARNING { color: var(--warning); background: var(--warning-bg); border-color: var(--warning-line); }
+.status-CRITICAL { color: var(--critical); background: var(--critical-bg); border-color: var(--critical-line); }
+.status-MAINTENANCE { color: var(--neutral); background: var(--neutral-bg); border-color: var(--panel-line); }
+
+.status-note { display: block; margin-top: 2px; color: var(--muted); font-size: 0.8125rem; }
+
+/* ------------------------------------------------------------------ tables */
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th {
+  background: var(--head);
+  border-bottom: 1px solid var(--panel-line);
+  color: var(--muted);
+  font-size: 0.875rem;
   font-weight: 600;
 }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #f8fafc; }
+main > .table-wrap th:first-child, main > .table-wrap td:first-child,
+main > form > .table-wrap th:first-child, main > form > .table-wrap td:first-child { padding-left: 20px; }
+main > .table-wrap th:last-child, main > .table-wrap td:last-child { padding-right: 20px; }
 
-.login { max-width: 360px; margin: 32px auto; }
-.login label { display: block; font-weight: 600; }
-.login input { width: 100%; padding: 6px; }
+.table-wrap { overflow-x: auto; }
+section > .table-wrap, form > .table-wrap { border: 1px solid var(--line); border-radius: 6px; }
+
+/* ------------------------------------------------------------------ buttons and form controls */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  margin: 0 6px 6px 0;
+  padding: 6px 14px;
+  border: 1px solid var(--link);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--link);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover { background: var(--link-tint); }
+
+.button.primary { background: var(--link); color: #ffffff; }
+.button.primary:hover { background: var(--link-dark); border-color: var(--link-dark); color: #ffffff; }
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  border-style: dashed;
+  border-color: var(--panel-line);
+  background: var(--neutral-bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+input:disabled, select:disabled, textarea:disabled { background: var(--neutral-bg); color: var(--muted); }
+
+:focus-visible { outline: 3px solid #7aa7e8; outline-offset: 2px; }
+
+/* Forms directly in a panel: labelled fields side by side, wrapping on a narrow screen. */
+main > form > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+main > form > p > label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9375rem; }
+main > form > p > label input { font-weight: 400; }
+
+main > form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+main > form fieldset legend { margin-bottom: 4px; padding: 0; font-weight: 600; font-size: 0.9375rem; }
+main > form fieldset label { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ------------------------------------------------------------------ parking meter */
+
+meter { width: 100%; height: 10px; }
+meter::-webkit-meter-bar { background: var(--neutral-bg); border: 1px solid var(--panel-line); border-radius: 999px; }
+meter::-webkit-meter-optimum-value { background: var(--ok); border-radius: 999px; }
+meter::-webkit-meter-suboptimum-value { background: #c98a00; border-radius: 999px; }
+meter::-webkit-meter-even-less-good-value { background: var(--critical); border-radius: 999px; }
+meter:-moz-meter-optimum::-moz-meter-bar { background: var(--ok); }
+meter:-moz-meter-sub-optimum::-moz-meter-bar { background: #c98a00; }
+meter:-moz-meter-sub-sub-optimum::-moz-meter-bar { background: var(--critical); }
+
+/* ------------------------------------------------------------------ special blocks */
+
+.note { color: var(--muted); font-size: 0.875rem; }
+
+.simulation-banner {
+  margin: 0 0 16px;
+  padding: 8px 14px;
+  border: 2px dashed var(--warning);
+  border-radius: 8px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* A simulated result is never mistaken for real state (NFR-12). */
+main > p.simulation-banner ~ section.card { border: 2px dashed var(--warning-line); }
+
+.login { max-width: 380px; margin: 48px auto; }
+.login h1 { margin-top: 0; font-size: 1.375rem; }
+.login label { display: block; margin-bottom: 4px; font-weight: 600; }
+.login input { width: 100%; }
 
 .planned {
   display: inline-block;
   padding: 0 6px;
-  border: 1px dashed var(--muted);
+  border: 1px dashed var(--panel-line);
+  border-radius: 4px;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 
 .error-block {
-  padding: 12px 16px;
-  border: 1px solid var(--critical);
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  border: 1px solid var(--critical-line);
+  border-left: 6px solid var(--critical);
+  border-radius: 8px;
   background: var(--critical-bg);
 }
 
-.error-block h2 { margin: 0 0 4px; font-size: 1.1rem; color: var(--critical); }
+.error-block h2 { margin: 0 0 4px; font-size: 1.125rem; color: var(--critical); }
 .error-block .details { color: var(--muted); font-size: 0.875rem; }
