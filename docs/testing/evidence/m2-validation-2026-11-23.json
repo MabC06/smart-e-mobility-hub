@@ -1,0 +1,63 @@
+{
+  "date_ict": "2026-11-23",
+  "baseline": "bb5c622472c2b0c8363198d790d2d0308080d569",
+  "platform": "Windows x64, Python 3.14.4",
+  "focused": {
+    "command": "python -m pytest tests/reservation -q --cov=reservation --cov-fail-under=60",
+    "passed": 159
+  },
+  "full": {
+    "command": "python -m pytest -q --cov=core --cov=reservation --cov=charging --cov=allocation --cov=monitoring --cov=simulation --cov-report=term --cov-report=json",
+    "passed": 1393,
+    "skipped": 1,
+    "warnings": 1,
+    "line_coverage_by_module": {
+      "core": {
+        "covered_lines": 2294,
+        "statements": 2324,
+        "percentage": 98.71,
+        "minimum": 70
+      },
+      "reservation": {
+        "covered_lines": 313,
+        "statements": 326,
+        "percentage": 96.01,
+        "minimum": 60
+      },
+      "charging": {
+        "covered_lines": 502,
+        "statements": 578,
+        "percentage": 86.85,
+        "minimum": 60
+      },
+      "allocation": {
+        "covered_lines": 671,
+        "statements": 750,
+        "percentage": 89.47,
+        "minimum": 60
+      },
+      "monitoring": {
+        "covered_lines": 295,
+        "statements": 330,
+        "percentage": 89.39,
+        "minimum": 60
+      },
+      "simulation": {
+        "covered_lines": 95,
+        "statements": 105,
+        "percentage": 90.48,
+        "minimum": 60
+      }
+    }
+  },
+  "reopen_regression": {
+    "command": "python -m pytest -q tests/reservation/test_persistence.py tests/core/test_id_recovery.py",
+    "passed": 6
+  },
+  "static_checks": {
+    "ruff check .": "pass",
+    "ruff format --check .": "pass (189 files)",
+    "python -m mypy": "pass (47 source files)"
+  },
+  "scope": "Executed service tests and repository regressions. No claim of UI booking, private parking, runtime providers, or concurrent performance measurements."
+}
