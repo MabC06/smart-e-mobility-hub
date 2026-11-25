@@ -477,13 +477,13 @@ def test_faulty_trip_uses_core_faulty_return(rental):
 
 
 @pytest.mark.tc_m2_018
-def test_install_registers_entities_but_not_unimplemented_providers(rental):
+def test_install_registers_entities_and_read_provider_once(rental):
     """Verifies: D-013/018/020, NFR-22; startup does not claim Phase 3 capabilities."""
     from core.providers import ProviderPort
 
     install(rental.core, rental.app)
     assert rental.app.state.reservation.core is rental.core
-    assert not rental.core.providers.is_registered(ProviderPort.RESERVATION_DEMAND)
+    assert rental.core.providers.is_registered(ProviderPort.RESERVATION_DEMAND)
     assert not rental.core.providers.is_registered(ProviderPort.HOLD_CONSUMER)
     ok(rental.app.state.reservation.reserve(rental.request(), rental.actor))
 

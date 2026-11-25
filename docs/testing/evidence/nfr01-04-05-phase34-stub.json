@@ -1,0 +1,315 @@
+{
+  "run_at_utc": "2026-11-23T03:04:17.708485+00:00",
+  "commit": "01d68e764876a4c22fad53145843d164339784f9",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "environment": "FastAPI TestClient + in-memory SQLite; sequential; no concurrency",
+  "isolation": "every measurement below runs on its own freshly loaded DS-STD (seed 2026)",
+  "dataset": {
+    "seed": 2026,
+    "hubs": 10,
+    "vehicles": 350
+  },
+  "reservation_demand_provider": "STUB (empty demand)",
+  "nfr05": {
+    "name": "POST /simulation/runs (SC-01)",
+    "samples": 5,
+    "success_count": 5,
+    "status_codes": {
+      "200": 5
+    },
+    "p50_ms": 56.064,
+    "p95_ms": 131.106,
+    "max_ms": 131.106,
+    "raw_ms": [
+      131.106,
+      60.015,
+      56.064,
+      55.292,
+      55.563
+    ],
+    "scenarios_measured": [
+      "SC-01"
+    ],
+    "scenarios_not_implemented": [
+      "SC-02",
+      "SC-03",
+      "SC-04",
+      "SC-05"
+    ],
+    "target_ms_per_scenario": 30000.0,
+    "ignored_wall_clock_keys": [
+      "as_of",
+      "executed_at",
+      "taken_at"
+    ],
+    "nfr12_operational_state_unchanged": true,
+    "nfr13_same_seed_same_output": true,
+    "verdict": "PASS (SC-01 only)"
+  },
+  "nfr01": {
+    "name": "write then GET /charging/sessions",
+    "samples": 100,
+    "success_count": 100,
+    "status_codes": {
+      "200": 100
+    },
+    "p50_ms": 3.163,
+    "p95_ms": 4.449,
+    "max_ms": 5.563,
+    "raw_ms": [
+      3.087,
+      2.553,
+      2.45,
+      2.613,
+      2.658,
+      2.528,
+      2.422,
+      2.484,
+      2.399,
+      2.785,
+      2.356,
+      2.221,
+      2.813,
+      2.23,
+      2.3,
+      2.726,
+      2.626,
+      2.467,
+      2.673,
+      3.01,
+      2.865,
+      2.665,
+      2.785,
+      3.378,
+      2.911,
+      2.674,
+      2.937,
+      2.744,
+      2.874,
+      2.824,
+      2.841,
+      2.59,
+      3.604,
+      4.044,
+      3.198,
+      2.91,
+      3.163,
+      3.12,
+      2.942,
+      3.245,
+      3.432,
+      3.245,
+      3.275,
+      2.981,
+      3.461,
+      2.899,
+      3.127,
+      3.283,
+      3.958,
+      3.129,
+      2.962,
+      3.163,
+      2.915,
+      3.341,
+      3.331,
+      4.159,
+      4.455,
+      3.117,
+      3.035,
+      3.091,
+      3.173,
+      2.933,
+      3.433,
+      3.28,
+      3.151,
+      4.223,
+      2.955,
+      3.196,
+      3.323,
+      3.191,
+      3.353,
+      3.381,
+      3.298,
+      3.309,
+      3.091,
+      3.464,
+      5.237,
+      3.715,
+      3.249,
+      4.291,
+      4.963,
+      4.449,
+      3.255,
+      3.491,
+      3.386,
+      3.542,
+      3.813,
+      4.205,
+      2.929,
+      3.554,
+      4.026,
+      4.464,
+      3.588,
+      4.018,
+      5.563,
+      4.423,
+      3.026,
+      3.775,
+      3.595,
+      3.269
+    ],
+    "writes_attempted": 100,
+    "new_state_visible_in_next_read": 100,
+    "write_errors": [],
+    "target_p95_ms": 1000.0,
+    "verdict": "PASS"
+  },
+  "nfr04_charging": {
+    "operation": "POST /charging/schedule/optimize?hub_id=<each Hub>",
+    "queue_depth_per_hub": 15,
+    "target_ms_per_hub": 3000.0,
+    "hubs": {
+      "H01": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 131.513,
+        "verdict": "PASS"
+      },
+      "H02": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 214.542,
+        "verdict": "PASS"
+      },
+      "H03": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 297.721,
+        "verdict": "PASS"
+      },
+      "H04": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 447.464,
+        "verdict": "PASS"
+      },
+      "H05": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 463.552,
+        "verdict": "PASS"
+      },
+      "H06": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 613.63,
+        "verdict": "PASS"
+      },
+      "H07": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 756.029,
+        "verdict": "PASS"
+      },
+      "H08": {
+        "queued_before": 14,
+        "bound_by_optimize": 14,
+        "status": 200,
+        "elapsed_ms": 1031.736,
+        "verdict": "PASS"
+      },
+      "H09": {
+        "queued_before": 12,
+        "bound_by_optimize": 6,
+        "status": 200,
+        "elapsed_ms": 795.265,
+        "verdict": "PASS"
+      },
+      "H10": {
+        "queued_before": 9,
+        "bound_by_optimize": 4,
+        "status": 200,
+        "elapsed_ms": 480.453,
+        "verdict": "PASS"
+      }
+    },
+    "worst_ms": 1031.736,
+    "verdict": "PASS"
+  },
+  "nfr04_charging_depth_sweep_H01": [
+    {
+      "requested_depth": 5,
+      "available_vehicles": 5,
+      "queued_before": 5,
+      "status": 200,
+      "elapsed_ms": 19.88,
+      "ms_per_queued_request": 4.0,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 10,
+      "available_vehicles": 10,
+      "queued_before": 10,
+      "status": 200,
+      "elapsed_ms": 47.233,
+      "ms_per_queued_request": 4.7,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 15,
+      "available_vehicles": 15,
+      "queued_before": 15,
+      "status": 200,
+      "elapsed_ms": 122.022,
+      "ms_per_queued_request": 8.1,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 30,
+      "available_vehicles": 30,
+      "queued_before": 30,
+      "status": 200,
+      "elapsed_ms": 674.566,
+      "ms_per_queued_request": 22.5,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 50,
+      "available_vehicles": 50,
+      "queued_before": 50,
+      "status": 200,
+      "elapsed_ms": 2636.264,
+      "ms_per_queued_request": 52.7,
+      "within_3s": true
+    }
+  ],
+  "nfr04_allocation": {
+    "name": "POST /allocation/tasks/plan",
+    "samples": 5,
+    "success_count": 5,
+    "status_codes": {
+      "200": 5
+    },
+    "p50_ms": 60.701,
+    "p95_ms": 78.7,
+    "max_ms": 78.7,
+    "raw_ms": [
+      78.7,
+      62.682,
+      60.701,
+      57.342,
+      58.53
+    ],
+    "reservation_demand_provider": "STUB (empty demand)",
+    "target_ms": 5000.0,
+    "verdict": "PASS",
+    "note": "Timed with an empty-demand stub provider, not M2's implementation."
+  }
+}

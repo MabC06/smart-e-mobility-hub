@@ -87,6 +87,24 @@ def all_reservations(core: CoreFacade) -> list[RentalReservation]:
     return cast(list[RentalReservation], core.query_entities(cast(type[Entity], RentalReservation)))
 
 
+def all_trips(core: CoreFacade) -> list[RentalTrip]:
+    """Read detached Trip records in ID order."""
+    return cast(list[RentalTrip], core.query_entities(cast(type[Entity], RentalTrip)))
+
+
+def student_records(
+    core: CoreFacade, user_id: str
+) -> tuple[list[RentalReservation], list[RentalTrip]]:
+    """Read the student's bookings and open trips inside the caller's read boundary."""
+    bookings = [booking for booking in all_reservations(core) if booking.user_id == user_id]
+    open_trips = [
+        trip
+        for trip in all_trips(core)
+        if trip.user_id == user_id and trip.status in (TripStatus.IN_PROGRESS, TripStatus.OVERDUE)
+    ]
+    return bookings, open_trips
+
+
 def add(repo: Repository, entity: RentalReservation | RentalTrip) -> None:
     """Insert an M2 record using the caller's open unit of work."""
     repo.add(cast(Entity, entity))
