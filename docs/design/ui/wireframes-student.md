@@ -1,5 +1,7 @@
 # Wireframes: Student Interface
 
+> Update of 2026-11-25 (PR 4, M1): every screen is connected; what each screen calls is in `docs/report/06-ui-design.md`, Section 3.4.8. The notes below that still say "Planned" describe the design before that date.
+
 > Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`.
 > Sources: M2's `fr-02-05-07-reservation.md` (`UC-M2-01` to `UC-M2-08`) and the M2 code on `develop` (`src/reservation`, routes in `router.py`); M3's `fr-06-07-11-charging.md` (the version on `develop`; M3's newer branch replaces it with report text) and M3's code on `origin/feat/charging-phase2`; `core` (facade and REST routes); `architecture-diagram.md` Section 11 point 2. Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
@@ -57,7 +59,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - If the student already has a rental, the button is disabled with "You can hold one rental at a time" (`LIMIT_REACHED`). Reading the student's bookings is Planned.
 - Why: the student compares vehicles, free spaces and charging in one table.
 
-### S3. Search for a vehicle (Implemented, M2 search Planned) · `UC-M2-01`, `FR-02`
+### S3. Search for a vehicle (Implemented) · `UC-M2-01`, `FR-02`
 
 ```
 +--------------------------------------------------------------------------+
@@ -105,7 +107,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Refusals hold nothing. The error block shows M2's cause and code and a link to choose a vehicle (S2). Planned messages (DEV-13): `CONFLICT` "Someone else just reserved this vehicle"; `RESOURCE_UNAVAILABLE` "This vehicle can no longer be rented"; `LIMIT_REACHED` "You already have a rental"; `INVALID_INPUT` shows the field message.
 - Why: the 10-minute deadline, the planned time and the missing return space are shown before the student commits.
 
-### S5. My bookings: pick up, cancel, return (Implemented; return-space hold Planned) · `UC-M2-03` to `UC-M2-05`
+### S5. My bookings: pick up, cancel, return, hold a return space (Implemented) · `UC-M2-03` to `UC-M2-05`
 
 ```
 +--------------------------------------------------------------------------+
@@ -134,7 +136,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Pick up and return need the vehicle's current `version`. S5 sends the one in M2's list (`vehicle_versions`).
 - Why: only the actions allowed in the booking's state are shown, and the deadline is shown as a time and a countdown.
 
-### S6. Parking booking (Planned) · `UC-M2-06` to `UC-M2-08`
+### S6. Parking booking (Implemented) · `UC-M2-06` to `UC-M2-08`
 
 ```
 +--------------------------------------------------------------------------+

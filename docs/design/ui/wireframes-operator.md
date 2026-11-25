@@ -1,5 +1,7 @@
 # Wireframes: Operator Dashboard
 
+> Update of 2026-11-25 (PR 4, M1): every screen is connected; what each screen calls is in `docs/report/06-ui-design.md`, Section 3.4.8. The notes below that still say "Planned" describe the design before that date.
+
 > Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. Student screens: `wireframes-student.md`.
 > Sources: operator use cases `UC-M7-01` to `UC-M7-10` (`use-case-operator-support.md`); M4's code (`router.py`, `service.py`, `config.py`) on `origin/feat/allocation-phase2`; M5's `fr-08-09-monitoring.md` (Final v1.1), `incident-data-model.md` and `monitoring-sequence-diagram.md` on `origin/docs/monitoring-phase1`, and its code (`router.py`, `service.py`, `schema.py`) on `origin/feat/monitoring-incident`; M6's `m6-simulation-design.md` and code on `origin/feat/m6-simulation-impl`; M3's `fr-06-07-11-charging.md` (version on `develop`); `core` (facade, `permissions.py`, `vehicle-state-machine.md`). Example names and sizes follow `reference-dataset.md`. Values in braces are placeholders.
@@ -52,7 +54,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Recent alerts: `core` does not store events, so past alerts come from M5's tickets, which O5 lists. O1 itself shows no list of recent alerts; the alert strip shows the current ones.
 - Why: the operator sees at once which Hubs need attention (NFR-20).
 
-### O2. Hub detail and resource control (reads Implemented, actions Planned) · `UC-M7-02`
+### O2. Hub detail and resource control (Implemented) · `UC-M7-02`
 
 ```
 +--------------------------------------------------------------------------+
@@ -104,7 +106,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - The last block shows the result of `UC-M3-08` (session moved to another point, or put back in the queue). The screen decides nothing there.
 - Why: fleet and private vehicles compete for the same points, so one queue with an owner filter shows that.
 
-### O4. Dispatch (Implemented, Reject Planned) · `UC-M7-05`, `UC-M7-06`
+### O4. Dispatch (Implemented) · `UC-M7-05`, `UC-M7-06`
 
 ```
 +--------------------------------------------------------------------------+
@@ -129,12 +131,12 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - Data (M4 router): `GET /tasks`: `task_id`, `source_hub_id`, `target_hub_id`, `vehicle_type`, `quantity`, `assigned_vehicles`, `status`, `priority`, `reason`. A task has no creation time. The warning about old data (`UC-M4-01`) is Planned, because the router returns no time.
 - **Update recommendations:** `POST /tasks/plan` saves new tasks as `RECOMMENDED`. It writes data, so it is a button and not run on page load. If nothing is needed the screen says "No task is needed".
 - **Approve:** `POST /tasks/{id}/approve`, optional `adjusted_quantity`. It works only on a `RECOMMENDED` task. A smaller number keeps the first vehicles and drops the rest; a larger number changes nothing, so the operator can only lower the quantity. If the destination would fall below the parking buffer, the task becomes `FAILED` with a reason (`HUB_FULL`). If a vehicle is no longer available or its battery is too low, the request is refused (`RESOURCE_UNAVAILABLE`, `BATTERY_TOO_LOW`) and the task stays `RECOMMENDED`. On success the vehicles and one destination space are held and the task is `APPROVED`.
-- **Reject:** in `UC-M4-02` but M4's code has no endpoint for it (Planned).
+- **Reject:** `POST /allocation/tasks/{id}/reject` with an optional reason (UC-M4-02).
 - **Pick-up and delivery:** `POST /tasks/{id}/pickup` makes it `IN_PROGRESS`. `POST /tasks/{id}/return` (optional delivered battery 0 to 100) makes it `COMPLETED`. **Cancel:** `POST /tasks/{id}/cancel` with a reason releases the holds. `UC-M4-04` allows it for `APPROVED` and `IN_PROGRESS`; the screen offers it for those two.
 - **Allocation settings (`UC-M4-09`):** `GET` and `PUT /config` with nine numbers: horizon, safety stock, parking buffer, minimum dispatch battery, maximum tasks per Hub, maximum vehicles per task, task timeout, staleness limit, reservation lookahead. The server checks the limits and the screen shows its message.
 - Why: a failed task keeps its reason on the card, so the operator does not have to ask why.
 
-### O5. Incident management (Implemented; filters, history and remote reset Planned) · `UC-M7-08`
+### O5. Incident management (Implemented; remote reset not offered) · `UC-M7-08`
 
 ```
 +--------------------------------------------------------------------------+
@@ -163,7 +165,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 - A remote reset (`UC-M5-02`, step 6) is shown only if M5 provides a command for it. If it fails, the operator hands the ticket to a field technician. The ticket has no field for the technician, so this goes in the notes. The technician and the duty supervisor are outside the system and have no screen.
 - Default view: active tickets, most severe first, then oldest.
 
-### O6. What-if Simulation Lab (demand surge Implemented, rest Planned) · `UC-M7-09`, `UC-M7-10`
+### O6. What-if Simulation Lab (Implemented) · `UC-M7-09`, `UC-M7-10`
 
 ```
 +--------------------------------------------------------------------------+
