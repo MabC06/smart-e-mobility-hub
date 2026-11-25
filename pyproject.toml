@@ -46,6 +46,11 @@ markers = [
     "tc_m6_003: TC-M6-003 (docs/testing/test-cases/simulation.md)",
     "tc_m6_004: TC-M6-004 (docs/testing/test-cases/simulation.md)",
     "tc_m6_005: TC-M6-005 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_006: TC-M6-006 hub at capacity (SC-02)",
+    "tc_m6_007: TC-M6-007 charging surge (SC-03)",
+    "tc_m6_008: TC-M6-008 charging-point failure (SC-04)",
+    "tc_m6_009: TC-M6-009 vehicle imbalance (SC-05)",
+    "tc_m6_010: TC-M6-010 every scenario through the route (FR-12)",
     "tc_m4_001: TC-M4-001 (docs/testing/test-cases/allocation.md)",
     "tc_m4_002: TC-M4-002 (docs/testing/test-cases/allocation.md)",
     "tc_m4_003: TC-M4-003 (docs/testing/test-cases/allocation.md)",
@@ -78,6 +83,8 @@ markers = [
     "tc_m4_030: TC-M4-030 (docs/testing/test-cases/allocation.md)",
     "tc_m4_031: TC-M4-031 (docs/testing/test-cases/allocation.md)",
     "tc_m4_032: TC-M4-032 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_033: TC-M4-033 reject a recommended task (UC-M4-02)",
+    "tc_m4_034: TC-M4-034 task from a simulation recommendation (FR-12, UC-M7-10)",
 ]
 
 [tool.ruff]

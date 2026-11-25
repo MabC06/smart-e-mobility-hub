@@ -73,9 +73,12 @@ Technique abbreviations follow `docs/testing/test-technique-assignment.md`:
 | TC-M4-030 / `tc_m4_030` | `test_api.py` | UC-M4-09, BR-M4-03, BR-M4-05, BR-M4-06 | EP / INT | `GET /allocation/config` and `PUT /allocation/config` read and persist updated allocation thresholds. |
 | TC-M4-031 / `tc_m4_031` | `test_api.py`, `test_review.py` | NFR-16, D-014, D-023 | SEC | Every allocation endpoint returns HTTP 401 `UNAUTHENTICATED` with `WWW-Authenticate: Bearer` when called without a bearer token. |
 | TC-M4-032 / `tc_m4_032` | `test_api.py`, `test_review.py` | NFR-16, D-023 | SEC | Every allocation endpoint returns HTTP 403 `FORBIDDEN` for student bearer tokens and allows authenticated operator tokens via `acting_as(principal, "allocation")`. |
+| TC-M4-033 / `tc_m4_033` | `test_api.py` | FR-10, UC-M4-02, BR-M4-08 | ST | `POST /allocation/tasks/{id}/reject` turns a RECOMMENDED task into REJECTED with the reason; a repeat returns it; an APPROVED task is 409 and an unknown task 404. |
+| TC-M4-034 / `tc_m4_034` | `test_api.py` | FR-10, FR-12, UC-M7-10, BR-M4-08 | INT | `POST /allocation/tasks/from-recommendation` makes a RECOMMENDED `TASK-SIM-` task with the best-battery vehicles of the source (at most the quantity); the same ID returns it; a new plan keeps it; a bad ID or equal Hubs are refused and a source with nothing to dispatch is 503. |
 
 ## Execution record
 
 | Run date | Command | Result | Coverage (`src/allocation`) |
 |---|---|---|---|
 | 2026-11-17 | `python -m pytest --strict-markers -q tests/allocation/ --cov=allocation --cov-report=term-missing` | 93 passed (32/32 `TC-M4-###` markers verified, 0 untagged) | 92% (779 stmts, 66 missed; NFR-24 minimum 60%) |
+| 2026-11-25 (M1, branch `feat/backend-planned-gaps`) | `python -m pytest -q tests/allocation --cov=allocation` | 95 passed (TC-M4-033, TC-M4-034 added) | 91.72% (845 stmts, 70 missed) |

@@ -300,3 +300,65 @@ def test_endpoints_refuse_student_with_403() -> None:
             res = client.put(path, json=json_body, headers=student_headers)
         assert res.status_code == 403, f"{method} {path} gave {res.status_code}"
         assert res.json()["error"]["code"] == "FORBIDDEN"
+
+
+@pytest.mark.tc_m4_033
+def test_operator_rejects_a_recommended_task(client: TestClient) -> None:
+    """TC-M4-033 · ST · Verifies: FR-10, UC-M4-02, BR-M4-08.
+
+    Expected: a RECOMMENDED task becomes REJECTED with the reason; a repeat returns it; an
+    approved task cannot be rejected (409) and an unknown task is 404.
+    """
+    tasks = client.post("/allocation/tasks/plan", json={"slot_id": "rej"}).json()
+    first = tasks[0]["task_id"]
+
+    rejected = client.post(f"/allocation/tasks/{first}/reject", json={"reason": "not needed"})
+    assert rejected.status_code == 200
+    assert rejected.json() == {"task_id": first, "status": "REJECTED", "reason": "not needed"}
+    assert client.post(f"/allocation/tasks/{first}/reject").json()["status"] == "REJECTED"
+
+    task = client.post(
+        "/allocation/tasks/from-recommendation",
+        json={
+            "task_id": "TASK-SIM-R1",
+            "source_hub_id": "H01",
+            "target_hub_id": "H02",
+            "quantity": 1,
+        },
+    ).json()
+    assert client.post(f"/allocation/tasks/{task['task_id']}/approve").status_code == 200
+    assert client.post(f"/allocation/tasks/{task['task_id']}/reject").status_code == 409
+    assert client.post("/allocation/tasks/NOPE/reject").status_code == 404
+
+
+@pytest.mark.tc_m4_034
+def test_a_simulation_recommendation_becomes_a_task(client: TestClient) -> None:
+    """TC-M4-034 · INT · Verifies: FR-10, FR-12, UC-M7-10, BR-M4-08.
+
+    Expected: the task holds the best-battery vehicles of the source, at most the quantity; the
+    same ID returns the same task; a new plan keeps it; a bad ID or equal Hubs are 400/422 and
+    a source with no vehicle to dispatch is 503 (RESOURCE_UNAVAILABLE).
+    """
+    body = {
+        "task_id": "TASK-SIM-SIM1-1",
+        "source_hub_id": "H01",
+        "target_hub_id": "H02",
+        "quantity": 2,
+        "reason": "Demand surge shortage at H02",
+    }
+    created = client.post("/allocation/tasks/from-recommendation", json=body)
+    assert created.status_code == 200
+    task = created.json()
+    assert task["status"] == "RECOMMENDED" and task["quantity"] == 2
+    assert task["vehicle_type"] == "E_BIKE" and len(task["assigned_vehicles"]) == 2
+    assert client.post("/allocation/tasks/from-recommendation", json=body).json() == task
+
+    client.post("/allocation/tasks/plan", json={"slot_id": "again"})
+    kept = client.get("/allocation/tasks/TASK-SIM-SIM1-1").json()
+    assert kept["status"] == "RECOMMENDED"
+
+    for wrong in ({"task_id": "TASK-1"}, {"task_id": "TASK-SIM-X", "target_hub_id": "H01"}):
+        response = client.post("/allocation/tasks/from-recommendation", json={**body, **wrong})
+        assert response.status_code in (400, 422)
+    empty = {**body, "task_id": "TASK-SIM-X2", "source_hub_id": "H02", "target_hub_id": "H01"}
+    assert client.post("/allocation/tasks/from-recommendation", json=empty).status_code == 503
