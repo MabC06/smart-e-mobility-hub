@@ -119,7 +119,15 @@ Draft points for M4:
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->
-<!-- M5 writes here by 17/11. -->
+Draft points for M5:
+- **Decoupled incident ingestion via Core EventBus**: M5 consumes only Core's domain events (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SensorEventRejected`, `SensorHeartbeat`), never importing `iot_sim` directly (NFR-22, D-004). Telemetry liveness is tracked in an internal timestamp map (`_heartbeats`) to detect connection loss (> 30s) deterministically. Unmapped sensors log a warning and skip ticket creation to protect schema integrity.
+  *File:* `src/monitoring/service.py`, `tests/monitoring/test_monitoring.py` (`TC-M5-001`, `TC-M5-002`, `TC-M5-006`, `TC-M5-020`).
+- **Deterministic escalation timer on injectable clock**: `BR-M5-04` requires unacknowledged `HIGH`/`CRITICAL` tickets to auto-escalate after 5 minutes. Rather than relying on OS daemon threads and wall-clock time, `check_and_escalate_unacknowledged` computes ticket age against `core.queries.get_config().as_of` (`FixedClock`, D-005), preserving deterministic replayability (NFR-13).
+  *File:* `src/monitoring/service.py`, `tests/monitoring/test_monitoring.py` (`TC-M5-008`).
+- **Concurrency-safe capacity status synchronization**: Evaluates Hub parking occupancy upon `SpaceOccupancyChanged` (`BR-M5-01`, `BR-M5-02`), transitioning Hub status through `core.commands.set_hub_status` using optimistic version checks (`expected_version`) to eliminate race conditions under concurrent returns.
+  *File:* `src/monitoring/service.py`, `tests/monitoring/test_monitoring.py` (`TC-M5-003`, `TC-M5-013`, `TC-M5-014`).
+- **Event-driven periodic checks via SensorHeartbeat**: Periodic monitoring tasks (`check_heartbeat_timeouts`, `check_overdue_vehicles`, `check_vehicle_deficits`, `check_and_escalate_unacknowledged`) are triggered automatically by incoming `SensorHeartbeat` events via `run_periodic_checks()`. Incidents are deduplicated against all active lifecycle statuses (`OPEN`, `IN_PROGRESS`, `ESCALATED`), ensuring continuous autonomous surveillance without out-of-band threads.
+  *File:* `src/monitoring/service.py`, `tests/monitoring/test_monitoring.py` (`TC-M5-006`, `TC-M5-007`, `TC-M5-008`, `TC-M5-009`).
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
@@ -150,5 +158,6 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-06 | M3 | FR-11.M3.2: prevent overload of the Hub's power supply | `optimize_queue` binds requests to the earliest free slot in priority order; there is no power limit per Hub | Core has no power budget per Hub, only `power_rate_kw` per charging point | Overload of a Hub is not prevented |
 | DEV-07 | M3 | A request keeps the start time and length the user asked for | A request that finds no bay, immediate or scheduled, becomes `QUEUED` without a start or end; `optimize_queue` later binds it from the current time for 60 minutes | The queue only stores the request, not the requested window | A queued scheduled request can be bound earlier than asked and for the wrong length |
 | DEV-08 | M6 | Execute standard simulation scenarios SC-01 through SC-05 | SimulationEngine only implements demand-surge logic (`run_demand_surge()`); `SimulationConfig.parameters` only accepts `DemandSurgeParams`. Passing SC-02 through SC-05 still executes the demand-surge logic and labels the report with the chosen scenario_id | Time and scope constraints prior to Phase 3-4 code freeze | The UI and demo must offer SC-01 only to avoid misleading users; full dynamic scenario execution is deferred to future release phases |
+| DEV-09 | M5 | Automated overdue vehicle incident generation (INC-USR-01) | Calls `ProviderPort.RESERVATION_DEMAND.open_trips()`; returns empty when provider is missing | M2 `ReservationDemand` port not yet registered in develop at code cut-off | INC-USR-01 tickets generated once M2 registers port; verified via mock provider in unit test |
 
-Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M5 `SensorEventRejected` and heartbeat not handled; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.
+Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.

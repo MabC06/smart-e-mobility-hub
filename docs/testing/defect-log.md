@@ -28,7 +28,7 @@
 | M2 reservation | — | | | | | | |
 | M3 charging | 6 | 0 | 3 | 1 | 2 | 6 | 0 |
 | M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
-| M5 monitoring | — | | | | | | |
+| M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
 | **Total** | **11** | **0** | **1** | **3** | **7** | **11** | **0** |
 
@@ -100,10 +100,10 @@ All seven entries so far were found by reviewing PRs before or at merge (inspect
 <!-- BEGIN M5: Monitoring & Incident Handling -->
 ### M5 Monitoring & Incident Handling
 
-<!-- M5 adds rows here by 17/11. -->
-
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
+| DEF-M5-001 | Monitoring router endpoints lacked explicit operator authorization check | Medium | Security audit (TC-M5-018) | NFR-16, D-014, D-023 | Closed | Enforced `require_operator` dependency on all 11 endpoints | PR #33, `895950d` |
+| DEF-M5-002 | Incident timestamps and audit logs did not use Core's injected clock | Low | Review at integration (D-005) | D-005, NFR-13 | Closed | Switched `_now()` to `core.queries.get_config().as_of` | PR #33, `cb17a48` |
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->

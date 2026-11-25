@@ -151,7 +151,7 @@ The incident management workflow (`FR-09`, `UC-M5-02`) handles automated failure
 
 ```mermaid
 flowchart TD
-    START(["● Start: Anomaly Detected"]) --> INTAKE["Ingest Incident Signal (from IoT Sim Telemetry or Operator)"]
+    START(["● Start: Anomaly Detected"]) --> INTAKE["Ingest Incident Signal (from Core Domain Events or Operator)"]
     INTAKE --> CREATE["Classify Severity & Create Incident Ticket (Status: OPEN)"]
 
     CREATE --> COND_INTERLOCK{"Requires Automated<br/>Safety Interlock?<br/>(BR-M5-03, BR-M5-05)"}
@@ -178,9 +178,9 @@ flowchart TD
 ```
 
 ##### Workflow Narrative:
-1. **Intake & Triage:** Fault signals arrive asynchronously from sensor dropouts or charger fault codes. The intake engine instantiates an `IncidentTicket` with status `OPEN`.
+1. **Intake & Triage:** Fault signals arrive asynchronously via Core domain events (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SensorEventRejected`, `SensorHeartbeat`) or operator reports. The intake engine instantiates an `IncidentTicket` with status `OPEN`.
 2. **Automated Interlocks (`BR-M5-03`, `BR-M5-05`):** If electrical or battery hazards are present, the system immediately cuts charger power and marks the socket `OUT_OF_SERVICE`, or locks out low-battery vehicles ($\le 15\%$) from the rental inventory.
-3. **5-Minute Escalation Window (`BR-M5-04`):** For High and Critical tickets, an unacknowledged ticket remaining `OPEN` for $> 5$ minutes automatically promotes to `ESCALATED`, notifying the Duty Supervisor.
+3. **5-Minute Escalation Window (`BR-M5-04`):** For High and Critical tickets, an unacknowledged ticket remaining `OPEN` for $> 5$ minutes automatically promotes to `ESCALATED` via `check_and_escalate_unacknowledged()`, notifying the Duty Supervisor.
 4. **Corrective Recovery:** Software/communication anomalies receive an automated remote reset. If hardware remains unresponsive, a field technician is dispatched for physical part replacement.
 5. **Closure & Audit Trail (`NFR-25`):** Once verified healthy, the operator logs root cause notes, marks the ticket `RESOLVED` $\rightarrow$ `CLOSED`, and appends the entry to `TicketAuditLog`.
 
