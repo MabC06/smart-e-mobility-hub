@@ -591,7 +591,7 @@ def test_student_requests_charging_for_a_private_ev(student):
 
     assert response.status_code == 200
     assert 'class="error-block"' not in response.text
-    assert "<strong>EV-1</strong>" in response.text
+    assert "<strong>EV-1 at H01</strong>" in response.text
 
 
 def a_booking_on_a_trip(trip_status: str, minutes_left: int) -> dict:
@@ -899,7 +899,8 @@ def test_student_changes_and_cancels_a_charging_request(student):
     """TC-M7-037 · INT · S8 changes the time of a scheduled request, then cancels it (M3).
 
     Verifies: FR-06, FR-07, UC-M3-03
-    Expected: after "Change time" the new start is listed; after "Cancel" the request is CANCELLED.
+    Expected: the request is listed as Booked with its day and time; after "Change time" the new
+    start is listed; after "Cancel" the request is CANCELLED; the Start field is for a later time.
     """
     start = (datetime.now(UTC) + timedelta(hours=3)).astimezone(routes.ICT)
     form = {
@@ -911,6 +912,8 @@ def test_student_changes_and_cancels_a_charging_request(student):
     }
     html = student.post("/ui/student/charging", data=form).text
     request_id = re.search(r"/ui/student/charging/(REQ-\w+)/change", html).group(1)
+    assert "● Booked</span> <strong>" + start.strftime("%a %d/%m") in html
+    assert 'name="start_at" data-later-only' in html
 
     later = start + timedelta(hours=1)
     change = {"start_at": later.strftime("%Y-%m-%dT%H:%M"), "duration_minutes": "45"}

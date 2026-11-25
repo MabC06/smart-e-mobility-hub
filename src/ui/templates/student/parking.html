@@ -12,7 +12,7 @@
 
 <div class="{{ 'split' if vehicles else 'single' }}">
   {% if vehicles %}
-  <form action="{{ url_for('student_book_parking') }}" method="post">
+  <form action="{{ url_for('student_book_parking') }}" method="post" data-when-form>
     <h2>Book a space</h2>
     <div class="form-grid">
       <label>My EV
@@ -30,7 +30,7 @@
         <label><input type="radio" name="when" value="now" checked> Now</label>
         <label><input type="radio" name="when" value="later"> Later</label>
       </fieldset>
-      <label>Start (ICT, for "Later") <input type="datetime-local" name="start_at"></label>
+      <label>Start (ICT) <input type="datetime-local" name="start_at" data-later-only></label>
       <label>Stay (30 to 240 min) <input type="number" name="duration_minutes" min="30" max="240" value="120"></label>
     </div>
     <p><button class="button primary" type="submit">Book a space</button></p>
@@ -52,7 +52,7 @@
       {% if stay.status == "CONFIRMED" %}
       <p>
         <strong>{{ stay.plate }} · Space {{ stay.parking_space_id }} at {{ stay.hub_id }} · Booked</strong><br>
-        Arrive between <strong>{{ stay.start_at | ict }}</strong> and <strong>{{ stay.hold_expires_at | ict }}</strong> · planned end {{ stay.planned_end_at | ict }}
+        Arrive between <strong>{{ stay.start_at | ict_day }}</strong> and <strong>{{ stay.hold_expires_at | ict_hm }}</strong> · stay until {{ stay.planned_end_at | ict_day }}
       </p>
       <div class="action-row">
         <form class="actions" action="{{ url_for('parking_action', parking_id=stay.parking_id, action='arrive') }}" method="post">
@@ -63,14 +63,14 @@
           <button class="button" type="submit">Cancel booking</button>
         </form>
       </div>
-      {% if as_of < stay.start_at %}<p class="note">You can confirm the arrival from {{ stay.start_at | ict }}.</p>{% endif %}
+      {% if as_of < stay.start_at %}<p class="note">You can confirm the arrival from {{ stay.start_at | ict_day }}.</p>{% endif %}
       {% else %}
       <p>
         <strong>{{ stay.plate }} · Space {{ stay.parking_space_id }} at {{ stay.hub_id }} · Parked</strong><br>
-        Arrived {{ stay.arrived_at | ict }} · planned end <strong>{{ stay.planned_end_at | ict }}</strong>
+        Arrived {{ stay.arrived_at | ict_day }} · stay until <strong>{{ stay.planned_end_at | ict_day }}</strong>
       </p>
       {% if as_of >= stay.planned_end_at %}
-      <p class="status status-WARNING">⚠ Your planned stay ended at {{ stay.planned_end_at | ict }}. Please leave the space.</p>
+      <p class="status status-WARNING">⚠ Your planned stay ended at {{ stay.planned_end_at | ict_day }}. Please leave the space.</p>
       {% endif %}
       <form class="actions" action="{{ url_for('parking_action', parking_id=stay.parking_id, action='depart') }}" method="post">
         <input type="hidden" name="version" value="{{ stay.version }}">
@@ -87,10 +87,11 @@
     <h3>Earlier parking</h3>
     <ul class="plain">
       {% for stay in earlier %}
-      <li>{{ stay.plate }} · {{ stay.hub_id }} · {{ stay.status }} · start {{ stay.start_at | ict }}</li>
+      <li>{{ stay.plate }} · {{ stay.hub_id }} · {{ stay.status }} · {{ stay.start_at | ict_day }}{% if stay.departed_at %} to {{ stay.departed_at | ict_day }}{% endif %}</li>
       {% endfor %}
     </ul>
     {% endif %}
   </section>
 </div>
+{% include "when_script.html" %}
 {% endblock %}

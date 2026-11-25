@@ -58,6 +58,16 @@ def to_ict(moment: datetime) -> str:
     return moment.astimezone(ICT).strftime("%H:%M:%S")
 
 
+def to_ict_day(moment: datetime) -> str:
+    """A UTC time with its day, in ICT (D-005), e.g. ``Wed 26/11 19:51``."""
+    return moment.astimezone(ICT).strftime("%a %d/%m %H:%M")
+
+
+def to_ict_hm(moment: datetime) -> str:
+    """A UTC time as hours and minutes in ICT (D-005), e.g. ``20:51``."""
+    return moment.astimezone(ICT).strftime("%H:%M")
+
+
 def type_label(vehicle_type: VehicleType) -> str:
     """The word a screen shows for a vehicle type, e.g. ``E-scooter``."""
     return VEHICLE_TYPE_LABELS[vehicle_type]
@@ -69,6 +79,8 @@ def status_symbol(status: HubStatus) -> str:
 
 
 templates.env.filters["ict"] = to_ict
+templates.env.filters["ict_day"] = to_ict_day
+templates.env.filters["ict_hm"] = to_ict_hm
 templates.env.filters["type_label"] = type_label
 templates.env.filters["status_symbol"] = status_symbol
 
@@ -585,13 +597,15 @@ def student_charging(request: Request) -> Response:
         _times(session, "start_time", "end_time", "requested_at")
         session["plate"] = plates[session["vehicle_id"]]
     sessions.sort(key=lambda s: str(s["requested_at"]), reverse=True)
+    open_statuses = ("QUEUED", "SCHEDULED", "CHARGING")
     return _page(
         request,
         "student/charging.html",
         who,
         vehicles=_my_private_evs(request, who),
         hubs=core.queries.list_hubs(),
-        sessions=sessions,
+        sessions=[s for s in sessions if s["status"] in open_statuses],
+        earlier=[s for s in sessions if s["status"] not in open_statuses],
     )
 
 
@@ -621,7 +635,7 @@ def student_request_charging(request: Request) -> Response:
 
 @router.post("/student/charging/{request_id}/{action}")
 def charging_change(request: Request, request_id: str, action: str) -> Response:
-    """S8. Change the time of (M3 PATCH) or cancel (M3 DELETE) one charging request."""
+    """S8. Change the time of (M3 PATCH), cancel (M3 DELETE) or start one charging request."""
     who = _check_login(request, Role.STUDENT)
     if isinstance(who, Response):
         return who
@@ -636,6 +650,9 @@ def charging_change(request: Request, request_id: str, action: str) -> Response:
     elif action == "cancel":
         status, data = call(request, "DELETE", f"/charging/requests/{request_id}")
         what = "cancel this charging"
+    elif action == "start":
+        status, data = call(request, "POST", f"/charging/sessions/{request_id}/start")
+        what = "start charging"
     else:
         status, data, what = 404, {"detail": "Unknown action."}, "do this"
     if status != 200:
