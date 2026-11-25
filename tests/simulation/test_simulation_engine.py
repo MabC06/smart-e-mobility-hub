@@ -1,6 +1,8 @@
 import unittest
 from datetime import UTC, datetime
 
+import pytest
+
 from core.clock import FixedClock
 from core.domain.entities import Hub, Vehicle
 from core.domain.enums import Ownership, VehicleState, VehicleType
@@ -73,8 +75,10 @@ class TestSimulationEngineIntegration(unittest.TestCase):
             ),
         )
 
+    @pytest.mark.tc_m6_001
     def test_a_surge_target_is_never_chosen_as_donor(self) -> None:
-        # H02 is short too when it is a target; only H03 may give vehicles.
+        """TC-M6-001: Verify surge targets are excluded from donor hub selection."""
+        # Add a third hub as the only eligible donor.
         self.repo.add(
             Hub(
                 hub_id="H03",
@@ -85,6 +89,7 @@ class TestSimulationEngineIntegration(unittest.TestCase):
             )
         )
         self._add_vehicles("H03", 8)
+
         config = SimulationConfig(
             simulation_id="SIM_TWO_TARGETS",
             scenario_id=ScenarioType.DEMAND_SURGE,
@@ -98,10 +103,15 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         report = self.service.run_simulation(config)
 
         self.assertEqual(len(report.recommendations), 2)
+
         for rec in report.recommendations:
             self.assertEqual(rec["source_hub_id"], "H03")
 
+    @pytest.mark.tc_m6_002
     def test_run_demand_surge_integration(self) -> None:
+        """TC-M6-002: Verify execution of SC-01 demand surge scenario
+        and recommendation generation.
+        """
         config = self._create_config()
 
         # Capture the original Core state.
@@ -114,7 +124,10 @@ class TestSimulationEngineIntegration(unittest.TestCase):
 
         # Verify simulation identity.
         self.assertEqual(report1.simulation_id, "SIM_SURGE_TEST")
-        self.assertEqual(report1.scenario_id, ScenarioType.DEMAND_SURGE.value)
+        self.assertEqual(
+            report1.scenario_id,
+            ScenarioType.DEMAND_SURGE.value,
+        )
 
         # Verify deterministic results.
         self.assertEqual(report1, report2)
@@ -137,14 +150,18 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         self.assertGreaterEqual(rec["batch_size"], 5)
         self.assertLessEqual(rec["batch_size"], 20)
 
-        # Verify that simulation does not modify the live Core state.
+        # Verify that simulation does not modify live Core state.
         hubs_after = self.core.queries.list_hubs()
         vehicles_after = self.core.queries.find_vehicles()
 
         self.assertEqual(hubs_before, hubs_after)
         self.assertEqual(vehicles_before, vehicles_after)
 
+    @pytest.mark.tc_m6_003
     def test_snapshot_isolation(self) -> None:
+        """TC-M6-003: Verify in-memory repository version and state
+        remain untouched during simulation.
+        """
         config = self._create_config()
 
         original_version = self.repo.version()
@@ -156,7 +173,47 @@ class TestSimulationEngineIntegration(unittest.TestCase):
         # Simulation must not change the original repository.
         self.assertEqual(self.repo.version(), original_version)
         self.assertEqual(self.core.queries.list_hubs(), original_hubs)
-        self.assertEqual(self.core.queries.find_vehicles(), original_vehicles)
+        self.assertEqual(
+            self.core.queries.find_vehicles(),
+            original_vehicles,
+        )
+
+    @pytest.mark.tc_m6_004
+    def test_nfr12_state_isolation(self) -> None:
+        """TC-M6-004: NFR-12 - Ensure 0 writes to live core and state hash remains unchanged."""
+
+        initial_snapshot = self.core.snapshots.export_snapshot()
+        initial_dict = initial_snapshot.to_dict()
+
+        config = self._create_config()
+
+        self.service.run_simulation(config)
+
+        final_snapshot = self.core.snapshots.export_snapshot()
+
+        self.assertEqual(final_snapshot.to_dict(), initial_dict)
+
+    @pytest.mark.tc_m6_005
+    def test_nfr13_reproducibility(self) -> None:
+        """TC-M6-005: NFR-13 - Identical inputs produce identical simulation outputs."""
+
+        config = self._create_config()
+
+        report_1 = self.service.run_simulation(config)
+        report_2 = self.service.run_simulation(config)
+
+        # Verify complete report reproducibility.
+        self.assertEqual(report_1, report_2)
+
+        self.assertEqual(
+            report_1.baseline_shortage_rate_pct,
+            report_2.baseline_shortage_rate_pct,
+        )
+
+        self.assertEqual(
+            len(report_1.recommendations),
+            len(report_2.recommendations),
+        )
 
 
 if __name__ == "__main__":

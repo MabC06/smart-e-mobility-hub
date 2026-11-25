@@ -123,7 +123,17 @@ Draft points for M4:
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
-<!-- M6 writes here by 17/11. -->
+#### Technical Decision 1: Sandbox Isolation via CoreFacade over OperationalSnapshot (NFR-12)
+- **Problem:** Executing hypothetical what-if scenarios could accidentally mutate live Core entities or persistent state store.
+- **Implementation:** M6 imports `OperationalSnapshot` from `core` and instantiates a standalone sandbox environment via `CoreFacade` backed by an in-memory repository derived from the snapshot (`snapshot.to_repository()`).
+- **Rationale:** Ensures strict memory isolation without complex ORM transaction rollbacks, guaranteeing zero state leakage to operational data.
+- **Traceability:** `src/simulation/service.py`, verified by `tests/simulation/test_simulation_engine.py::TestSimulationEngineIntegration::test_nfr12_state_isolation`.
+
+#### Technical Decision 2: Deterministic Stochastic Event Generation (NFR-13)
+- **Problem:** Stochastic event simulation (e.g., random student rental requests) produced non-repeatable metrics during regression testing and benchmarking.
+- **Implementation:** Bound all random state transitions and demand surge generation to an isolated instance of `random.Random(seed)` initialized with `SimulationConfig.random_seed`.
+- **Rationale:** Guarantees 100% deterministic outputs for auditability, comparative benchmarking on `DS-STD`, and reproducible recommendations.
+- **Traceability:** `src/simulation/engine.py`, verified by `tests/simulation/test_simulation_engine.py::TestSimulationEngineIntegration::test_nfr13_reproducibility`.
 <!-- END M6: What-if Simulation -->
 
 ## 4.4 Deviations and Implementation Limitations
@@ -139,5 +149,6 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-05 | M3 | FR-06.3: thresholds for modifying and cancelling a reservation | Modify and cancel are allowed at any time before the start; only "new start not in the past" is checked; modify works on `SCHEDULED` requests only | Not done before the code freeze | A user can cancel at the last minute; a notice period can be added as a Core config value |
 | DEV-06 | M3 | FR-11.M3.2: prevent overload of the Hub's power supply | `optimize_queue` binds requests to the earliest free slot in priority order; there is no power limit per Hub | Core has no power budget per Hub, only `power_rate_kw` per charging point | Overload of a Hub is not prevented |
 | DEV-07 | M3 | A request keeps the start time and length the user asked for | A request that finds no bay, immediate or scheduled, becomes `QUEUED` without a start or end; `optimize_queue` later binds it from the current time for 60 minutes | The queue only stores the request, not the requested window | A queued scheduled request can be bound earlier than asked and for the wrong length |
+| DEV-08 | M6 | Execute standard simulation scenarios SC-01 through SC-05 | SimulationEngine only implements demand-surge logic (`run_demand_surge()`); `SimulationConfig.parameters` only accepts `DemandSurgeParams`. Passing SC-02 through SC-05 still executes the demand-surge logic and labels the report with the chosen scenario_id | Time and scope constraints prior to Phase 3-4 code freeze | The UI and demo must offer SC-01 only to avoid misleading users; full dynamic scenario execution is deferred to future release phases |
 
 Rows to check on 17/11 and add if still true: M2 `ReservationDemand` not registered; M3 step 3 of BR-M3-02 (call to M4) missing; M5 `SensorEventRejected` and heartbeat not handled; M6 scenarios SC-02 to SC-05; M7 UI still on `ui.sample_data`.
