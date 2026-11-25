@@ -78,6 +78,8 @@ markers = [
     "tc_m4_030: TC-M4-030 (docs/testing/test-cases/allocation.md)",
     "tc_m4_031: TC-M4-031 (docs/testing/test-cases/allocation.md)",
     "tc_m4_032: TC-M4-032 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_033: TC-M4-033 reject a recommended task (UC-M4-02)",
+    "tc_m4_034: TC-M4-034 task from a simulation recommendation (FR-12, UC-M7-10)",
 ]
 
 [tool.ruff]

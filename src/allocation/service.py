@@ -14,10 +14,12 @@ from core.domain.enums import (
     ClaimStatus,
     HolderKind,
     HubStatus,
+    Ownership,
     ResourceType,
     SpaceStatus,
     VehicleEvent,
     VehicleState,
+    VehicleType,
 )
 from core.errors import ErrorCode
 from core.facade import CoreFacade
@@ -30,6 +32,8 @@ from core.views import SpaceView, VehicleFilter
 from .config import AllocationConfig, default_config
 from .models import DispatchTask, DispatchTaskStatus
 from .planner import HubDemandInfo, HubStateView, HubVehicleInfo, plan_redistribution
+
+SIMULATION_TASK_PREFIX = "TASK-SIM-"  # tasks made from an M6 recommendation; a new plan keeps them
 
 
 def _get_task(core: CoreFacade, task_id: str) -> DispatchTask | None:
@@ -219,7 +223,9 @@ class AllocationService:
             old_recommended = _query_tasks(
                 self._core,
                 lambda t: (
-                    t.status == DispatchTaskStatus.RECOMMENDED and t.task_id not in proposed_ids
+                    t.status == DispatchTaskStatus.RECOMMENDED
+                    and t.task_id not in proposed_ids
+                    and not t.task_id.startswith(SIMULATION_TASK_PREFIX)
                 ),
             )
             for old_t in old_recommended:
@@ -640,6 +646,101 @@ class AllocationService:
             if isinstance(commit_res, Err):
                 return commit_res
 
+        return Ok(task)
+
+    def reject_task(self, task_id: str, actor: Actor, reason: str = "") -> Result[DispatchTask]:
+        """The operator rejects a RECOMMENDED task; nothing is held yet (UC-M4-02, BR-M4-08)."""
+        task = _get_task(self._core, task_id)
+        if task is None:
+            return Err(ErrorCode.NOT_FOUND, f"task {task_id} not found")
+        if task.status is DispatchTaskStatus.REJECTED:
+            return Ok(task)
+        if task.status is not DispatchTaskStatus.RECOMMENDED:
+            return Err(
+                ErrorCode.INVALID_TRANSITION,
+                f"only a RECOMMENDED task can be rejected; {task_id} is {task.status.value}",
+            )
+        with self._core.unit_of_work() as uow:
+            task.status = DispatchTaskStatus.REJECTED
+            task.reason = reason or f"Rejected by {actor.user_id}"
+            _repo_update_task(uow.repository, task, task.version)
+            committed = uow.commit()
+            if isinstance(committed, Err):
+                return committed
+        return Ok(task)
+
+    def task_from_recommendation(
+        self,
+        task_id: str,
+        source_hub_id: str,
+        target_hub_id: str,
+        quantity: int,
+        reason: str,
+        vehicle_type: VehicleType | None = None,
+    ) -> Result[DispatchTask]:
+        """Turn an M6 recommendation into a RECOMMENDED task the operator approves in O4.
+
+        Picks AVAILABLE fleet vehicles of the source with at least ``min_dispatch_battery`` and
+        no active claim, highest battery first, of one type (the most numerous when not given),
+        at most ``max_vehicles_per_task``. Approval then checks and holds them (UC-M4-02).
+        A repeated ``task_id`` returns the stored task.
+        """
+        if not task_id.startswith(SIMULATION_TASK_PREFIX):
+            return Err(ErrorCode.INVALID_INPUT, f"task_id must start with {SIMULATION_TASK_PREFIX}")
+        if quantity < 1 or source_hub_id == target_hub_id:
+            return Err(ErrorCode.INVALID_INPUT, "quantity must be positive and the Hubs differ")
+        existing = _get_task(self._core, task_id)
+        if existing is not None:
+            return Ok(existing)
+        for hub_id in (source_hub_id, target_hub_id):
+            hub = self._core.queries.get_hub(hub_id)
+            if isinstance(hub, Err):
+                return hub
+        now = self._core.queries.get_config().as_of
+        hold_until = now + timedelta(minutes=self._config.task_timeout_minutes)
+        candidates = [
+            v
+            for v in self._core.queries.find_vehicles(
+                VehicleFilter(
+                    hub_id=source_hub_id,
+                    state=VehicleState.AVAILABLE,
+                    vehicle_type=vehicle_type,
+                    min_battery=self._config.min_dispatch_battery,
+                    ownership=Ownership.FLEET,
+                )
+            )
+            if not v.fault_flag and not self._core.queries.get_claims(v.vehicle_id, now, hold_until)
+        ]
+        if not candidates:
+            return Err(
+                ErrorCode.RESOURCE_UNAVAILABLE,
+                f"no vehicle at {source_hub_id} can be dispatched now",
+            )
+        if vehicle_type is None:
+            counts: dict[VehicleType, int] = {}
+            for v in candidates:
+                counts[v.vehicle_type] = counts.get(v.vehicle_type, 0) + 1
+            vehicle_type = max(sorted(counts), key=lambda t: counts[t])
+        chosen = sorted(
+            (v for v in candidates if v.vehicle_type is vehicle_type),
+            key=lambda v: (-v.battery_pct, v.vehicle_id),
+        )[: min(quantity, self._config.max_vehicles_per_task)]
+        task = DispatchTask(
+            task_id=task_id,
+            source_hub_id=source_hub_id,
+            target_hub_id=target_hub_id,
+            vehicle_type=vehicle_type,
+            quantity=len(chosen),
+            vehicle_ids=",".join(v.vehicle_id for v in chosen),
+            status=DispatchTaskStatus.RECOMMENDED,
+            priority=1,
+            reason=reason or "From a simulation recommendation",
+        )
+        with self._core.unit_of_work() as uow:
+            _repo_add_task(uow.repository, task)
+            committed = uow.commit()
+            if isinstance(committed, Err):
+                return committed
         return Ok(task)
 
     def get_task(self, task_id: str) -> Result[DispatchTask]:
