@@ -13,7 +13,15 @@ from core.domain.entities import Entity
 from core.facade import CoreFacade
 from core.repository.base import Repository
 from core.repository.schema import TableSpec, UtcDateTime, metadata
-from reservation.models import RentalReservation, RentalTrip, ReservationStatus, TripStatus
+from reservation.models import (
+    ParkingBooking,
+    ParkingPurpose,
+    ParkingStatus,
+    RentalReservation,
+    RentalTrip,
+    ReservationStatus,
+    TripStatus,
+)
 
 reservations = Table(
     "rental_reservations",
@@ -63,19 +71,55 @@ trips = Table(
         "(returned_at IS NOT NULL AND return_hub_id IS NOT NULL AND return_space_id IS NOT NULL)"
     ),
 )
+parkings = Table(
+    "parking_bookings",
+    metadata,
+    Column("parking_id", String, primary_key=True),
+    Column("user_id", String, ForeignKey("user_accounts.user_id"), nullable=False),
+    Column("purpose", String, nullable=False),
+    Column("vehicle_id", String, ForeignKey("vehicles.vehicle_id"), nullable=False),
+    Column("hub_id", String, ForeignKey("hubs.hub_id"), nullable=False),
+    Column(
+        "parking_space_id", String, ForeignKey("parking_spaces.parking_space_id"), nullable=False
+    ),
+    Column("start_at", UtcDateTime, nullable=False),
+    Column("hold_expires_at", UtcDateTime, nullable=False),
+    Column("claim_id", String, ForeignKey("resource_claims.claim_id"), nullable=False, unique=True),
+    Column("planned_end_at", UtcDateTime),
+    Column("trip_id", String, ForeignKey("rental_trips.trip_id")),
+    Column("status", String, nullable=False),
+    Column("arrived_at", UtcDateTime),
+    Column("departed_at", UtcDateTime),
+    Column("version", Integer, nullable=False),
+    CheckConstraint("start_at < hold_expires_at"),
+    CheckConstraint("purpose IN ('RENTAL_RETURN','PRIVATE_STAY')"),
+    CheckConstraint("status IN ('CONFIRMED','ACTIVE','COMPLETED','CANCELLED','EXPIRED')"),
+    CheckConstraint(
+        "(purpose = 'RENTAL_RETURN' AND trip_id IS NOT NULL AND planned_end_at IS NULL) OR "
+        "(purpose = 'PRIVATE_STAY' AND trip_id IS NULL AND planned_end_at > start_at)"
+    ),
+)
 RESERVATION_SPEC = TableSpec(
     RentalReservation, reservations, "reservation_id", {"status": ReservationStatus}, True
 )
 TRIP_SPEC = TableSpec(RentalTrip, trips, "trip_id", {"status": TripStatus}, True)
+PARKING_SPEC = TableSpec(
+    ParkingBooking,
+    parkings,
+    "parking_id",
+    {"purpose": ParkingPurpose, "status": ParkingStatus},
+    True,
+)
 
 
 def register_tables(core: CoreFacade) -> None:
-    """Register both tables once; repeating the same specs is safe."""
+    """Register the M2 tables once; repeating the same specs is safe."""
     core.register_entity(RESERVATION_SPEC)
     core.register_entity(TRIP_SPEC)
+    core.register_entity(PARKING_SPEC)
 
 
-def read[E: (RentalReservation, RentalTrip)](
+def read[E: (RentalReservation, RentalTrip, ParkingBooking)](
     core: CoreFacade, entity_type: type[E], entity_id: str
 ) -> E | None:
     """Read a detached M2 record under Core's lock."""
@@ -105,11 +149,16 @@ def student_records(
     return bookings, open_trips
 
 
-def add(repo: Repository, entity: RentalReservation | RentalTrip) -> None:
+def all_parkings(core: CoreFacade) -> list[ParkingBooking]:
+    """Read parking bookings in ID order."""
+    return cast(list[ParkingBooking], core.query_entities(cast(type[Entity], ParkingBooking)))
+
+
+def add(repo: Repository, entity: RentalReservation | RentalTrip | ParkingBooking) -> None:
     """Insert an M2 record using the caller's open unit of work."""
     repo.add(cast(Entity, entity))
 
 
-def update(repo: Repository, entity: RentalReservation | RentalTrip) -> None:
+def update(repo: Repository, entity: RentalReservation | RentalTrip | ParkingBooking) -> None:
     """Write an M2 record using its observed version in the caller's unit of work."""
     repo.update(cast(Entity, entity), entity.version)

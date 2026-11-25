@@ -87,3 +87,40 @@ class RentalTrip:
     return_hub_id: str | None = None
     return_space_id: str | None = None
     version: int = 1
+
+
+class ParkingPurpose(StrEnum):
+    RENTAL_RETURN = "RENTAL_RETURN"  # ten-minute hold for an open Trip (FR-05)
+    PRIVATE_STAY = "PRIVATE_STAY"  # a student's own EV parks for a planned stay (FR-07 parking)
+
+
+class ParkingStatus(StrEnum):
+    CONFIRMED = "CONFIRMED"  # the space is held; nothing parked yet
+    ACTIVE = "ACTIVE"  # a private EV arrived and occupies the space
+    COMPLETED = "COMPLETED"  # the hold was used by a return, or the private EV left
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"  # nobody arrived before hold_expires_at
+
+
+@dataclass(slots=True)
+class ParkingBooking:
+    """One held space of one Hub (UC-M2-06 to UC-M2-08). Core owns the claim and the space."""
+
+    ID_FIELD: ClassVar[str] = "parking_id"
+    VERSIONED: ClassVar[bool] = True
+
+    parking_id: str
+    user_id: str
+    purpose: ParkingPurpose
+    vehicle_id: str
+    hub_id: str
+    parking_space_id: str
+    start_at: datetime
+    hold_expires_at: datetime  # arrival deadline: start + 10 min
+    claim_id: str
+    planned_end_at: datetime | None = None  # private stay only
+    trip_id: str | None = None  # rental return only
+    status: ParkingStatus = ParkingStatus.CONFIRMED
+    arrived_at: datetime | None = None
+    departed_at: datetime | None = None
+    version: int = 1

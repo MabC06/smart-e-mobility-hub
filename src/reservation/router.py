@@ -6,6 +6,7 @@ expire and late Trips become OVERDUE before the request reads or changes anythin
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -18,7 +19,14 @@ from core.repository.base import RepositoryError
 from core.result import Err
 from reservation import storage
 from reservation.lifecycle import RentalLifecycle
-from reservation.models import RentalReservation, RentalTrip, ReserveRequest, VehicleSearch
+from reservation.models import (
+    ParkingBooking,
+    RentalReservation,
+    RentalTrip,
+    ReserveRequest,
+    VehicleSearch,
+)
+from reservation.parking import DEFAULT_STAY, LIVE, ParkingService
 from reservation.results import BookingError, BookingErrorCode, BookingResult
 from reservation.service import BookingService
 
@@ -45,11 +53,29 @@ class ReturnIn(BaseModel):
     expected_version: int = Field(strict=True)
 
 
+class ReturnHoldIn(BaseModel):
+    parking_id: str
+    destination_hub_id: str
+
+
+class ParkingIn(BaseModel):
+    parking_id: str
+    vehicle_id: str
+    hub_id: str
+    start_at: datetime | None = None  # now when omitted; must carry a time zone
+    duration_minutes: int = Field(default=DEFAULT_STAY, strict=True)
+
+
+class VersionIn(BaseModel):
+    expected_version: int = Field(strict=True)
+
+
 @dataclass(frozen=True, slots=True)
 class StudentRentals:
     bookings: list[RentalReservation]
     open_trips: list[RentalTrip]
     vehicle_versions: dict[str, int]
+    parking: list[ParkingBooking]
 
 
 _HTTP_STATUS = {
@@ -75,7 +101,10 @@ def _value[T](result: BookingResult[T]) -> T:
 
 
 def create_router(
-    core: CoreFacade, service: BookingService, lifecycle: RentalLifecycle
+    core: CoreFacade,
+    service: BookingService,
+    lifecycle: RentalLifecycle,
+    parking: ParkingService,
 ) -> APIRouter:
     """Mount the M2 operations with Core's authenticated student dependency."""
     router = APIRouter(prefix="/reservations", tags=["reservation"])
@@ -83,6 +112,7 @@ def create_router(
     def swept_student(who: Student) -> Principal:
         """The checked student, after due bookings expired and late Trips were marked."""
         lifecycle.sweep()
+        parking.sweep()
         return who
 
     Caller = Annotated[Principal, Depends(swept_student)]
@@ -96,6 +126,40 @@ def create_router(
     ) -> VehicleSearch:
         return _value(
             service.search(hub_id, vehicle_type, min_battery, acting_as(who, "reservation"))
+        )
+
+    @router.post("/parking")
+    def reserve_parking(body: ParkingIn, who: Caller) -> ParkingBooking:
+        return _value(
+            parking.reserve_private(
+                body.parking_id,
+                body.vehicle_id,
+                body.hub_id,
+                body.start_at,
+                body.duration_minutes,
+                acting_as(who, "reservation"),
+            )
+        )
+
+    @router.post("/parking/{parking_id}/arrive")
+    def arrive(parking_id: str, body: VersionIn, who: Caller) -> ParkingBooking:
+        actor = acting_as(who, "reservation")
+        return _value(parking.arrive(parking_id, body.expected_version, actor))
+
+    @router.post("/parking/{parking_id}/depart")
+    def depart(parking_id: str, body: VersionIn, who: Caller) -> ParkingBooking:
+        actor = acting_as(who, "reservation")
+        return _value(parking.depart(parking_id, body.expected_version, actor))
+
+    @router.post("/parking/{parking_id}/cancel")
+    def cancel_parking(parking_id: str, who: Caller) -> ParkingBooking:
+        return _value(parking.cancel(parking_id, acting_as(who, "reservation")))
+
+    @router.post("/{reservation_id}/return-hold")
+    def hold_return(reservation_id: str, body: ReturnHoldIn, who: Caller) -> ParkingBooking:
+        actor = acting_as(who, "reservation")
+        return _value(
+            parking.hold_return(body.parking_id, reservation_id, body.destination_hub_id, actor)
         )
 
     @router.post("")
@@ -113,14 +177,16 @@ def create_router(
             # open trips and the vehicle versions for its next commands.
             with core.unit_of_work() as uow:
                 bookings, open_trips = storage.student_records(core, actor.user_id)
+                parkings = parking.student_parkings(actor.user_id)
                 vehicle_versions: dict[str, int] = {}
                 ids = {record.vehicle_id for record in bookings}
                 ids.update(trip.vehicle_id for trip in open_trips)
+                ids.update(stay.vehicle_id for stay in parkings if stay.status in LIVE)
                 for vehicle_id in sorted(ids):
                     vehicle = uow.queries.get_vehicle(vehicle_id)
                     if not isinstance(vehicle, Err):
                         vehicle_versions[vehicle_id] = vehicle.value.version
-                return StudentRentals(bookings, open_trips, vehicle_versions)
+                return StudentRentals(bookings, open_trips, vehicle_versions, parkings)
         except RepositoryError:
             raise HTTPException(
                 503,
