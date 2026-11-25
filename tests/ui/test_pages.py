@@ -304,7 +304,7 @@ def test_wrong_input_gives_the_error_block(student, path, status, code):
 def test_alert_strip_shows_hubs_at_risk_on_every_operator_screen(operator, app, path):
     """TC-M7-006 · DT · The alert strip lists Hubs in CRITICAL or WARNING, most severe first.
 
-    Verifies: NFR-20
+    Verifies: UC-M7-07, NFR-20
     Expected: "■ H02 CRITICAL" before "▲ H01 WARNING", then "Incidents: 0 active".
     """
     set_hub_status(app, "H01", HubStatus.WARNING)
@@ -320,7 +320,7 @@ def test_alert_strip_shows_hubs_at_risk_on_every_operator_screen(operator, app, 
 def test_hub_detail_shows_every_vehicle_to_an_operator(operator):
     """TC-M7-017 · INT · O2 lists the vehicles, spaces and charging points of the Hub from core.
 
-    Verifies: FR-01, FR-08
+    Verifies: FR-01, FR-08, UC-M7-01
     Expected: fleet and private vehicles (operators see both), a space and a charging point of H01.
     """
     html = operator.get("/ui/operator/hubs/H01").text
@@ -415,7 +415,7 @@ def create_incident(operator) -> str:
 def test_dispatch_offers_the_actions_the_task_status_allows(operator, monkeypatch, status, buttons):
     """TC-M7-007 · DT · O4 shows on a task only the actions its status allows.
 
-    Verifies: FR-10
+    Verifies: FR-10, UC-M7-06
     Expected: the listed buttons and no other of the four task actions.
     """
     fake_call(monkeypatch, {"/allocation/tasks": (200, [a_task(status)])})
@@ -441,7 +441,7 @@ def test_incidents_offer_the_actions_the_ticket_status_allows(
 ):
     """TC-M7-008 · DT · O5 shows on a ticket only the actions its status allows.
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: the listed buttons and no other of Acknowledge, Resolve, Close.
     """
     answers = {"/api/v1/monitoring/incidents": (200, [a_ticket("INC-1", status=status)])}
@@ -456,7 +456,7 @@ def test_incidents_offer_the_actions_the_ticket_status_allows(
 def test_incidents_are_listed_most_severe_first_then_oldest(operator, monkeypatch):
     """TC-M7-011 · UX · O5 lists tickets by severity, then by age (oldest first).
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: CRITICAL before HIGH before LOW; of two HIGH tickets the older one first.
     """
     tickets = [
@@ -477,7 +477,7 @@ def test_incidents_are_listed_most_severe_first_then_oldest(operator, monkeypatc
 def test_incident_goes_through_its_life_in_the_screen(operator):
     """TC-M7-019 · INT · An operator acknowledges, resolves and closes a ticket of M5 in O5.
 
-    Verifies: FR-09
+    Verifies: FR-09, UC-M7-08
     Expected: after each button the ticket shows the next status; Resolve without notes is
     refused with M5's cause.
     """
@@ -500,7 +500,7 @@ def test_incident_goes_through_its_life_in_the_screen(operator):
 def test_active_incidents_are_counted_on_the_alert_strip(operator):
     """TC-M7-020 · DT · The alert strip counts the tickets that are not RESOLVED or CLOSED.
 
-    Verifies: NFR-20
+    Verifies: UC-M7-07, NFR-20
     Expected: "Incidents: 0 active" with no ticket, "Incidents: 1 active" after one is created.
     """
     assert "Incidents: 0 active" in operator.get("/ui/operator/overview").text
@@ -513,7 +513,7 @@ def test_active_incidents_are_counted_on_the_alert_strip(operator):
 def test_a_refused_task_action_shows_the_cause_of_m4(operator):
     """TC-M7-021 · EP · A task that does not exist: the error block shows M4's code and cause.
 
-    Verifies: FR-10, NFR-21
+    Verifies: FR-10, UC-M7-06, NFR-21
     Expected: an error block with "NOT_FOUND" and a link back, no stack trace.
     """
     response = operator.post("/ui/operator/dispatch/TASK-none/approve")
@@ -527,7 +527,7 @@ def test_dispatch_screen_asks_m4_for_new_tasks(operator):
     """TC-M7-022 · INT · O4 opens, and "Update recommendations" asks M4 to plan.
 
     M2 is installed, so M4 can read the demand and plan.
-    Verifies: FR-10
+    Verifies: FR-10, UC-M7-05
     Expected: O4 opens (200); after the button O4 opens again with no error block.
     """
     assert operator.get("/ui/operator/dispatch").status_code == 200
@@ -541,7 +541,7 @@ def test_dispatch_screen_asks_m4_for_new_tasks(operator):
 def test_operator_sees_the_charging_queue_of_a_hub(operator):
     """TC-M7-023 · INT · O3 shows the charging points of core and the queue of M3.
 
-    Verifies: FR-06
+    Verifies: FR-06, UC-M7-03
     Expected: H01 has 2 charging points, none in use; the empty queue is said in words.
     """
     html = operator.get("/ui/operator/charging?hub_id=H01").text
@@ -707,7 +707,7 @@ def reserve(student, app, vehicle_id="V1"):
 def test_student_reserves_and_cancels_a_vehicle(student, app):
     """TC-M7-028 · INT · S4 reserves through M2; S5 lists the booking and cancels it.
 
-    Verifies: FR-03, FR-04
+    Verifies: FR-03, FR-04, UC-M2-02, UC-M2-03
     Expected: after Confirm, S5 shows the booking as Reserved with V1; after Cancel it is listed
     under "Earlier bookings" as CANCELLED.
     """
@@ -726,7 +726,7 @@ def test_student_reserves_and_cancels_a_vehicle(student, app):
 def test_student_picks_up_and_returns_a_vehicle(student, app):
     """TC-M7-029 · INT · S5 picks up a reserved vehicle and returns it to another Hub (M2).
 
-    Verifies: FR-04
+    Verifies: FR-04, UC-M2-04, UC-M2-05
     Expected: after pick-up the booking is In progress; after the return to H02 it is COMPLETED
     and V1 is parked at H02 in core.
     """
@@ -749,7 +749,7 @@ def test_student_picks_up_and_returns_a_vehicle(student, app):
 def test_a_refused_reservation_shows_the_cause_of_m2(student, app):
     """TC-M7-030 · EP · A second rental while one is open is refused with M2's code and cause.
 
-    Verifies: FR-03, NFR-21
+    Verifies: FR-03, UC-M2-02, NFR-21
     Expected: an error block with "LIMIT_REACHED" and a link back, no stack trace.
     """
     assert "· Reserved" in reserve(student, app, "V1").text
@@ -775,7 +775,7 @@ SIMULATION_FORM = {
 def test_operator_runs_the_demand_surge_in_m6(operator):
     """TC-M7-031 · INT · O6 sends the form to M6 and shows its result under the form.
 
-    Verifies: FR-12
+    Verifies: FR-12, UC-M7-09
     Expected: the baseline shortage rate and one row for each Hub of the network, no error block.
     """
     response = operator.post("/ui/operator/simulation", data=SIMULATION_FORM)
@@ -788,7 +788,7 @@ def test_operator_runs_the_demand_surge_in_m6(operator):
 def test_a_wrong_simulation_value_shows_the_error_block(operator):
     """TC-M7-032 · EP · A surge multiplier below 1 is refused by M6 and explained.
 
-    Verifies: FR-12, NFR-21
+    Verifies: FR-12, UC-M7-09, NFR-21
     Expected: 400 and an error block with INVALID_INPUT, no stack trace.
     """
     form = {**SIMULATION_FORM, "surge_multiplier": "0.5"}
