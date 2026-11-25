@@ -9,9 +9,11 @@ from charging.models import (
     ChargingError,
     ChargingErrorCode,
     ChargingRequest,
+    ChargingSessionStatus,
     from_core_error,
 )
 from charging.service import ChargingQueueService
+from core.actor import Actor
 from core.api.security import Principal, acting_as, current_principal, require_operator
 from core.domain.enums import Ownership, Role, VehicleType
 from core.facade import CoreFacade
@@ -96,6 +98,20 @@ def _serialize_session(req: ChargingRequest) -> dict[str, Any]:
 
 def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> APIRouter:
     router = APIRouter(prefix="/charging", tags=["charging"])
+    system = Actor("SYSTEM_EVENT", Role.OPERATOR, "charging")
+
+    def bind_queue(hub_id: str) -> None:
+        """BR-M3-03: a request waits in the queue only while no slot is free. After a request is
+        queued or a slot is freed, the Hub's queue is bound to the earliest free slots at once,
+        as the operator's "Optimize" does (UC-M3-07)."""
+        service.optimize_queue(hub_id, system)
+
+    def settled(req: ChargingRequest) -> dict[str, Any]:
+        """The request as stored after the queue was bound (it may now be SCHEDULED)."""
+        if req.status is ChargingSessionStatus.QUEUED:
+            bind_queue(req.station_id)
+            req = schema.read(core, req.request_id) or req
+        return _serialize_session(req)
 
     @router.post("/requests/immediate")
     def request_immediate(body: ImmediateChargingIn, principal: CurrentPrincipal) -> dict[str, Any]:
@@ -112,7 +128,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         )
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
-        return _serialize_session(res.value)
+        return settled(res.value)
 
     @router.post("/requests/schedule")
     def schedule_future(body: ScheduleChargingIn, principal: CurrentPrincipal) -> dict[str, Any]:
@@ -128,7 +144,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         )
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
-        return _serialize_session(res.value)
+        return settled(res.value)
 
     @router.post("/sessions/{request_id}/start")
     def start_session(request_id: str, principal: CurrentPrincipal) -> dict[str, Any]:
@@ -148,6 +164,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         res = service.finish_charging(request_id, actor, final_soc=body.final_soc)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
+        bind_queue(res.value.station_id)
         return _serialize_session(res.value)
 
     @router.post("/sessions/{request_id}/interrupt")
@@ -160,6 +177,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         res = service.interrupt_charging(request_id, actor, current_soc=body.current_soc)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
+        bind_queue(res.value.station_id)
         return _serialize_session(res.value)
 
     @router.patch("/requests/{request_id}")
@@ -182,6 +200,7 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
         res = service.cancel_charging_schedule(request_id, actor)
         if isinstance(res, ChargingError):
             _raise_charging_error(res)
+        bind_queue(res.value.station_id)
         return _serialize_session(res.value)
 
     @router.post("/private/vehicles")
