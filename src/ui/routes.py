@@ -68,6 +68,12 @@ def to_ict_hm(moment: datetime) -> str:
     return moment.astimezone(ICT).strftime("%H:%M")
 
 
+def to_ict_until(end: datetime, start: datetime) -> str:
+    """The end of a period: hours and minutes on the start's day, else with its own day."""
+    same_day = end.astimezone(ICT).date() == start.astimezone(ICT).date()
+    return to_ict_hm(end) if same_day else to_ict_day(end)
+
+
 def type_label(vehicle_type: VehicleType) -> str:
     """The word a screen shows for a vehicle type, e.g. ``E-scooter``."""
     return VEHICLE_TYPE_LABELS[vehicle_type]
@@ -81,6 +87,7 @@ def status_symbol(status: HubStatus) -> str:
 templates.env.filters["ict"] = to_ict
 templates.env.filters["ict_day"] = to_ict_day
 templates.env.filters["ict_hm"] = to_ict_hm
+templates.env.filters["ict_until"] = to_ict_until
 templates.env.filters["type_label"] = type_label
 templates.env.filters["status_symbol"] = status_symbol
 

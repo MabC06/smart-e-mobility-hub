@@ -50,9 +50,9 @@
         {% if s.status == "QUEUED" %}
         <span class="status status-WARNING">▲ Waiting</span> no point is free in the next 2 hours; you get the first one that frees up.
         {% elif s.status == "SCHEDULED" %}
-        <span class="status status-ACTIVE">● Booked</span> <strong>{{ s.start_time | ict_day }}</strong> to {{ s.end_time | ict_hm }} at point <strong>{{ s.charger_id }}</strong>
+        <span class="status status-ACTIVE">● Booked</span> <strong>{{ s.start_time | ict_day }}</strong> to {{ s.end_time | ict_until(s.start_time) }} at point <strong>{{ s.charger_id }}</strong>
         {% else %}
-        <span class="status status-ACTIVE">● Charging</span> at point <strong>{{ s.charger_id }}</strong> since {{ s.start_time | ict_day }}, until {{ s.end_time | ict_hm }}
+        <span class="status status-ACTIVE">● Charging</span> at point <strong>{{ s.charger_id }}</strong> since {{ s.start_time | ict_day }}, until {{ s.end_time | ict_until(s.start_time) }}
         {% endif %}
       </p>
       <p class="note">Requested {{ s.requested_at | ict_day }}</p>
@@ -85,7 +85,7 @@
     <h3>Earlier charging</h3>
     <ul class="plain">
       {% for s in earlier %}
-      <li>{{ s.plate }} · {{ s.hub_id }} · {{ s.status }} · requested {{ s.requested_at | ict_day }}{% if s.start_time %} · {{ s.start_time | ict_day }} to {{ s.end_time | ict_hm }}{% endif %}</li>
+      <li>{{ s.plate }} · {{ s.hub_id }} · {{ s.status }} · requested {{ s.requested_at | ict_day }}{% if s.start_time %} · {{ s.start_time | ict_day }} to {{ s.end_time | ict_until(s.start_time) }}{% endif %}</li>
       {% endfor %}
     </ul>
     {% endif %}
