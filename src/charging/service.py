@@ -26,7 +26,11 @@ from core.domain.enums import (
 from core.errors import ErrorCode
 from core.events import EventType
 from core.facade import CoreFacade
-from core.providers import ProviderPort, ScheduledChargingSessionRow
+from core.providers import (
+    DisplacedChargingRequest,
+    ProviderPort,
+    ScheduledChargingSessionRow,
+)
 from core.repository.base import RepositoryError, VersionConflictError
 from core.result import Err, Ok, Result
 from core.services.transition_ctx import TransitionCtx
@@ -198,8 +202,47 @@ class ChargingQueueService:
             current_start += timedelta(minutes=15)
         return None, None
 
+    def _alternative_hub_bay(
+        self, uow, req: ChargingRequest, hub_id: str, start_at: datetime, minutes: int
+    ) -> ChargingPointView | None:
+        """Ask M4 for a free bay at another Hub (BR-M3-02, step 3; UC-M4-07)."""
+        res = self.core.providers.call(
+            ProviderPort.ALTERNATIVE_CHARGING,
+            lambda p: p.find_alternative_charging(
+                [DisplacedChargingRequest(req.request_id)], hub_id
+            ),
+        )
+        if isinstance(res, Err):
+            return None
+        end_at = start_at + timedelta(minutes=minutes)
+        for alt in res.value.alternatives:
+            if (
+                alt.request_id != req.request_id
+                or alt.status != "FOUND"
+                or alt.alternative_hub_id is None
+            ):
+                continue
+            # M4 only reads, so check the bays again under this unit of work.
+            free = [
+                pt
+                for pt in uow.queries.list_charging_points(alt.alternative_hub_id)
+                if pt.status
+                not in (
+                    ChargingPointStatus.OUT_OF_SERVICE,
+                    ChargingPointStatus.MAINTENANCE,
+                )
+                and not uow.queries.get_claims(pt.charging_point_id, start_at, end_at)
+            ]
+            if free:
+                # Prefer M4's bay; take another free one at that Hub if it is gone.
+                return next(
+                    (pt for pt in free if pt.charging_point_id == alt.charging_point_id),
+                    free[0],
+                )
+        return None
+
     def optimize_queue(self, hub_id: str, actor: Actor) -> ChargingResult[list[ChargingRequest]]:
-        """Bind QUEUED requests to the earliest free slot by priority (UC-M3-07)."""
+        """Bind QUEUED requests by priority: earliest slot here, else M4's Hub (UC-M3-07)."""
         if not _id_valid(hub_id):
             return _err(ChargingErrorCode.INVALID_INPUT, "Invalid hub_id.")
 
@@ -218,7 +261,12 @@ class ChargingQueueService:
                 now = uow.queries.get_config().as_of
                 bay, slot_start = self._earliest_slot(uow, hub_id, now, duration)
                 if bay is None or slot_start is None:
-                    return Ok(None)
+                    # No slot here within 2 hours: move the request to M4's Hub.
+                    bay = self._alternative_hub_bay(uow, req, hub_id, now, duration)
+                    if bay is None:
+                        return Ok(None)
+                    slot_start = now
+                    req.station_id = bay.hub_id
                 return self._bind_bay(
                     uow,
                     req,

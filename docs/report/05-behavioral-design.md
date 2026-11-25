@@ -71,15 +71,15 @@ Limitations: the Core contract has not been exercised, browser-specific SVG disp
 
 ## M3 contribution - Charging & Smart Scheduling
 
-> Author: Võ Thanh An. Date: 2026-11-06. **Proposed for team review**.
+> Author: Võ Thanh An. Date: 2026-11-06, revised 2026-11-17 for the Phase 3 implementation. **Proposed for team review**.
 
 ### Design overview
 
 M3 manages a charging session as a record of its own (D-018) and changes shared resources only through Core commands. The behavior follows the state machine in `charging-session-state-machine.md`:
 
-1. **Session lifecycle:** a request becomes `CHARGING` at once when the vehicle already stands in a free bay, `SCHEDULED` when a start time is given, and `QUEUED` when no bay is free. `optimize_queue` turns `QUEUED` requests into `SCHEDULED` ones; `start_scheduled_session` starts a due `SCHEDULED` session; finish ends in `COMPLETED`, interrupt in `INTERRUPTED`, and cancel in `CANCELLED`.
+1. **Session lifecycle:** a request becomes `CHARGING` at once when the vehicle already stands in a free bay, `SCHEDULED` when a start time is given, and `QUEUED` when no bay is free. `optimize_queue` turns `QUEUED` requests into `SCHEDULED` ones; `start_scheduled_session` starts a due `SCHEDULED` session; finish ends in `COMPLETED`, interrupt in `INTERRUPTED`, and cancel in `CANCELLED`. A private EV owner first registers the vehicle (`POST /charging/private/vehicles`; the vehicle is created in state `IN_USE` because it is not parked at a Hub) and then reserves a slot through the same request flow.
 2. **Priority (`BR-M3-03`):** queued requests are ranked by the low-battery override first (battery at or below `low_battery_threshold` from `get_config()`, 15 % by default), then vehicles with a booking in the next hour (M2's `ReservationDemand` port; battery only when the port is unavailable), then the lowest battery, then the request time.
-3. **Point failure (`UC-M3-08`, `BR-M3-02`):** a failure reaches M3 as the Core event `ChargingPointStatusChanged`. M3 interrupts the session on that point, submits a new request for the same vehicle and owner, moves the `SCHEDULED` sessions of that point, and runs `optimize_queue`, which tries another bay in the Hub and then a later slot every 15 minutes for the next 2 hours. The third step, M4's `AlternativeChargingProvider` port (`UC-M4-07`), is not called yet.
+3. **Point failure (`UC-M3-08`, `BR-M3-02`):** a failure reaches M3 as the Core event `ChargingPointStatusChanged`. M3 interrupts the session on that point, submits a new request for the same vehicle and owner, moves the `SCHEDULED` sessions of that point, and runs `optimize_queue`, which tries another bay in the Hub and then a later slot every 15 minutes for the next 2 hours. When the Hub has no slot in that window, `optimize_queue` calls M4's `AlternativeChargingProvider` port (`UC-M4-07`), checks the suggested bay again and moves the request to that Hub as `SCHEDULED`; otherwise it stays `QUEUED`.
 
 ### UML diagram index
 
@@ -93,14 +93,15 @@ All behavioral diagrams for M3 are maintained as editable `.puml` PlantUML sourc
 ### Key design decisions
 
 - **Claims hold the bay (D-017):** when a bay is bound, for `CHARGING` or `SCHEDULED`, M3 places a claim on the charging point and on the vehicle for the session interval; `COMPLETED`, `INTERRUPTED` and `CANCELLED` release them. Two sessions therefore never overlap on one point.
-- **One unit of work per change:** each bind, start, finish, interrupt or cancel runs in its own Core unit of work, so the session record, the claims and the vehicle state commit or roll back together.
+- **One unit of work per change:** each bind, start, finish, interrupt or cancel runs in its own Core unit of work, so the session record, the claims and the vehicle state commit or roll back together. `optimize_queue` binds each queued request in its own unit of work, because a commit closes the unit of work; a request that finds no slot stays `QUEUED` and does not block the others.
+- **Authorization:** students can act only on their own requests and sessions; the queue, demand and optimize endpoints require the operator role (NFR-16).
 - **No hardware model:** M3 works on the charging point status kept by Core (`AVAILABLE`, `CHARGING`, `OUT_OF_SERVICE`, `MAINTENANCE`); cable, relay and power control are out of scope.
 
 ### Interface alignment and integration
 
 1. **Core (M1):** vehicle state through `transition_vehicle` (`START_CHARGING`, `FINISH_CHARGING`, `INTERRUPT_CHARGING`), point status through `set_charging_point_status`, claims through `place_claim` and `release_claim`, and the `ChargingPointStatusChanged` event.
 2. **M2 (Reservation):** M3 reads upcoming bookings through the `ReservationDemand` port for the booking factor.
-3. **M4 and M6:** M3 provides its scheduled sessions through the `ChargingDemand` port (D-020); calling M4's `AlternativeChargingProvider` is the remaining step of `BR-M3-02`.
+3. **M4 and M6:** M3 provides its scheduled sessions through the `ChargingDemand` port (D-020) and calls M4's `AlternativeChargingProvider` port for the third step of `BR-M3-02`.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
