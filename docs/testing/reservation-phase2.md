@@ -84,3 +84,13 @@ no scheduler or public expiry API is claimed. Run `pytest -m tc_m2_023 -q`.
 Follow-up local verification (2026-11-11): 1,218 passed, 1 skipped overall;
 159 M2 tests; M2 coverage 96.01%, lifecycle coverage 92.86%. Lint, format
 and strict mypy (47 files) pass. CI and human review remain separate checks.
+
+## Final validation on the integrated branch (2026-11-23)
+
+On `bb5c622`, the focused M2 run passed **159 cases** with **96.01%** line
+coverage (313 of 326 executable lines). The full suite passed **1,393 cases**
+with 1 skip and 1 upstream Starlette deprecation warning. Ruff, formatting,
+and mypy also passed. D-025 now checks each module independently in CI, with
+a 60% minimum for M2 and a 70% minimum for Core. See the
+[standard case catalog](test-cases/reservation.md) and the
+[execution evidence](evidence/m2-validation-2026-11-23.json).

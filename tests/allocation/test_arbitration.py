@@ -2,9 +2,12 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
 from allocation.arbitration import ContenderRequest, RequestClass, settle_competing_requests
 
 
+@pytest.mark.tc_m4_007
 def test_higher_priority_class_always_wins():
     """BR-M4-01: Class priority 1 (operator emergency) beats class 2, which beats class 4, etc."""
     now = datetime(2026, 11, 5, 10, 0, 0, tzinfo=UTC)
@@ -34,6 +37,7 @@ def test_higher_priority_class_always_wins():
     assert result.displaced[0].request_id == "REQ-01"
 
 
+@pytest.mark.tc_m4_008
 def test_same_class_resolved_by_first_come_first_served():
     """BR-M4-01: When classes are identical, earlier requested_at wins."""
     req_earlier = ContenderRequest(
@@ -58,6 +62,7 @@ def test_same_class_resolved_by_first_come_first_served():
     assert result.displaced[0].request_id == "REQ-LATE"
 
 
+@pytest.mark.tc_m4_009
 def test_identical_class_and_time_tie_break_by_id():
     """NFR-13: Identical class and timestamp are deterministically broken by request_id."""
     same_time = datetime(2026, 11, 5, 10, 0, 0, tzinfo=UTC)
@@ -83,5 +88,6 @@ def test_identical_class_and_time_tie_break_by_id():
     assert result.displaced[0].request_id == "REQ-B"
 
 
+@pytest.mark.tc_m4_010
 def test_empty_requests_returns_none():
     assert settle_competing_requests([]) is None

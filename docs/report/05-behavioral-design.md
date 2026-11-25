@@ -3,7 +3,7 @@
 <!-- BEGIN M2: Reservation & Trip -->
 ## M2 contribution - Reservation & Trip
 
-> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
+> Author: 2452620 Đặng Tuấn Kiệt. Design baseline: 2026-11-04. The [Core API v1.2](../design/architecture/core-api-spec.md) is released. This section describes the reviewed design, including flows listed as implementation limitations in [Section 4.4](08-implementation.md#44-deviations-and-implementation-limitations).
 
 ### Design overview
 
@@ -25,7 +25,7 @@ All ten diagrams in this contribution (eight behavioral and two use-case diagram
 
 ### Atomicity, deadlines and retries
 
-M2 orchestrates `core.unit_of_work()`, checks its own booking/Trip and quota under the Core lock, and writes registered M2 entities through `uow.repository` (D-018). Core commands alone change shared claims, vehicles and spaces. Every `Err` exits without commit; a successful explicit commit persists the complete write set. This is the released Core API v1.1 contract, not a callback from Core into M2 (D-015).
+M2 orchestrates `core.unit_of_work()`, checks its own booking/Trip and quota under the Core lock, and writes registered M2 entities through `uow.repository` (D-018). Core commands alone change shared claims, vehicles and spaces. Every `Err` exits without commit; a successful explicit commit persists the complete write set. The Core API retains this module-owned retry and orchestration contract in v1.2 (D-015).
 
 At `t = hold_expires_at`, pickup is expired; it is eligible only while `t < expiry`. Time is read inside the serialization boundary. Cancellation, pickup, expiry and resource failure contend on the same current state/version. Only a valid winner commits; a delayed expiry sweep never grants extra pickup time. Active bookings cannot be ended by pickup-deadline expiry.
 
@@ -45,11 +45,11 @@ The [requirements parameter register and data proposal](../requirements/fr-02-05
 - Existing student claims are protected from rebalancing/charging priority. Operator safety isolation remains a separate incident action with accountable custody/occupancy.
 - Snapshot simulation must clone claims/bookings/trips and use the same rules with a separate clock/result namespace. Recommendations never write back directly; application is a newly authorized operational command.
 
-All shared choices are **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review. Core API/state validation, M3 bundle semantics, M4 dispatch claims/priority, M5 due-time/incident recovery and M7 schema/UI remain explicit handoffs.
+D-015 through D-020 define the Core interaction rules. The requirements register records which M2 policy values remain proposed. Core API/state validation, M3 bundle semantics, M4 dispatch claims/priority, M5 due-time/incident recovery and M7 schema/UI remain explicit handoffs.
 
 ### Verification evidence and reproducibility
 
-Design-only review on 2026-10-11 covers the 13 V-M2 scenario groups in the requirements baseline. It checks happy/empty/invalid flows, simultaneous claims and quotas, cancellation/expiry boundaries, repeated pickup/return, full Hubs, faults, bay sharing, redistribution priority and isolated simulation. These are document walkthroughs and future test obligations; **no application tests were run or claimed**.
+Design-only review on 2026-10-11 covers the 13 V-M2 scenario groups in the requirements baseline. It checks happy/empty/invalid flows, simultaneous claims and quotas, cancellation/expiry boundaries, repeated pickup/return, full Hubs, faults, bay sharing, redistribution priority and isolated simulation. These are document walkthroughs and future test obligations; see the [M2 test catalog](../testing/test-cases/reservation.md) for the later executed rental-service cases.
 
 Render using Java 17 and PlantUML **1.2026.2** (Graphviz 2.44.1 reported by the tool). Set `$plantUmlJar` to the local PlantUML JAR path; the JAR is a tool, not a repository artifact:
 
@@ -71,15 +71,15 @@ Limitations: the Core contract has not been exercised, browser-specific SVG disp
 
 ## M3 contribution - Charging & Smart Scheduling
 
-> Author: Võ Thanh An. Date: 2026-11-06. **Proposed for team review**.
+> Author: Võ Thanh An. Date: 2026-11-06, revised 2026-11-17 for the Phase 3 implementation. **Proposed for team review**.
 
 ### Design overview
 
 M3 manages a charging session as a record of its own (D-018) and changes shared resources only through Core commands. The behavior follows the state machine in `charging-session-state-machine.md`:
 
-1. **Session lifecycle:** a request becomes `CHARGING` at once when the vehicle already stands in a free bay, `SCHEDULED` when a start time is given, and `QUEUED` when no bay is free. `optimize_queue` turns `QUEUED` requests into `SCHEDULED` ones; `start_scheduled_session` starts a due `SCHEDULED` session; finish ends in `COMPLETED`, interrupt in `INTERRUPTED`, and cancel in `CANCELLED`.
+1. **Session lifecycle:** a request becomes `CHARGING` at once when the vehicle already stands in a free bay, `SCHEDULED` when a start time is given, and `QUEUED` when no bay is free. `optimize_queue` turns `QUEUED` requests into `SCHEDULED` ones; `start_scheduled_session` starts a due `SCHEDULED` session; finish ends in `COMPLETED`, interrupt in `INTERRUPTED`, and cancel in `CANCELLED`. A private EV owner first registers the vehicle (`POST /charging/private/vehicles`; the vehicle is created in state `IN_USE` because it is not parked at a Hub) and then reserves a slot through the same request flow.
 2. **Priority (`BR-M3-03`):** queued requests are ranked by the low-battery override first (battery at or below `low_battery_threshold` from `get_config()`, 15 % by default), then vehicles with a booking in the next hour (M2's `ReservationDemand` port; battery only when the port is unavailable), then the lowest battery, then the request time.
-3. **Point failure (`UC-M3-08`, `BR-M3-02`):** a failure reaches M3 as the Core event `ChargingPointStatusChanged`. M3 interrupts the session on that point, submits a new request for the same vehicle and owner, moves the `SCHEDULED` sessions of that point, and runs `optimize_queue`, which tries another bay in the Hub and then a later slot every 15 minutes for the next 2 hours. The third step, M4's `AlternativeChargingProvider` port (`UC-M4-07`), is not called yet.
+3. **Point failure (`UC-M3-08`, `BR-M3-02`):** a failure reaches M3 as the Core event `ChargingPointStatusChanged`. M3 interrupts the session on that point, submits a new request for the same vehicle and owner, moves the `SCHEDULED` sessions of that point, and runs `optimize_queue`, which tries another bay in the Hub and then a later slot every 15 minutes for the next 2 hours. When the Hub has no slot in that window, `optimize_queue` calls M4's `AlternativeChargingProvider` port (`UC-M4-07`), checks the suggested bay again and moves the request to that Hub as `SCHEDULED`; otherwise it stays `QUEUED`.
 
 ### UML diagram index
 
@@ -93,14 +93,15 @@ All behavioral diagrams for M3 are maintained as editable `.puml` PlantUML sourc
 ### Key design decisions
 
 - **Claims hold the bay (D-017):** when a bay is bound, for `CHARGING` or `SCHEDULED`, M3 places a claim on the charging point and on the vehicle for the session interval; `COMPLETED`, `INTERRUPTED` and `CANCELLED` release them. Two sessions therefore never overlap on one point.
-- **One unit of work per change:** each bind, start, finish, interrupt or cancel runs in its own Core unit of work, so the session record, the claims and the vehicle state commit or roll back together.
+- **One unit of work per change:** each bind, start, finish, interrupt or cancel runs in its own Core unit of work, so the session record, the claims and the vehicle state commit or roll back together. `optimize_queue` binds each queued request in its own unit of work, because a commit closes the unit of work; a request that finds no slot stays `QUEUED` and does not block the others.
+- **Authorization:** students can act only on their own requests and sessions; the queue, demand and optimize endpoints require the operator role (NFR-16).
 - **No hardware model:** M3 works on the charging point status kept by Core (`AVAILABLE`, `CHARGING`, `OUT_OF_SERVICE`, `MAINTENANCE`); cable, relay and power control are out of scope.
 
 ### Interface alignment and integration
 
 1. **Core (M1):** vehicle state through `transition_vehicle` (`START_CHARGING`, `FINISH_CHARGING`, `INTERRUPT_CHARGING`), point status through `set_charging_point_status`, claims through `place_claim` and `release_claim`, and the `ChargingPointStatusChanged` event.
 2. **M2 (Reservation):** M3 reads upcoming bookings through the `ReservationDemand` port for the booking factor.
-3. **M4 and M6:** M3 provides its scheduled sessions through the `ChargingDemand` port (D-020); calling M4's `AlternativeChargingProvider` is the remaining step of `BR-M3-02`.
+3. **M4 and M6:** M3 provides its scheduled sessions through the `ChargingDemand` port (D-020) and calls M4's `AlternativeChargingProvider` port for the third step of `BR-M3-02`.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
@@ -150,7 +151,7 @@ The incident management workflow (`FR-09`, `UC-M5-02`) handles automated failure
 
 ```mermaid
 flowchart TD
-    START(["● Start: Anomaly Detected"]) --> INTAKE["Ingest Incident Signal (from IoT Sim Telemetry or Operator)"]
+    START(["● Start: Anomaly Detected"]) --> INTAKE["Ingest Incident Signal (from Core Domain Events or Operator)"]
     INTAKE --> CREATE["Classify Severity & Create Incident Ticket (Status: OPEN)"]
 
     CREATE --> COND_INTERLOCK{"Requires Automated<br/>Safety Interlock?<br/>(BR-M5-03, BR-M5-05)"}
@@ -177,9 +178,9 @@ flowchart TD
 ```
 
 ##### Workflow Narrative:
-1. **Intake & Triage:** Fault signals arrive asynchronously from sensor dropouts or charger fault codes. The intake engine instantiates an `IncidentTicket` with status `OPEN`.
+1. **Intake & Triage:** Fault signals arrive asynchronously via Core domain events (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SensorEventRejected`, `SensorHeartbeat`) or operator reports. The intake engine instantiates an `IncidentTicket` with status `OPEN`.
 2. **Automated Interlocks (`BR-M5-03`, `BR-M5-05`):** If electrical or battery hazards are present, the system immediately cuts charger power and marks the socket `OUT_OF_SERVICE`, or locks out low-battery vehicles ($\le 15\%$) from the rental inventory.
-3. **5-Minute Escalation Window (`BR-M5-04`):** For High and Critical tickets, an unacknowledged ticket remaining `OPEN` for $> 5$ minutes automatically promotes to `ESCALATED`, notifying the Duty Supervisor.
+3. **5-Minute Escalation Window (`BR-M5-04`):** For High and Critical tickets, an unacknowledged ticket remaining `OPEN` for $> 5$ minutes automatically promotes to `ESCALATED` via `check_and_escalate_unacknowledged()`, notifying the Duty Supervisor.
 4. **Corrective Recovery:** Software/communication anomalies receive an automated remote reset. If hardware remains unresponsive, a field technician is dispatched for physical part replacement.
 5. **Closure & Audit Trail (`NFR-25`):** Once verified healthy, the operator logs root cause notes, marks the ticket `RESOLVED` $\rightarrow$ `CLOSED`, and appends the entry to `TicketAuditLog`.
 

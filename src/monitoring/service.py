@@ -16,9 +16,20 @@ from datetime import datetime
 from uuid import uuid4
 
 from core.actor import Actor
-from core.domain.entities import DomainEvent
-from core.domain.enums import ChargingPointStatus, HubStatus, Role
+from core.domain.entities import (
+    ChargingPoint,
+    DomainEvent,
+    Hub,
+    ParkingSpace,
+    Vehicle,
+)
+from core.domain.enums import (
+    ChargingPointStatus,
+    HubStatus,
+    Role,
+)
 from core.facade import CoreFacade
+from core.providers import OpenTrips, ProviderPort
 from core.result import Err, Ok, Result
 from core.views import HubStatusView, HubView
 from monitoring.domain import (
@@ -49,6 +60,7 @@ class MonitoringService:
     def __init__(self, core: CoreFacade) -> None:
         self._core = core
         self._log_counter = 0
+        self._heartbeats: dict[str, datetime] = {}
 
     def _now(self) -> datetime:
         return self._core.queries.get_config().as_of
@@ -56,6 +68,31 @@ class MonitoringService:
     def _next_log_id(self) -> str:
         self._log_counter += 1
         return f"LOG-{self._log_counter:06d}"
+
+    def _find_active_incident(
+        self,
+        incident_type: IncidentType,
+        entity_id: str,
+        hub_id: str | None = None,
+    ) -> IncidentTicket | None:
+        """Find an existing active ticket (OPEN, IN_PROGRESS, ESCALATED) for this entity/fault."""
+        active_statuses = (
+            IncidentStatus.OPEN,
+            IncidentStatus.IN_PROGRESS,
+            IncidentStatus.ESCALATED,
+        )
+
+        def predicate(t: IncidentTicket) -> bool:
+            if t.status not in active_statuses:
+                return False
+            if t.incident_type != incident_type:
+                return False
+            if t.entity_id != entity_id:
+                return False
+            return hub_id is None or t.hub_id == hub_id
+
+        tickets = self._core.query_entities(IncidentTicket, predicate)
+        return tickets[0] if tickets else None
 
     # ---------------------------------------------------------------------------------- Metrics
     def get_hub_metrics(self, hub_id: str) -> HubMetricsView | None:
@@ -138,22 +175,21 @@ class MonitoringService:
             hub_id, target_status, hub.version, MONITORING_SYSTEM_ACTOR
         )
 
-        if isinstance(update_res, Ok) and target_status is HubStatus.CRITICAL:
-            # Check if an open capacity incident already exists
-            existing = self.list_incidents(
+        if (
+            isinstance(update_res, Ok)
+            and target_status is HubStatus.CRITICAL
+            and not self._find_active_incident(IncidentType.HUB_CAPACITY_FULL, hub_id, hub_id)
+        ):
+            self.create_incident(
+                incident_type=IncidentType.HUB_CAPACITY_FULL,
+                severity=IncidentSeverity.HIGH,
                 hub_id=hub_id,
-                status=IncidentStatus.OPEN,
+                entity_type="Hub",
+                entity_id=hub_id,
+                error_code="ERR_CAPACITY_OVERFLOW",
+                description=f"Hub {hub.name} reached 100% parking capacity ({occupied}/{cap})",
+                reported_by="SYSTEM_CAPACITY_EVALUATOR",
             )
-            if not any(i.incident_type == IncidentType.HUB_CAPACITY_FULL for i in existing):
-                self.create_incident(
-                    incident_type=IncidentType.HUB_CAPACITY_FULL,
-                    severity=IncidentSeverity.HIGH,
-                    hub_id=hub_id,
-                    entity_type="Hub",
-                    entity_id=hub_id,
-                    description=f"Hub {hub.name} reached 100% parking capacity ({occupied}/{cap})",
-                    reported_by="SYSTEM_CAPACITY_EVALUATOR",
-                )
 
         return update_res
 
@@ -175,6 +211,19 @@ class MonitoringService:
         if new_status == ChargingPointStatus.OUT_OF_SERVICE.value:
             cp_id = str(event.payload.get("charging_point_id", ""))
             hub_id = str(event.payload.get("hub_id", ""))
+            if not hub_id:
+                cp = self._core.get_entity(ChargingPoint, cp_id)
+                if cp is not None:
+                    hub_id = cp.hub_id
+            if not hub_id:
+                logger.warning(
+                    "Charging point %s cannot be mapped to any Hub; skipping incident", cp_id
+                )
+                return
+
+            if self._find_active_incident(IncidentType.CHARGING_POINT_FAILURE, cp_id, hub_id):
+                return
+
             self.create_incident(
                 incident_type=IncidentType.CHARGING_POINT_FAILURE,
                 severity=IncidentSeverity.CRITICAL,
@@ -190,8 +239,22 @@ class MonitoringService:
         """Automatically create INC-BAT-01 on critical low battery (BR-M5-05, FR-09.3)."""
         if event.payload.get("low") is True:
             v_id = str(event.payload.get("vehicle_id", ""))
-            hub_id = str(event.payload.get("hub_id") or "UNKNOWN")
+            hub_id = str(event.payload.get("hub_id") or "")
+            if not hub_id:
+                v = self._core.get_entity(Vehicle, v_id)
+                if v is not None and v.hub_id:
+                    hub_id = v.hub_id
+            if not hub_id:
+                logger.warning(
+                    "Low battery vehicle %s cannot be mapped to any Hub; skipping incident", v_id
+                )
+                return
+
             battery = event.payload.get("new", 0.0)
+
+            if self._find_active_incident(IncidentType.BATTERY_CRITICAL_FAULT, v_id, hub_id):
+                return
+
             self.create_incident(
                 incident_type=IncidentType.BATTERY_CRITICAL_FAULT,
                 severity=IncidentSeverity.HIGH,
@@ -202,6 +265,236 @@ class MonitoringService:
                 description=f"Vehicle {v_id} dropped to {battery}% battery SoC (<= 15% threshold)",
                 reported_by="SYSTEM_TELEMETRY_MONITOR",
             )
+
+    def on_sensor_event_rejected(self, event: DomainEvent) -> None:
+        """Automatically create INC-HW-02 (PARKING_SENSOR_FAULT) on sensor rejection."""
+        payload = event.payload
+        entity_id = str(payload.get("entity_id", ""))
+        err_code = str(payload.get("code", "ERR_SENSOR_REJECTED"))
+        reason = str(payload.get("reason", "Sensor event rejected by core"))
+        sensor_type = str(payload.get("type", "UNKNOWN"))
+
+        # Resolve entity_type and hub_id from entity repository
+        entity_type = "Sensor"
+        hub_id: str | None = None
+        space = self._core.get_entity(ParkingSpace, entity_id)
+        if space is not None:
+            hub_id = space.hub_id
+            entity_type = "ParkingSpace"
+        else:
+            cp = self._core.get_entity(ChargingPoint, entity_id)
+            if cp is not None:
+                hub_id = cp.hub_id
+                entity_type = "ChargingPoint"
+            else:
+                vehicle = self._core.get_entity(Vehicle, entity_id)
+                if vehicle is not None and vehicle.hub_id:
+                    hub_id = vehicle.hub_id
+                    entity_type = "Vehicle"
+
+        if not hub_id:
+            logger.warning(
+                "Rejected sensor event for %s (%s) cannot be mapped to any Hub; skipping incident",
+                entity_id,
+                sensor_type,
+            )
+            return
+
+        if self._find_active_incident(IncidentType.PARKING_SENSOR_FAULT, entity_id, hub_id):
+            return
+
+        self.create_incident(
+            incident_type=IncidentType.PARKING_SENSOR_FAULT,
+            severity=IncidentSeverity.MEDIUM,
+            hub_id=hub_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            error_code=err_code,
+            description=(
+                f"Sensor rejected for {entity_type} {entity_id} ({sensor_type}): {reason}"
+            ),
+            reported_by="SYSTEM_SENSOR_MONITOR",
+        )
+
+    def on_sensor_heartbeat(self, event: DomainEvent) -> None:
+        """Record liveness heartbeat and run periodic checks acting as timer."""
+        payload = event.payload
+        entity_id = str(payload.get("entity_id", ""))
+        if entity_id:
+            now = self._now()
+            self._heartbeats[entity_id] = now
+
+        try:
+            self.run_periodic_checks()
+        except Exception:
+            logger.exception("Failed to run periodic monitoring checks on heartbeat")
+
+    # ------------------------------------------------------------- Periodic & Escalation Checks
+    def run_periodic_checks(self) -> list[IncidentTicket]:
+        """Run all periodic health checks driven by sensor heartbeat timer.
+
+        Executes:
+        1. check_heartbeat_timeouts: INC-COMM-01 (> 30s silence)
+        2. check_overdue_vehicles: INC-USR-01 (via ReservationDemand open_trips)
+        3. check_vehicle_deficits: INC-CAP-02 (< 2 available rental vehicles)
+        4. check_and_escalate_unacknowledged: BR-M5-04 (HIGH/CRITICAL > 5m unacknowledged)
+        """
+        results: list[IncidentTicket] = []
+        results.extend(self.check_heartbeat_timeouts())
+        results.extend(self.check_overdue_vehicles())
+        results.extend(self.check_vehicle_deficits())
+        results.extend(self.check_and_escalate_unacknowledged())
+        return results
+
+    def check_heartbeat_timeouts(self, timeout_seconds: float = 30.0) -> list[IncidentTicket]:
+        """Detect telemetry connection loss when heartbeat is silent > 30s (INC-COMM-01)."""
+        now = self._now()
+        created_tickets: list[IncidentTicket] = []
+
+        for entity_id, last_seen in list(self._heartbeats.items()):
+            elapsed = (now - last_seen).total_seconds()
+            if elapsed > timeout_seconds:
+                hub_id: str | None = None
+                hub = self._core.get_entity(Hub, entity_id)
+                if hub is not None:
+                    hub_id = hub.hub_id
+                else:
+                    space = self._core.get_entity(ParkingSpace, entity_id)
+                    if space is not None:
+                        hub_id = space.hub_id
+                    else:
+                        cp = self._core.get_entity(ChargingPoint, entity_id)
+                        if cp is not None:
+                            hub_id = cp.hub_id
+                        else:
+                            v = self._core.get_entity(Vehicle, entity_id)
+                            if v is not None and v.hub_id:
+                                hub_id = v.hub_id
+
+                if not hub_id:
+                    logger.warning(
+                        "Heartbeat timeout for %s cannot be mapped to any Hub; skipping incident",
+                        entity_id,
+                    )
+                    continue
+
+                if self._find_active_incident(
+                    IncidentType.TELEMETRY_CONNECTION_LOSS, entity_id, hub_id
+                ):
+                    continue
+
+                ticket = self.create_incident(
+                    incident_type=IncidentType.TELEMETRY_CONNECTION_LOSS,
+                    severity=IncidentSeverity.CRITICAL,
+                    hub_id=hub_id,
+                    entity_type="Gateway",
+                    entity_id=entity_id,
+                    error_code="ERR_TELEMETRY_TIMEOUT",
+                    description=(
+                        f"Loss of telemetry feed from {entity_id} for {elapsed:.1f}s "
+                        f"(exceeded {timeout_seconds}s limit, INC-COMM-01)"
+                    ),
+                    reported_by="SYSTEM_HEARTBEAT_MONITOR",
+                )
+                created_tickets.append(ticket)
+        return created_tickets
+
+    def check_overdue_vehicles(self) -> list[IncidentTicket]:
+        """Detect overdue trips via ReservationDemand provider port (INC-USR-01).
+
+        Calls ProviderPort.RESERVATION_DEMAND.open_trips(hub_id).
+        If provider is not yet registered (M2 in development), returns empty list.
+        """
+        created_tickets: list[IncidentTicket] = []
+        hubs = self._core.queries.list_hubs()
+        seen_trip_ids: set[str] = set()
+
+        for hub in hubs:
+            res: Result[OpenTrips] = self._core.providers.call(
+                ProviderPort.RESERVATION_DEMAND,
+                lambda provider, hid=hub.hub_id: provider.open_trips(hid),
+            )
+            if isinstance(res, Err):
+                # Provider not registered or unavailable; skip
+                continue
+
+            for trip in res.value.trips:
+                if trip.trip_id in seen_trip_ids:
+                    continue
+                seen_trip_ids.add(trip.trip_id)
+
+                if trip.is_overdue:
+                    hub_id = trip.destination_hub_id or trip.origin_hub_id
+                    if not hub_id:
+                        continue
+
+                    if self._find_active_incident(
+                        IncidentType.OVERDUE_VEHICLE, trip.vehicle_id, hub_id
+                    ):
+                        continue
+
+                    ticket = self.create_incident(
+                        incident_type=IncidentType.OVERDUE_VEHICLE,
+                        severity=IncidentSeverity.LOW,
+                        hub_id=hub_id,
+                        entity_type="Vehicle",
+                        entity_id=trip.vehicle_id,
+                        error_code="WARN_RENTAL_OVERDUE",
+                        description=(
+                            f"Trip {trip.trip_id} (vehicle {trip.vehicle_id}) is overdue "
+                            f"(due at {trip.expected_return_at.isoformat()})"
+                        ),
+                        reported_by="SYSTEM_RESERVATION_MONITOR",
+                    )
+                    created_tickets.append(ticket)
+        return created_tickets
+
+    def check_vehicle_deficits(self, min_vehicles: int = 2) -> list[IncidentTicket]:
+        """Detect Hubs where available rental fleet falls below threshold (INC-CAP-02)."""
+        created: list[IncidentTicket] = []
+        for hub in self._core.queries.list_hubs():
+            if hub.available_vehicles < min_vehicles:
+                if self._find_active_incident(
+                    IncidentType.HUB_VEHICLE_DEFICIT, hub.hub_id, hub.hub_id
+                ):
+                    continue
+
+                ticket = self.create_incident(
+                    incident_type=IncidentType.HUB_VEHICLE_DEFICIT,
+                    severity=IncidentSeverity.MEDIUM,
+                    hub_id=hub.hub_id,
+                    entity_type="Hub",
+                    entity_id=hub.hub_id,
+                    error_code="WARN_VEHICLE_DEFICIT",
+                    description=(
+                        f"Hub {hub.name} vehicle inventory deficit: only "
+                        f"{hub.available_vehicles} vehicles available (< {min_vehicles} units)"
+                    ),
+                    reported_by="SYSTEM_FLEET_MONITOR",
+                )
+                created.append(ticket)
+        return created
+
+    def check_and_escalate_unacknowledged(
+        self, timeout_seconds: float = 300.0
+    ) -> list[IncidentTicket]:
+        """Scan and auto-escalate HIGH or CRITICAL OPEN tickets > 5 minutes (BR-M5-04)."""
+        now = self._now()
+        open_tickets = self.list_incidents(status=IncidentStatus.OPEN)
+        escalated: list[IncidentTicket] = []
+        for ticket in open_tickets:
+            if ticket.severity in (IncidentSeverity.HIGH, IncidentSeverity.CRITICAL):
+                age_seconds = (now - ticket.created_at).total_seconds()
+                if age_seconds >= timeout_seconds:
+                    updated = self.escalate_incident(
+                        ticket.incident_id,
+                        reason=(
+                            f"Unacknowledged {ticket.severity.value} incident for "
+                            f"{int(age_seconds)}s (> {int(timeout_seconds)}s limit, BR-M5-04)"
+                        ),
+                    )
+                    escalated.append(updated)
+        return escalated
 
     # ----------------------------------------------------------------- Incident CRUD & Lifecycle
     def create_incident(
