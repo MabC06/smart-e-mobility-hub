@@ -1100,3 +1100,60 @@ def test_second_registration_of_same_plate_is_400_not_500() -> None:
     assert second.status_code == 400
     with core.unit_of_work() as uow:
         assert isinstance(uow.queries.get_vehicle("V-PRIV-OTHER"), Err)
+
+
+def test_queue_route_gives_rank_reason_and_owner() -> None:
+    """TC-M3-037 · Verifies: FR-06, FR-11, BR-M3-03, UC-M7-03.
+
+    Expected: the queue is in BR-M3-03 order with rank 1..n; a vehicle at or under 15% has
+    reason EMERGENCY_LOW_BATTERY, the others LOWEST_BATTERY_FIRST; owner and ownership are set.
+    """
+    _, clock, service, client = _api()
+    for rid, vid in (("R-400", "V-400"), ("R-149", "V-149"), ("R-151", "V-151")):
+        assert isinstance(service.submit_charging_request(rid, vid, "H1", STUDENT), Ok)
+        clock.advance(timedelta(minutes=1))
+
+    rows = client.get("/charging/queue", headers=_bearer(client, "OP-01")).json()
+
+    assert [(r["rank"], r["vehicle_id"]) for r in rows] == [
+        (1, "V-149"),
+        (2, "V-151"),
+        (3, "V-400"),
+    ]
+    assert [r["priority_reason"] for r in rows] == [
+        "EMERGENCY_LOW_BATTERY",
+        "LOWEST_BATTERY_FIRST",
+        "LOWEST_BATTERY_FIRST",
+    ]
+    assert {(r["owner_user_id"], r["ownership"], r["booked"]) for r in rows} == {
+        ("STU1", "FLEET", False)
+    }
+
+
+def test_moved_route_lists_sessions_moved_after_a_point_failure() -> None:
+    """TC-M3-038 · Verifies: FR-06, UC-M3-08, UC-M7-03, NFR-16.
+
+    Expected: after CP01 fails mid-charge the route lists REQ-S1 (from CP01) moved to REQ-S1-R1
+    on CP02; a student gets 403; another Hub has no moved session.
+    """
+    core, _, service, client = _api()
+    assert isinstance(service.submit_charging_request("REQ-S1", "V-DOCKED", "H1", STUDENT), Ok)
+    with core.unit_of_work() as uow:
+        cp01 = next(
+            p for p in uow.queries.list_charging_points("H1") if p.charging_point_id == "H1-CP01"
+        )
+        out = uow.commands.set_charging_point_status(
+            "H1-CP01", ChargingPointStatus.OUT_OF_SERVICE, cp01.version, OPERATOR
+        )
+        assert isinstance(out, Ok)
+        assert not isinstance(uow.commit(), Err)
+    service._on_point_status_changed(_point_event("H1-CP01", ChargingPointStatus.OUT_OF_SERVICE))
+    operator = _bearer(client, "OP-01")
+
+    (row,) = client.get("/charging/moved", headers=operator).json()
+
+    assert (row["from_request_id"], row["from_charger_id"]) == ("REQ-S1", "H1-CP01")
+    assert (row["to_request_id"], row["to_charger_id"]) == ("REQ-S1-R1", "H1-CP02")
+    assert row["to_status"] == "SCHEDULED" and row["vehicle_id"] == "V-DOCKED"
+    assert client.get("/charging/moved", headers=_bearer(client, "2452030")).status_code == 403
+    assert client.get("/charging/moved?hub_id=H2", headers=operator).json() == []

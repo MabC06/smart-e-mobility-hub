@@ -226,7 +226,51 @@ def create_charging_router(service: ChargingQueueService, core: CoreFacade) -> A
     def get_priority_queue(
         principal: OperatorPrincipal, hub_id: str | None = None
     ) -> list[dict[str, Any]]:
-        return [_serialize_session(r) for r in service.compute_priority_queue(hub_id)]
+        """QUEUED requests in BR-M3-03 order, with the rank, the reason and the owner."""
+        queue = service.compute_priority_queue(hub_id)
+        booked = service.booked_vehicles({r.station_id for r in queue})
+        rows = []
+        for rank, req in enumerate(queue, start=1):
+            vehicle = core.queries.get_vehicle(req.vehicle_id)
+            ownership = None if isinstance(vehicle, Err) else vehicle.value.ownership.value
+            is_booked = req.vehicle_id in booked.get(req.station_id, set())
+            if req.is_emergency:
+                reason = "EMERGENCY_LOW_BATTERY"
+            elif is_booked:
+                reason = "BOOKED_WITHIN_1H"
+            else:
+                reason = "LOWEST_BATTERY_FIRST"
+            rows.append(
+                {
+                    **_serialize_session(req),
+                    "rank": rank,
+                    "priority_reason": reason,
+                    "booked": is_booked,
+                    "ownership": ownership,
+                    "owner_user_id": req.user_id,
+                }
+            )
+        return rows
+
+    @router.get("/moved")
+    def list_moved_sessions(
+        principal: OperatorPrincipal, hub_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Sessions interrupted by a charging-point failure and where they went (UC-M3-08)."""
+        return [
+            {
+                "vehicle_id": old.vehicle_id,
+                "hub_id": old.station_id,
+                "from_request_id": old.request_id,
+                "from_charger_id": old.charger_id,
+                "interrupted_at": old.end_time.isoformat() if old.end_time else None,
+                "to_request_id": new.request_id,
+                "to_status": new.status.value,
+                "to_charger_id": new.charger_id,
+                "to_start_time": new.start_time.isoformat() if new.start_time else None,
+            }
+            for old, new in service.moved_after_failure(hub_id)
+        ]
 
     @router.post("/schedule/optimize")
     def optimize_schedule(hub_id: str, principal: OperatorPrincipal) -> list[dict[str, Any]]:

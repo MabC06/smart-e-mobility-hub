@@ -797,15 +797,7 @@ class ChargingQueueService:
             and (hub_id is None or r.station_id == hub_id)
         ]
 
-        # Booking factor per Hub; on Err (e.g. RESOURCE_UNAVAILABLE) use battery only.
-        booked: dict[str, set[str]] = {}
-        for queued_hub in {r.station_id for r in queued}:
-            demand = self.core.providers.call(
-                ProviderPort.RESERVATION_DEMAND,
-                lambda p, h=queued_hub: p.upcoming_bookings(h, timedelta(hours=1)),
-            )
-            if isinstance(demand, Ok):
-                booked[queued_hub] = {b.vehicle_id for b in demand.value.bookings}
+        booked = self.booked_vehicles({r.station_id for r in queued})
 
         for req in queued:
             req.is_emergency = req.current_soc <= threshold
@@ -819,6 +811,39 @@ class ChargingQueueService:
             )
         )
         return queued
+
+    def booked_vehicles(self, hub_ids: set[str]) -> dict[str, set[str]]:
+        """Vehicles with a rental booking in the next hour, per Hub (BR-M3-03 booking factor).
+
+        On an Err from M2's provider (e.g. RESOURCE_UNAVAILABLE) the Hub has no booked vehicle.
+        """
+        booked: dict[str, set[str]] = {}
+        for queued_hub in sorted(hub_ids):
+            demand = self.core.providers.call(
+                ProviderPort.RESERVATION_DEMAND,
+                lambda p, h=queued_hub: p.upcoming_bookings(h, timedelta(hours=1)),
+            )
+            if isinstance(demand, Ok):
+                booked[queued_hub] = {b.vehicle_id for b in demand.value.bookings}
+        return booked
+
+    def moved_after_failure(
+        self, hub_id: str | None = None
+    ) -> list[tuple[ChargingRequest, ChargingRequest]]:
+        """Pairs (interrupted request, its resubmission) made after a point failed (UC-M3-08).
+
+        ``_resubmit_after_failure`` names the new request ``<old>-R<n>``.
+        """
+        requests = {r.request_id: r for r in schema.all_requests(self.core)}
+        pairs: list[tuple[ChargingRequest, ChargingRequest]] = []
+        for request_id, new in sorted(requests.items()):
+            base, sep, number = request_id.rpartition("-R")
+            old = requests.get(base) if sep and number.isdigit() else None
+            if old is None or old.status is not ChargingSessionStatus.INTERRUPTED:
+                continue
+            if hub_id is None or old.station_id == hub_id:
+                pairs.append((old, new))
+        return pairs
 
     def get_scheduled_sessions(
         self, hub_id: str, horizon: timedelta
