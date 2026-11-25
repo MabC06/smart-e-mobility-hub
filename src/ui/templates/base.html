@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="{{ url_for('ui-static', path='app.css') }}">
   <script src="{{ url_for('ui-static', path='htmx.min.js') }}" defer></script>
 </head>
-<body>
+<body{% if actor %} class="{{ actor }}"{% endif %}>
   {% if actor == "student" %}
   <header class="site-header">
     <a class="brand" href="{{ url_for('student_hubs') }}">Smart E-Mobility Hub</a>

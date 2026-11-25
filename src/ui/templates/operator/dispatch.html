@@ -10,8 +10,8 @@
 {% block content %}
 <h1>Dispatch</h1>
 
-<form class="filters" method="get" action="{{ url_for('operator_dispatch') }}">
-  <p>
+<div class="toolbar">
+  <form method="get" action="{{ url_for('operator_dispatch') }}">
     <label>Status
       <select name="status">
         <option value="">all</option>
@@ -19,20 +19,20 @@
       </select>
     </label>
     <button class="button" type="submit">Filter</button>
-  </p>
-</form>
+  </form>
+  <form action="{{ url_for('dispatch_plan') }}" method="post" title="M4 plans new tasks from the current demand; open tasks are kept.">
+    <button class="button primary" type="submit">Update recommendations</button>
+  </form>
+</div>
 
-<form class="actions" action="{{ url_for('dispatch_plan') }}" method="post">
-  <button class="button primary" type="submit">Update recommendations</button>
-  <span class="note">M4 plans new tasks from the current demand; open tasks are kept.</span>
-</form>
-
+<div class="card-grid">
 {% for task in tasks %}
 <section class="card">
   <h2>{{ task.task_id }} · {{ task.source_hub_id }} → {{ task.target_hub_id }} · {{ task.status }}</h2>
   <p>{{ task.vehicle_type | type_label }} · {{ task.quantity }} vehicle{{ "s" if task.quantity != 1 }} · priority {{ task.priority }}</p>
   <p>Reason: {{ task.reason }}</p>
   <p class="note">Vehicles: {{ task.vehicle_ids | join(", ") or "–" }}</p>
+  <div class="action-row">
   {% if task.status == "RECOMMENDED" %}
   <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='approve') }}" method="post">
     <label>Quantity
@@ -41,7 +41,7 @@
     <button class="button primary" type="submit">Approve</button>
   </form>
   <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='reject') }}" method="post">
-    <label>Reason <input name="reason" size="30" placeholder="optional"></label>
+    <label>Reason <input name="reason" size="16" placeholder="optional"></label>
     <button class="button" type="submit">Reject</button>
   </form>
   {% elif task.status == "APPROVED" %}
@@ -59,10 +59,12 @@
     <button class="button" type="submit">Cancel</button>
   </form>
   {% endif %}
+  </div>
 </section>
 {% else %}
-<p>No task{% if status %} with status {{ status }}{% endif %}.</p>
+<p>No task{% if status %} with status {{ status }}{% endif %}. "Update recommendations" asks M4 to plan, and the Simulation Lab can send one.</p>
 {% endfor %}
+</div>
 
 <details>
   <summary>Allocation settings</summary>

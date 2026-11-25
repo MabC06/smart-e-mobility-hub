@@ -227,7 +227,7 @@ def test_every_student_screen_opens(student, path):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "U1" in response.text and "Traceback" not in response.text
+    assert STUDENT[0] in response.text and "Traceback" not in response.text
 
 
 @pytest.mark.parametrize("path", OPERATOR_PAGES)
@@ -241,7 +241,7 @@ def test_every_operator_screen_opens(operator, path):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "OP1" in response.text and "Traceback" not in response.text
+    assert OPERATOR[0] in response.text and "Traceback" not in response.text
 
 
 def test_hub_list_shows_the_hubs_of_core(student, app):

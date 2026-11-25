@@ -39,7 +39,7 @@
       <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ hub.status }}</span>
     </h2>
     <p>
-      <label>Parking {{ hub.occupied }}/{{ hub.parking_capacity }}
+      <label>Parking {{ hub.occupied }}/{{ hub.parking_capacity }} ({{ (hub.occupied * 100 / hub.parking_capacity) | round | int if hub.parking_capacity else 0 }}%)
         {# Colours follow BR-M5-01: from 90 % amber, at 100 % red. #}
         <meter min="0" max="{{ hub.parking_capacity }}" value="{{ hub.occupied }}"
           low="{{ hub.parking_capacity * 0.9 }}" high="{{ hub.parking_capacity - 0.5 }}" optimum="0"></meter>

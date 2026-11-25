@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from core.actor import Actor
 from core.api.security import Principal
+from core.domain.entities import UserAccount
 from core.domain.enums import (
     ChargingPointStatus,
     HubStatus,
@@ -98,7 +99,8 @@ def _page(
 ) -> HTMLResponse:
     """Render a screen. An operator page also gets the alert strip (NFR-20)."""
     core = get_core(request)
-    context["user_id"] = who.user_id
+    account = core.get_entity(UserAccount, who.user_id)
+    context["user_id"] = account.code if account is not None else who.user_id  # the login code
     context["as_of"] = core.queries.get_config().as_of
     if who.role is Role.OPERATOR:
         hubs = core.queries.list_hubs()
@@ -690,9 +692,10 @@ def operator_hub(
     hub = _find_hub(core, hub_id)
     if hub is None:
         return _hub_not_found(request, who, "operator_overview", "Back to Overview")
+    at_hub = core.queries.find_vehicles(VehicleFilter(hub_id=hub_id))
     vehicles = [
         v
-        for v in core.queries.find_vehicles(VehicleFilter(hub_id=hub_id))
+        for v in at_hub
         if (not type or v.vehicle_type == type)
         and (not state or v.state == state)
         and (not owner or v.ownership == owner)
@@ -705,6 +708,7 @@ def operator_hub(
         hub=hub,
         vehicles=vehicles,
         spaces=core.queries.list_spaces(hub_id),
+        plates={v.vehicle_id: v.plate_or_code for v in at_hub},
         charging_points=core.queries.list_charging_points(hub_id),
         vehicle_types=list(VehicleType),
         vehicle_states=list(VehicleState),
@@ -926,9 +930,10 @@ def operator_dispatch(request: Request, status: str = "") -> Response:
         return _refused(
             request, who, "show M4's settings", code, config, "operator_overview", "Back"
         )
+    plates = _plates(get_core(request), {v for t in tasks for v in t["assigned_vehicles"]})
     for task in tasks:  # the screen's names for two fields of M4's answer
         task["vehicle_type"] = VehicleType(task["vehicle_type"])
-        task["vehicle_ids"] = task["assigned_vehicles"]
+        task["vehicle_ids"] = [plates[v] for v in task["assigned_vehicles"]]
     tasks.sort(
         key=lambda t: (t["status"] not in ("RECOMMENDED", "APPROVED", "IN_PROGRESS"), t["priority"])
     )
@@ -1034,7 +1039,7 @@ def operator_incidents(
         return _refused(
             request, who, "show the incidents", code, incidents, "operator_overview", "Back"
         )
-    hubs = sorted({i["hub_id"] for i in incidents})
+    hubs = [h.hub_id for h in get_core(request).queries.list_hubs()]
     for incident in incidents:  # the pages show times as datetimes
         incident["created_at"] = datetime.fromisoformat(incident["created_at"])
     incidents = [

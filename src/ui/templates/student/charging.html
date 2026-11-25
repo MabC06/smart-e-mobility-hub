@@ -1,59 +1,69 @@
 {# S8. Request or schedule charging (wireframes-student.md), UC-M3-01 to UC-M3-03. Private EV only
    (a returned rental vehicle is charged by operators). The form, the list, "Change time" (PATCH)
-   and "Cancel" (DELETE) use M3's routes; times are typed and shown in ICT. #}
+   and "Cancel" (DELETE) use M3's routes; times are typed and shown in ICT. Two columns on a wide
+   screen: the request form and the student's requests (D-027). #}
 {% extends "base.html" %}
 {% block title %}Charging · Smart E-Mobility Hub{% endblock %}
 {% block content %}
 <h1>Charging</h1>
+<p>Charge your own EV now or book a time at a Hub.</p>
 
-{% if vehicles %}
-<form action="{{ url_for('student_request_charging') }}" method="post">
-  <p>
-    <label>My EV
-      <select name="vehicle_id">
-        {% for v in vehicles %}<option value="{{ v.vehicle_id }}">{{ v.plate_or_code }}</option>{% endfor %}
-      </select>
-    </label>
-    <label>Hub
-      <select name="hub_id">
-        {% for h in hubs %}<option value="{{ h.hub_id }}">{{ h.hub_id }} {{ h.name }}</option>{% endfor %}
-      </select>
-    </label>
-  </p>
-  <p>
-    <label><input type="radio" name="when" value="now" checked> Charge now</label>
-    <label><input type="radio" name="when" value="schedule"> Schedule at</label>
-    <label>Start (ICT) <input type="datetime-local" name="start_at"></label>
-    <label>Duration <input type="number" name="duration_minutes" min="1" value="60" size="4"> min</label>
-  </p>
-  <p><button class="button primary" type="submit">Request charging</button></p>
-</form>
-{% else %}
-<p>Register your EV first: <a href="{{ url_for('student_private_ev') }}">My EV</a>.</p>
-{% endif %}
-
-<section>
-  <h2>Your charging requests</h2>
-  {% for s in sessions %}
-  <div class="row-item">
-    <p>
-      <strong>{{ s.plate }}</strong> · {{ s.status }} · {{ s.hub_id }}{% if s.charger_id %} · point {{ s.charger_id }}{% endif %}
-      · {{ s.current_soc | round | int }}% → {{ s.target_soc | round | int }}%
-      {% if s.start_time %}· {{ s.start_time | ict }} to {{ s.end_time | ict }}{% endif %}
-    </p>
-    {% if s.status in ("QUEUED", "SCHEDULED") %}
-    <form class="actions" action="{{ url_for('charging_change', request_id=s.request_id, action='change') }}" method="post">
-      <label>New start (ICT) <input type="datetime-local" name="start_at" required></label>
-      <label>Duration <input type="number" name="duration_minutes" min="1" value="60" size="4"> min</label>
-      <button class="button" type="submit">Change time</button>
-    </form>
-    <form class="actions" action="{{ url_for('charging_change', request_id=s.request_id, action='cancel') }}" method="post">
-      <button class="button" type="submit">Cancel</button>
-    </form>
-    {% endif %}
-  </div>
+<div class="split">
+  {% if vehicles %}
+  <form action="{{ url_for('student_request_charging') }}" method="post">
+    <h2>Request charging</h2>
+    <div class="form-grid">
+      <label>My EV
+        <select name="vehicle_id">
+          {% for v in vehicles %}<option value="{{ v.vehicle_id }}">{{ v.plate_or_code }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Hub
+        <select name="hub_id">
+          {% for h in hubs %}<option value="{{ h.hub_id }}">{{ h.hub_id }} {{ h.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <fieldset class="choice-inline">
+        <legend>When</legend>
+        <label><input type="radio" name="when" value="now" checked> Now</label>
+        <label><input type="radio" name="when" value="schedule"> At a time</label>
+      </fieldset>
+      <label>Start (ICT, for "At a time") <input type="datetime-local" name="start_at"></label>
+      <label>Duration (min) <input type="number" name="duration_minutes" min="1" value="60"></label>
+    </div>
+    <p><button class="button primary" type="submit">Request charging</button></p>
+  </form>
   {% else %}
-  <p>No charging request yet.</p>
-  {% endfor %}
-</section>
+  <section>
+    <h2>Request charging</h2>
+    <p>Register your EV first: <a href="{{ url_for('student_private_ev') }}">My EV</a>.</p>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>Your charging requests</h2>
+    {% for s in sessions %}
+    <div class="row-item">
+      <p>
+        <strong>{{ s.plate }}</strong> · {{ s.status }} · {{ s.hub_id }}{% if s.charger_id %} · point {{ s.charger_id }}{% endif %}<br>
+        {{ s.current_soc | round | int }}% → {{ s.target_soc | round | int }}%{% if s.start_time %} · {{ s.start_time | ict }} to {{ s.end_time | ict }}{% endif %}
+      </p>
+      {% if s.status in ("QUEUED", "SCHEDULED") %}
+      <div class="action-row">
+        <form class="actions" action="{{ url_for('charging_change', request_id=s.request_id, action='change') }}" method="post">
+          <label>New start <input type="datetime-local" name="start_at" required></label>
+          <label>Min <input type="number" name="duration_minutes" min="1" value="60" size="4"></label>
+          <button class="button" type="submit">Change time</button>
+        </form>
+        <form class="actions" action="{{ url_for('charging_change', request_id=s.request_id, action='cancel') }}" method="post">
+          <button class="button" type="submit">Cancel</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <p>No charging request yet.</p>
+    {% endfor %}
+  </section>
+</div>
 {% endblock %}

@@ -3,7 +3,8 @@
 
   Layout rules (Universal Design, principles 3 and 4; D-027):
   - Every bar (header, tabs, alert strip, footer) and the page content share one
-    1200 px column, so all text starts on the same left edge.
+    column (1200 px for students, 1440 px for operators), so all text starts on the same
+    left edge.
   - Body text is 16 px; nothing is smaller than 14 px (0.875rem).
   - Each block of content is a panel: white, bordered, with its heading inside. The page
     background is only the gap between panels.
@@ -468,3 +469,151 @@ form.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px
 .settings label span { font-weight: 400; color: var(--muted); }
 
 p.status { white-space: normal; border-radius: 8px; padding: 6px 12px; }
+
+/* ------------------------------------------------------------------ layout review (PR 4, D-027) */
+
+/* S3: vehicles as small cards to pick, several per row, instead of a wide four-column table. */
+main > form.pick { padding: 16px 20px 0; }
+.choice-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.choice-grid legend { grid-column: 1 / -1; }
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.choice:hover { background: var(--link-tint); }
+.choice:has(input:checked) { border-color: var(--link); box-shadow: inset 0 0 0 1px var(--link); background: var(--link-tint); }
+.choice input { grid-row: span 2; width: 18px; height: 18px; }
+.choice-title { font-weight: 700; }
+.choice-meta { color: var(--muted); font-size: 0.9375rem; }
+.choice-meta strong { color: var(--text); }
+
+/* The main action of a long list stays at the bottom of the screen. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 -20px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--panel-line);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 -4px 10px rgba(31, 41, 51, 0.06);
+}
+.action-bar label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.action-bar .button { margin: 0; }
+
+/* Two or three actions of one card on one row. */
+.action-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; }
+.action-row > form.actions { margin: 0; }
+
+/* A short table keeps its columns together instead of spreading over the whole panel. */
+.table-wrap.fit table { width: auto; min-width: min(100%, 560px); }
+.table-wrap.fit th, .table-wrap.fit td { padding-right: 32px; }
+
+/* A long list scrolls inside its panel; its header stays visible. */
+.table-wrap.scroll { max-height: 26rem; overflow-y: auto; }
+.table-wrap.scroll thead th { position: sticky; top: 0; z-index: 1; }
+
+/* O2: parking spaces as a grid of small tiles, coloured by status with a word. */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tiles li { padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; font-size: 0.875rem; }
+.tiles li strong { display: block; font-size: 0.9375rem; }
+.tiles .AVAILABLE { border-left-color: var(--ok); }
+.tiles .OCCUPIED { border-left-color: var(--link); }
+.tiles .RESERVED { border-left-color: var(--warning); }
+.tiles .OUT_OF_SERVICE, .tiles .MAINTENANCE { border-left-color: var(--critical); }
+
+/* A short form that needs focus (S4 confirm) stays narrow, like a dialog. */
+main > form.narrow { max-width: 720px; }
+
+/* Two panels side by side on a wide screen (S7); one under the other when narrow. */
+.split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; margin-bottom: 24px; }
+.split > form, .split > section {
+  margin: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.split > form > h2, .split > section > h2 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 1.125rem; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+/* Fields with the label above, in columns. */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 20px; margin-bottom: 16px; }
+.form-grid label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.form-grid input, .form-grid select { width: 100%; font-weight: 400; }
+
+ul.plain { margin: 0 0 12px; padding: 0; list-style: none; }
+ul.plain li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+ul.plain li:last-child { border-bottom: 0; }
+
+/* Two radio buttons side by side inside a field grid. */
+.form-grid fieldset.choice-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0; padding: 0; border: 0; }
+.form-grid fieldset.choice-inline legend { width: 100%; margin-bottom: 4px; padding: 0; font-weight: 600; }
+.form-grid fieldset.choice-inline label { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.split h3 { margin: 16px 0 8px; font-size: 1rem; }
+.single > section {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.single > section > h2 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 1.125rem; }
+.single h3 { margin: 16px 0 8px; font-size: 1rem; }
+
+/* O1: compact Hub cards, five per row on a 1200 px column, all ten Hubs on one screen. */
+.cards { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.cards .card { padding: 12px 14px; }
+.cards .card > h2 { margin-bottom: 8px; padding-bottom: 6px; font-size: 1.0625rem; }
+.cards .card p { margin: 4px 0; }
+.cards .card label { display: block; font-size: 0.9375rem; }
+.cards .card .button { min-height: 32px; padding: 4px 10px; }
+
+/* A summary line under a page title with its links and one page action on the right (O2). */
+.page-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 16px; }
+.page-bar > p, .page-bar > .tabs { margin: 0; color: var(--muted); }
+main > .page-bar > form.bare { margin: 0 0 0 auto; padding: 0; background: none; border: 0; }
+
+/* One toolbar above a list: a filter on the left, the page action on the right (O4). */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  padding: 12px 20px;
+  background: var(--head);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.toolbar form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; }
+.toolbar form:last-child { margin-left: auto; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.toolbar .button { margin: 0; }
+
+/* Cards of a list two per row on a wide screen (O4 tasks). */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card-grid > .card { margin: 0; }
+.card-grid > p { grid-column: 1 / -1; margin: 0; }
+
+/* Operator screens are desktop only and dense: a wider column on large screens (D-027). */
+body.operator {
+  --column: 1440px;
+  --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
+}

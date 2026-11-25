@@ -14,25 +14,25 @@
   <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ hub.status }} {{ use }}%</span>
   <small>zone {{ hub.zone_code }}</small>
 </h1>
-<p>Parking {{ hub.occupied }}/{{ hub.parking_capacity }} · vehicles available {{ hub.available_vehicles }} · charging {{ hub.charging_in_use }}/{{ hub.charging_points }}</p>
-
-<form class="actions" action="{{ url_for('hub_status', hub_id=hub.hub_id) }}" method="post">
-  <input type="hidden" name="version" value="{{ hub.version }}">
-  {% if hub.status == "MAINTENANCE" %}
-  <input type="hidden" name="status" value="ACTIVE">
-  <button class="button" type="submit">Open the Hub again</button>
-  {% else %}
-  <input type="hidden" name="status" value="MAINTENANCE">
-  <button class="button" type="submit">Close the Hub for maintenance</button>
-  {% endif %}
-  <span class="note">WARNING and CRITICAL are set by monitoring from the occupancy.</span>
-</form>
-
-<nav class="tabs">
-  <a href="#vehicles">Vehicles</a>
-  <a href="#spaces">Parking spaces</a>
-  <a href="#points">Charging points</a>
-</nav>
+<div class="page-bar">
+  <p>Parking {{ hub.occupied }}/{{ hub.parking_capacity }} · vehicles available {{ hub.available_vehicles }} · charging {{ hub.charging_in_use }}/{{ hub.charging_points }}</p>
+  <nav class="tabs">
+    <a href="#vehicles">Vehicles</a>
+    <a href="#spaces">Parking spaces</a>
+    <a href="#points">Charging points</a>
+  </nav>
+  <form class="actions bare" action="{{ url_for('hub_status', hub_id=hub.hub_id) }}" method="post"
+        title="WARNING and CRITICAL are set by monitoring from the occupancy.">
+    <input type="hidden" name="version" value="{{ hub.version }}">
+    {% if hub.status == "MAINTENANCE" %}
+    <input type="hidden" name="status" value="ACTIVE">
+    <button class="button" type="submit">Open the Hub again</button>
+    {% else %}
+    <input type="hidden" name="status" value="MAINTENANCE">
+    <button class="button" type="submit">Close the Hub for maintenance</button>
+    {% endif %}
+  </form>
+</div>
 
 <section id="vehicles">
   <h2>Vehicles</h2>
@@ -57,8 +57,9 @@
       </select>
     </label>
     <button class="button" type="submit">Filter</button>
+    <span class="note">{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }}</span>
   </form>
-  <div class="table-wrap">
+  <div class="table-wrap scroll">
     <table>
       <thead>
         <tr><th>Code</th><th>Type</th><th>Owner</th><th>State</th><th>Battery</th><th>Fault</th><th>Space</th><th>Actions</th></tr>
@@ -106,28 +107,19 @@
 </section>
 
 <section id="spaces">
-  <h2>Parking spaces</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Space</th><th>Status</th><th>Vehicle</th></tr></thead>
-      <tbody>
-        {% for space in spaces %}
-        <tr>
-          <td>{{ space.label }}</td>
-          <td>{{ space.status }}</td>
-          <td>{{ space.occupant_vehicle_id or "–" }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3">No parking space to show.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <h2>Parking spaces <small class="note">{{ spaces | selectattr("status", "equalto", "AVAILABLE") | list | length }} free of {{ spaces | length }}</small></h2>
+  <ul class="tiles">
+    {% for space in spaces %}
+    <li class="{{ space.status }}"><strong>{{ space.label }}</strong>{{ space.status | lower | replace("_", " ") }}{% if space.occupant_vehicle_id %} · {{ plates.get(space.occupant_vehicle_id, space.occupant_vehicle_id) }}{% endif %}</li>
+    {% else %}
+    <li>No parking space to show.</li>
+    {% endfor %}
+  </ul>
 </section>
 
 <section id="points">
   <h2>Charging points</h2>
-  <div class="table-wrap">
+  <div class="table-wrap fit">
     <table>
       <thead><tr><th>Point</th><th>Space</th><th>Power</th><th>Status</th><th>Change status</th></tr></thead>
       <tbody>

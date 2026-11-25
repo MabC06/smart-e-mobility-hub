@@ -66,6 +66,7 @@
   <p class="note">Order (BR-M3-03): battery at or below the low-battery limit first, then vehicles booked within an hour, then the lowest battery.</p>
 </section>
 
+<div class="split">
 <section>
   <h2>Sessions</h2>
   <div class="table-wrap">
@@ -103,7 +104,7 @@
 
 <section>
   <h2>Moved after a charging-point failure</h2>
-  <ul>
+  <ul class="plain">
     {% for m in moved %}
     <li>{{ m.plate }}: stopped on {{ m.from_charger_id or "–" }}{% if m.interrupted_at %} at {{ m.interrupted_at | ict }}{% endif %} → {{ m.to_status }}{% if m.to_charger_id %} on {{ m.to_charger_id }}{% endif %}{% if m.to_start_time %} from {{ m.to_start_time | ict }}{% endif %}</li>
     {% else %}
@@ -111,4 +112,5 @@
     {% endfor %}
   </ul>
 </section>
+</div>
 {% endblock %}

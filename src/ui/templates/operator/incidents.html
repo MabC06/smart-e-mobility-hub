@@ -7,6 +7,7 @@
 {% extends "base.html" %}
 {% block title %}Incidents · Smart E-Mobility Hub{% endblock %}
 {% block content %}
+{% set badge = {"CRITICAL": "CRITICAL", "HIGH": "WARNING", "MEDIUM": "MAINTENANCE", "LOW": "MAINTENANCE"} %}
 <h1>Incidents</h1>
 
 <form class="filters" method="get" action="{{ url_for('operator_incidents') }}">
@@ -42,19 +43,20 @@
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Type</th><th>Hub</th><th>Severity</th><th>Status</th><th>Age</th></tr>
+      <tr><th>Type</th><th>Hub</th><th>Severity</th><th>Status</th><th>Age</th><th>Assigned to</th></tr>
     </thead>
     <tbody>
       {% for incident in incidents %}
       <tr>
         <td><a href="#{{ incident.incident_id }}">{{ type_names.get(incident.incident_type, incident.incident_type) }}</a></td>
         <td><a href="{{ url_for('operator_hub', hub_id=incident.hub_id) }}">{{ incident.hub_id }}</a></td>
-        <td>{{ incident.severity | capitalize }}</td>
+        <td><span class="status status-{{ badge[incident.severity] }}">{{ incident.severity | capitalize }}</span></td>
         <td>{{ incident.status }}</td>
         <td>{{ ((as_of - incident.created_at).total_seconds() // 60) | int }} min</td>
+        <td>{{ incident.assigned_operator_id or "–" }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="5">No incident matches.</td></tr>
+      <tr><td colspan="6">No incident matches.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -64,7 +66,7 @@
 <section class="card" id="{{ incident.incident_id }}">
   <h2>
     {{ type_names.get(incident.incident_type, incident.incident_type) }} at {{ incident.hub_id }} ·
-    {{ incident.severity | capitalize }} · {{ incident.status }}
+    <span class="status status-{{ badge[incident.severity] }}">{{ incident.severity | capitalize }}</span> · {{ incident.status }}
   </h2>
   <p>{{ incident.description }}</p>
   <p class="note">
@@ -72,6 +74,7 @@
     created {{ incident.created_at | ict }} · assigned to {{ incident.assigned_operator_id or "nobody yet" }}
   </p>
   {% if incident.resolution_notes %}<p>Resolution notes: {{ incident.resolution_notes }}</p>{% endif %}
+  <div class="action-row">
   {% if incident.status in ("OPEN", "ESCALATED") %}
   <form class="actions" action="{{ url_for('incident_action', incident_id=incident.incident_id, action='acknowledge') }}" method="post">
     <button class="button primary" type="submit">Acknowledge</button>
@@ -94,6 +97,7 @@
     <button class="button" type="submit">Close</button>
   </form>
   {% endif %}
+  </div>
   {% if ticket == incident.incident_id %}
   <h3>History</h3>
   <ul>

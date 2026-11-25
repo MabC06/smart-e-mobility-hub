@@ -18,14 +18,16 @@
   <p>Pick up at {{ booking.origin_hub_id }} before <strong>{{ booking.hold_expires_at | ict }}</strong>
     {% if left > 0 %}(time left {{ "%02d:%02d" | format(left // 60, left % 60) }}){% endif %}</p>
   <p class="note">Booking {{ booking.reservation_id }}</p>
-  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='pickup') }}" method="post">
-    <input type="hidden" name="origin_hub_id" value="{{ booking.origin_hub_id }}">
-    <input type="hidden" name="version" value="{{ booking.version }}">
-    <button class="button primary" type="submit">I picked up the vehicle</button>
-  </form>
-  <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='cancel') }}" method="post">
-    <button class="button" type="submit">Cancel reservation</button>
-  </form>
+  <div class="action-row">
+    <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='pickup') }}" method="post">
+      <input type="hidden" name="origin_hub_id" value="{{ booking.origin_hub_id }}">
+      <input type="hidden" name="version" value="{{ booking.version }}">
+      <button class="button primary" type="submit">I picked up the vehicle</button>
+    </form>
+    <form class="actions" action="{{ url_for('booking_action', reservation_id=booking.reservation_id, action='cancel') }}" method="post">
+      <button class="button" type="submit">Cancel reservation</button>
+    </form>
+  </div>
 </section>
 {% else %}
 {% set trip = booking.trip %}

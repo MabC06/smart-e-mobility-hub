@@ -9,7 +9,7 @@
 <p><a href="{{ back }}">&lt; Back</a></p>
 <h1>Confirm your rental</h1>
 
-<form action="{{ url_for('student_reserve') }}" method="post">
+<form action="{{ url_for('student_reserve') }}" method="post" class="narrow">
   <input type="hidden" name="hub_id" value="{{ hub.hub_id }}">
   <input type="hidden" name="vehicle_id" value="{{ vehicle.vehicle_id }}">
   <input type="hidden" name="version" value="{{ vehicle.version }}">
