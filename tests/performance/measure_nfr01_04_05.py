@@ -13,10 +13,14 @@ What is measured (all sequential, in-process FastAPI TestClient, in-memory SQLit
   provider. Without it the endpoint answers 503 and the result is reported as BLOCKED, never
   as PASS. ``--stub-reservation-demand`` registers a stub that returns *empty* demand so the
   planner's own run time can still be timed; the report then says the provider was a stub.
-* NFR-05: POST /simulation/runs for SC-01 (demand surge), the only scenario the router accepts
-  (DEV-08). Each run <= 30 s. Also records that the operational state read before and after the
-  runs is identical (NFR-12 evidence) and that repeated runs with one seed give the same output
-  (NFR-13 evidence, ignoring the simulation id).
+* NFR-05: POST /simulation/runs for each of the five standard scenarios SC-01 to SC-05. Each
+  run <= 30 s. Also records that the operational state read before and after the runs is
+  identical (NFR-12 evidence) and that repeated runs with one seed give the same output (NFR-13
+  evidence, ignoring the simulation id).
+
+Since 2026-11-25 M3's request routes bind the Hub's queue at once (BR-M3-03), so a queue of a
+given depth is built through M3's service (``app.state.charging``), which only queues; the
+measured operation is still ``POST /charging/schedule/optimize``.
 
 It does not use concurrency or a production database.
 """
@@ -130,29 +134,25 @@ def measure_nfr01(
     return result
 
 
-def measure_nfr04_charging(
-    client: TestClient,
-    headers: dict[str, str],
-    vehicles: list[Vehicle],
-    hub_ids: list[str],
-    queue_depth: int,
-) -> dict[str, Any]:
+QUEUE_ACTOR = Actor("NFR-M8", Role.OPERATOR, "charging")
+
+
+def fill_queue(env: Env, hub_id: str, depth: int, prefix: str) -> int:
+    """Queue ``depth`` requests at one Hub through M3's service, which does not bind them."""
+    pool = [v for v in env.vehicles if v.hub_id == hub_id and v.battery_pct < 100][:depth]
+    for index, vehicle in enumerate(pool, start=1):
+        env.charging.submit_charging_request(
+            f"{prefix}-{hub_id}-{index:03d}", vehicle.vehicle_id, hub_id, QUEUE_ACTOR
+        )
+    return len(pool)
+
+
+def measure_nfr04_charging(env: Env, queue_depth: int) -> dict[str, Any]:
     """Fill each Hub's charging queue with the same depth, then time optimisation per Hub."""
+    client, headers, hub_ids = env.client, env.headers, env.hub_ids
     per_hub: dict[str, Any] = {}
     for hub_id in hub_ids:
-        pool = [v for v in vehicles if v.hub_id == hub_id and v.battery_pct < 100][:queue_depth]
-        for index, vehicle in enumerate(pool, start=1):
-            client.post(
-                "/charging/requests/immediate",
-                json={
-                    "request_id": f"NFR04-{hub_id}-{index:03d}",
-                    "vehicle_id": vehicle.vehicle_id,
-                    "hub_id": hub_id,
-                    "target_soc": 100.0,
-                    "queue_if_full": True,
-                },
-                headers=headers,
-            )
+        fill_queue(env, hub_id, queue_depth, "NFR04")
     for hub_id in hub_ids:
         queued_before = len(
             client.get("/charging/queue", params={"hub_id": hub_id}, headers=headers).json()
@@ -188,19 +188,7 @@ def measure_nfr04_depth_sweep(depths: list[int], stub: bool) -> list[dict[str, A
     rows: list[dict[str, Any]] = []
     for depth in depths:
         with environment(stub) as env:
-            pool = [v for v in env.vehicles if v.hub_id == "H01" and v.battery_pct < 100][:depth]
-            for index, vehicle in enumerate(pool, start=1):
-                env.client.post(
-                    "/charging/requests/immediate",
-                    json={
-                        "request_id": f"SWEEP-{index:03d}",
-                        "vehicle_id": vehicle.vehicle_id,
-                        "hub_id": "H01",
-                        "target_soc": 100.0,
-                        "queue_if_full": True,
-                    },
-                    headers=env.headers,
-                )
+            available = fill_queue(env, "H01", depth, "SWEEP")
             queued = len(
                 env.client.get(
                     "/charging/queue", params={"hub_id": "H01"}, headers=env.headers
@@ -216,7 +204,7 @@ def measure_nfr04_depth_sweep(depths: list[int], stub: bool) -> list[dict[str, A
             rows.append(
                 {
                     "requested_depth": depth,
-                    "available_vehicles": len(pool),
+                    "available_vehicles": available,
                     "queued_before": queued,
                     "status": response.status_code,
                     "elapsed_ms": round(elapsed, 3),
@@ -298,45 +286,65 @@ def measure_nfr05(
             parts.append(client.get(f"/hubs/{hub_id}/vehicles", headers=headers).json())
         return [strip_volatile(part) for part in parts]
 
+    points = client.get(f"/hubs/{hub_ids[0]}/charging-points", headers=headers).json()
+    inputs: dict[str, dict[str, Any]] = {
+        "SC-01": {"target_hub_ids": hub_ids[:2], "surge_multiplier": 2.0, "duration_minutes": 60},
+        "SC-02": {"target_hub_ids": hub_ids[:2], "incoming_return_rate": 12},
+        "SC-03": {"target_hub_ids": [], "extra_drained_per_hub": 10},
+        "SC-04": {"failed_charging_point_ids": [p["charging_point_id"] for p in points[:2]]},
+        "SC-05": {"source_hub_ids": hub_ids[1:3], "destination_hub_ids": hub_ids[:1]},
+    }
     before = snapshot()
     samples: list[float] = []
     statuses: list[int] = []
-    reports: list[Any] = []
-    for index in range(1, runs + 1):
-        sim_id = f"NFR05_RUN_{index:03d}"
-        payload = {
-            "simulation_id": sim_id,
-            "scenario_id": "SC-01",
-            "target_hub_ids": hub_ids[:2],
-            "surge_multiplier": 2.0,
-            "duration_minutes": 60,
-            "time_horizon_minutes": 120,
-            "time_step_minutes": 15,
-            "random_seed": 42,
-        }
-        elapsed, response = timed(client, "POST", "/simulation/runs", json=payload, headers=headers)
-        samples.append(elapsed)
-        statuses.append(response.status_code)
-        if response.status_code == 200:
-            reports.append(
-                json.loads(
-                    json.dumps(strip_volatile(response.json()), default=str).replace(sim_id, "<ID>")
-                )
+    per_scenario: dict[str, Any] = {}
+    run_diff: list[str] = []
+    for scenario, fields in inputs.items():
+        times: list[float] = []
+        reports: list[Any] = []
+        for index in range(1, runs + 1):
+            sim_id = f"NFR05_{scenario}_{index:03d}".replace("-", "")
+            payload = {
+                "simulation_id": sim_id,
+                "scenario_id": scenario,
+                "time_horizon_minutes": 120,
+                "time_step_minutes": 15,
+                "random_seed": 42,
+                **fields,
+            }
+            elapsed, response = timed(
+                client, "POST", "/simulation/runs", json=payload, headers=headers
             )
+            samples.append(elapsed)
+            times.append(elapsed)
+            statuses.append(response.status_code)
+            if response.status_code == 200:
+                reports.append(
+                    json.loads(
+                        json.dumps(strip_volatile(response.json()), default=str).replace(
+                            sim_id, "<ID>"
+                        )
+                    )
+                )
+        diff = [d for other in reports[1:] for d in differing_paths(reports[0], other)]
+        run_diff.extend(f"{scenario}{d}" for d in diff)
+        per_scenario[scenario] = {
+            "runs_ok": len(reports),
+            "max_ms": round(max(times), 3),
+            "same_output": len(reports) == runs and not diff,
+        }
     after = snapshot()
-    result: dict[str, Any] = summarize("POST /simulation/runs (SC-01)", samples, statuses)
-    result["scenarios_measured"] = ["SC-01"]
-    result["scenarios_not_implemented"] = ["SC-02", "SC-03", "SC-04", "SC-05"]
+    result: dict[str, Any] = summarize("POST /simulation/runs (SC-01 to SC-05)", samples, statuses)
+    result["scenarios"] = per_scenario
     result["target_ms_per_scenario"] = NFR05_SCENARIO_MS
     result["ignored_wall_clock_keys"] = sorted(VOLATILE_KEYS)
     state_diff = differing_paths(before, after)
     result["nfr12_operational_state_unchanged"] = not state_diff
     if state_diff:
         result["nfr12_differences"] = state_diff[:20]
-    run_diff = (
-        [d for other in reports[1:] for d in differing_paths(reports[0], other)] if reports else []
+    result["nfr13_same_seed_same_output"] = all(
+        item["same_output"] for item in per_scenario.values()
     )
-    result["nfr13_same_seed_same_output"] = len(reports) == runs and not run_diff
     if run_diff:
         result["nfr13_differences"] = sorted(set(run_diff))[:20]
     ok = (
@@ -344,7 +352,7 @@ def measure_nfr05(
         and max(samples) <= NFR05_SCENARIO_MS
         and result["nfr12_operational_state_unchanged"]
     )
-    result["verdict"] = "PASS (SC-01 only)" if ok else "FAIL"
+    result["verdict"] = "PASS" if ok else "FAIL"
     return result
 
 
@@ -356,6 +364,7 @@ class Env:
         self.hub_ids: list[str] = []
         self.provider = "not registered"
         self.loaded: Any = None
+        self.charging: Any = None
 
 
 @contextmanager
@@ -407,6 +416,7 @@ def environment(stub: bool) -> Iterator[Env]:
             )
             env.provider = provider
             env.loaded = loaded.value
+            env.charging = app.state.charging
             yield env
     finally:
         repository.close()
@@ -433,9 +443,7 @@ def main_run(
     with environment(stub) as env:
         report["nfr01"] = measure_nfr01(env.client, env.headers, env.vehicles, count)
     with environment(stub) as env:
-        report["nfr04_charging"] = measure_nfr04_charging(
-            env.client, env.headers, env.vehicles, env.hub_ids, queue_depth
-        )
+        report["nfr04_charging"] = measure_nfr04_charging(env, queue_depth)
     report["nfr04_charging_depth_sweep_H01"] = measure_nfr04_depth_sweep(depths, stub)
     with environment(stub) as env:
         report["nfr04_allocation"] = measure_nfr04_allocation(
@@ -453,7 +461,7 @@ def cli_main() -> None:
         "--depths", default="5,10,15,30,50", help="queue depths for the single-Hub sweep"
     )
     parser.add_argument("--plan-runs", type=int, default=5, help="allocation plan repetitions")
-    parser.add_argument("--sim-runs", type=int, default=5, help="SC-01 repetitions")
+    parser.add_argument("--sim-runs", type=int, default=5, help="repetitions per scenario")
     parser.add_argument(
         "--stub-reservation-demand",
         action="store_true",
