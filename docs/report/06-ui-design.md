@@ -232,7 +232,7 @@ flowchart TD
 | Hold a return space (S5) | The held space and its 10-minute deadline | "No free space at this Hub for that time", or "One live parking per student" |
 | Parking: book, arrive, leave, cancel (S6) | "Booked" with space and arrival window, then "Parked", then listed as Completed or Cancelled | "No free space", "Too early", "The arrival deadline has passed" |
 | Register a private EV (S7) | Vehicle listed as "Away" | "This plate is already registered" |
-| Charging, change time, cancel (S8) | "Queued", "Scheduled" or "Charging"; the new time; "Cancelled" | "No charging point is free then", with another time, port or Hub |
+| Charging, change time, cancel, start (S8) | "Booked" with day, time and point, "Charging", or "Waiting" when no point is free in 2 hours; the new time; "Cancelled" | "No charging point is free then", with another time, port or Hub |
 
 | Operator action | On success | When refused |
 |---|---|---|
