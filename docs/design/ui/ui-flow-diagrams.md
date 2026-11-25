@@ -20,8 +20,6 @@ flowchart TD
     S5 -->|after a return| S8
     S6 -->|also charge| S8
 
-    classDef planned stroke-dasharray: 5 4
-    class S6 planned
 ```
 
 *Student flows.*
@@ -30,15 +28,15 @@ After login the student lands on S2. My bookings and Logout are in the header of
 
 | Screen | Commands | Use cases | Backend | If refused |
 |---|---|---|---|---|
-| S3, S4 | Search, `reserve` | `UC-M2-01`, `UC-M2-02` | `reserve` implemented (M2 route); M2 search planned | Error block with M2's cause, link to S2 |
+| S3, S4 | Search, `reserve` | `UC-M2-01`, `UC-M2-02` | Implemented (M2 routes) | Error block with M2's cause and code |
 | S5 | Pick up | `UC-M2-04` | Implemented | Expired: make a new reservation |
 | S5 | Return | `UC-M2-05` | Implemented | No space: the trip stays open (nearby Hubs planned) |
 | S5 | Cancel | `UC-M2-03` | Implemented | Offered only before pick-up |
-| S5 | Hold a return space | `UC-M2-06` | Planned | Trip already started: return the vehicle |
-| S6 | Reserve, arrive, leave, cancel parking | `UC-M2-06` to `UC-M2-08` | Planned | Hub full: other Hub or time |
+| S5 | Hold a return space | `UC-M2-06` | Implemented | No free space: other Hub |
+| S6 | Reserve, arrive, leave, cancel parking | `UC-M2-06` to `UC-M2-08` | Implemented | No free space, too early, deadline passed |
 | S7 | Register a private EV | `UC-M3-04` | Implemented (M3 route) | Duplicate plate: error block |
 | S8 | Request charging now or at a time | `UC-M3-01`, `UC-M3-02` | Implemented (M3 route) | Error block with M3's cause |
-| S8 | Change, cancel charging | `UC-M3-03`, `UC-M3-05` | Planned | No port free: other time, port or Hub |
+| S8 | Change, cancel charging | `UC-M3-03`, `UC-M3-05` | Implemented | No port free: other time, port or Hub |
 
 ## 2. Operator
 
@@ -63,14 +61,14 @@ After login the operator lands on O1. The tab bar and the alert strip are on eve
 
 | Screen | Commands | Use cases | Backend | If refused |
 |---|---|---|---|---|
-| O1, O2 | View; change the state of a vehicle, point or Hub | `UC-M7-01`, `UC-M7-02`, `UC-M7-07` | Reads implemented; actions and M5 alerts planned | Not allowed in this state: handle the reservation or trip first; changed by someone else: refreshed |
+| O1, O2 | View, filter; change the state of a vehicle, point or Hub | `UC-M7-01`, `UC-M7-02`, `UC-M7-07` | Implemented (core commands) | Version conflict: the page is read again |
 | O3 | View the queue of a Hub | `UC-M7-03` | Implemented (M3 route, read-only) | Error block with M3's cause |
-| O3 | Change slot, recalculate | `UC-M7-04` | Planned | Not offered in the screen |
+| O3 | Optimize the queue; start, finish, stop a session | `UC-M7-04` | Implemented | M3's cause |
 | O4 | Plan, approve, pick-up, delivery, cancel | `UC-M7-05`, `UC-M7-06` | Implemented | Task `FAILED` or request refused, with the reason on the card |
-| O4 | Reject, settings | `UC-M4-02`, `UC-M4-09` | Planned | |
+| O4 | Reject, settings | `UC-M4-02`, `UC-M4-09` | Implemented | M4's cause |
 | O5 | Acknowledge, resolve, close | `UC-M7-08` | Implemented | Action hidden when the status does not allow it |
 | O6 | Run the demand surge on a copy | `UC-M7-09` | Implemented (M6 route) | M6's message for an invalid input |
-| O6 | Other scenarios, approve a recommendation | `UC-M7-09`, `UC-M7-10` | Planned | The owning module may refuse |
+| O6 | Five scenarios, approve or reject a recommendation, export | `UC-M7-09`, `UC-M7-10` | Implemented | M4 may refuse an approved recommendation |
 
 ## 3. Behaviour shared by the flows
 

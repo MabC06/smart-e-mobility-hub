@@ -1,0 +1,20 @@
+{# S6 and S8: the Start field is used only when "later" or "at a time" is chosen. With "Now" it is
+   disabled, so it is not sent and cannot be typed in. Without JavaScript it stays enabled and the
+   route ignores it for "Now". #}
+<script>
+  (function () {
+    document.querySelectorAll("form[data-when-form]").forEach(function (form) {
+      var start = form.querySelector("[data-later-only]");
+      function update() {
+        var chosen = form.querySelector('input[name="when"]:checked');
+        var now = !chosen || chosen.value === "now";
+        start.disabled = now;
+        start.required = !now;
+      }
+      form.querySelectorAll('input[name="when"]').forEach(function (radio) {
+        radio.addEventListener("change", update);
+      });
+      update();
+    });
+  })();
+</script>

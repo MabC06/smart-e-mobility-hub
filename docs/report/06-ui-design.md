@@ -17,7 +17,7 @@ Principles:
 
 ### 3.4.2 Major user flows and navigation
 
-**Student.** After login the student lands on the Hub list (S2). My bookings and Logout are in the header of every screen. The main path is Find a Hub, Search, Confirm, My bookings. After a return, the student can request charging for that vehicle. A parking booking with the charging box ticked continues in the charging screen, because the two are booked together (`BR-M2-12`).
+**Student.** After login the student lands on the Hub list (S2). Find a Hub, My bookings, Parking, Charging, My EV and Logout are in the header of every screen. The main path is Find a Hub, Search, Confirm, My bookings. After a return, the student can request charging for that vehicle. A parking booking with the charging box ticked continues in the charging screen, because the two are booked together (`BR-M2-12`).
 
 ```mermaid
 flowchart TD
@@ -33,11 +33,9 @@ flowchart TD
     S5 -->|after a return| S8
     S6 -->|also charge| S8
 
-    classDef planned stroke-dasharray: 5 4
-    class S6 planned
 ```
 
-*Figure 3.8 — Student flows. A dashed box is Planned.*
+*Figure 3.8 — Student flows.*
 
 **Operator.** After login the operator lands on the overview (O1). A tab bar and the alert strip are on every screen, so each tab screen is one click from the others, and a Hub in `WARNING` or `CRITICAL` is always one click away. The Hub detail (O2) opens from a Hub card. The What-if screen changes nothing: a recommendation goes to the owning module only after the operator approves it, and that module may refuse it.
 
@@ -64,21 +62,21 @@ flowchart TD
 | Student screen | Information |
 |---|---|
 | S2 Find a Hub | For each Hub: vehicles available, free spaces, charging points in use, status in words, time of the data |
-| S3 Search | Vehicles of the Hub (code, type, battery); free spaces at the return Hub, marked "not a reservation" |
+| S3 Search | Vehicles the student can rent now (M2 search: code, type, battery, best battery first), filters by type and minimum battery; free spaces at the return Hub |
 | S4 Confirm | Vehicle, pick-up Hub, return Hub (space not held), planned minutes, the 10-minute deadline |
-| S5 My bookings | Booking state, pick-up deadline, expected return time, overdue notice, earlier bookings with their status |
-| S6 Parking (Planned) | Assigned space, arrival window, planned end |
+| S5 My bookings | Booking state, pick-up deadline, expected return time, overdue notice, the held return space and its deadline, earlier bookings with their status |
+| S6 Parking | Assigned space, arrival window, planned end, overstay notice, earlier parking |
 | S7 My vehicle | Registered private EVs and their state |
-| S8 Charging | The student's charging requests and their status |
+| S8 Charging | The student's charging requests with status, point and time; change time and cancel |
 
 | Operator screen | Information |
 |---|---|
 | O1 Overview | Per Hub: status, parking use, vehicles available, charging in use; alert strip |
 | O2 Hub detail | Vehicles, spaces and charging points with state, battery and fault; state history of a vehicle |
-| O3 Charging | Charging queue with battery, target, status, point (read-only); charging points in use |
+| O3 Charging | Queue with rank, reason and owner (filter by owner); scheduled and running sessions; sessions moved after a point failure; points in use |
 | O4 Dispatch | Tasks with route, vehicles, status, priority, reason; allocation settings |
 | O5 Incidents | Tickets with type, severity, status, age, history |
-| O6 Simulation | Scenario inputs, baseline shortage rate and result per Hub, recommendations; mitigated results Planned |
+| O6 Simulation | Inputs of the five scenarios, the rate with and without the plan, unmet requests per Hub, recommendations with their decision |
 
 ```
 +--------------------------------------------------------------------------+
@@ -229,20 +227,21 @@ flowchart TD
 |---|---|---|
 | Reserve a vehicle (S4) | Booking "Reserved" in S5 with its deadline and a countdown | "Someone else just reserved this vehicle", "This vehicle can no longer be rented", or "You already have a rental" |
 | Pick up (S5) | "In progress" with the expected return time | "The time to pick up has passed. Make a new reservation" |
-| Return (S5) | The booking listed as "Completed" (a receipt with Hub, space and time is Planned) | "No space is free at this Hub"; nothing changes |
+| Return (S5) | The booking listed as "Completed"; with a hold the vehicle is parked in the held space | "No space is free at this Hub"; nothing changes |
 | Cancel (S5) | The booking listed as "Cancelled" | Offered only before pick-up |
-| Hold a return space (S5, Planned) | A 10-minute hold | "The trip has started. Return the vehicle instead" |
-| Parking (S6, Planned) | Space, arrival window, planned end | "The Hub is full and takes no new parking bookings" |
+| Hold a return space (S5) | The held space and its 10-minute deadline | "No free space at this Hub for that time", or "One live parking per student" |
+| Parking: book, arrive, leave, cancel (S6) | "Booked" with space and arrival window, then "Parked", then listed as Completed or Cancelled | "No free space", "Too early", "The arrival deadline has passed" |
 | Register a private EV (S7) | Vehicle listed as "Away" | "This plate is already registered" |
-| Charging (S8) | "Queued", "Scheduled" or "Charging" | "No charging point is free then", with another time, port or Hub |
+| Charging, change time, cancel, start (S8) | "Booked" with day, time and point, "Charging", or "Waiting" when no point is free in 2 hours; the new time; "Cancelled" | "No charging point is free then", with another time, port or Hub |
 
 | Operator action | On success | When refused |
 |---|---|---|
 | Change a vehicle, point or Hub state (O2) | New state and a new line in the history | "Cannot be changed directly now. Handle its reservation or trip first", or "Changed by someone else. Refreshed" |
-| Plan, approve, pick-up, delivery, cancel (O4) | The task with its new status | The task keeps its reason when it fails, or the request is refused with the cause |
-| Acknowledge, resolve, close (O5) | Ticket "In progress", "Resolved" or "Closed" | The action is hidden when the status does not allow it |
-| Run the demand surge (O6) | The result under the form | M6's message for an invalid input |
-| Approve a recommendation (O6, Planned) | The recommendation sent to its module | The receiving module may refuse |
+| Plan, approve, reject, pick-up, delivery, cancel; save settings (O4) | The task with its new status; the saved values | The task keeps its reason when it fails, or the request is refused with the cause |
+| Acknowledge, escalate, resolve, close (O5) | Ticket "In progress", "Escalated", "Resolved" or "Closed"; history on demand | The action is hidden when the status does not allow it |
+| Run any of the five scenarios (O6) | The result under the form, with and without the plan | M6's message for an invalid input |
+| Approve or reject a recommendation (O6) | "Sent to Dispatch as TASK-SIM-..." (a RECOMMENDED task in O4) or "Rejected" | M4 may refuse (no vehicle to dispatch) |
+| Start, finish, stop a session; optimize (O3) | The session's new status | M3's cause, e.g. "before the start time" |
 
 Every refusal uses the same block: what failed, the cause, up to two alternatives, and the code under "Details".
 
@@ -251,14 +250,16 @@ Every refusal uses the same block: what failed, the cause, up to two alternative
 | Screen | Decision | Reason |
 |---|---|---|
 | S2 | One table with vehicles, free spaces and charging | The student compares Hubs without opening each one |
-| S3 | Note "Not a reservation" under the return Hub | The student does not think a space is held |
+| S3 | Vehicles as small cards to pick, five per row, best battery first; the return Hub and "Reserve" in a bar fixed at the bottom of the screen | A wide four-column table left large gaps between columns, and the main button was far below a long list |
 | S4 | The 10-minute deadline, planned time and missing return space shown before confirming | These are the facts that surprise students most |
 | S5 | Only the actions allowed in the booking's state; deadline as a time and a countdown | The student cannot try a pick-up on an expired booking |
-| O1 | One card per Hub, ordered by severity; symbol and word, not colour alone | Hubs that need attention are seen at once, and the screen is readable without colour |
-| O2 | State history under the vehicle; only the button that fits the state | The operator sees how the vehicle got there before overriding |
-| O4 | "Update recommendations" is a button; a failed task keeps its reason | Planning writes data, so it must be deliberate; no need to ask why a task failed |
+| O1 | One compact card per Hub, ordered by severity, five per row; symbol and word, not colour alone | All ten Hubs fit on one 1366×768 screen; Hubs that need attention are seen at once, and the screen is readable without colour |
+| O2 | Summary, section links and the Hub action on one line; the vehicle list scrolls inside its panel; spaces as tiles coloured by status with a word; state history under the vehicle; only the button that fits the state | The spaces and points stay one scroll away from the vehicles, and the operator sees how a vehicle got there before overriding |
+| O4 | The filter and "Update recommendations" on one toolbar; tasks two per row; a failed task keeps its reason | Planning writes data, so it must be deliberate; more tasks are seen at once |
+| S6, S7, S8 | Form and the student's own list side by side, labels above full-width fields | The screen is used across its width instead of a short form on the left |
+| All | Student column 1200 px, operator column 1440 px; nothing under 14 px; the login code in the header | Operator screens are dense and desktop only (D-027); the code is what the user typed to log in |
 | O5 | Active tickets first, most severe and oldest on top; only the actions the status allows; history under the ticket | The operator handles the worst ticket first and cannot close a ticket before it is resolved |
-| O6 | Banner that the screen works on a copy; baseline and result per Hub (mitigated result Planned); seed shown | Simulated results are not mistaken for real state, and the same seed gives the same result (NFR-13) |
+| O6 | Banner that the screen works on a copy; only the chosen scenario's fields; both rates side by side; approve sends to Dispatch, not straight to the fleet | Simulated results are not mistaken for real state, the comparison is read at a glance, and a person approves every real move |
 | All | Loading, empty and error states | The user can tell "nothing here" from "something failed" |
 
 ### 3.4.6 Interfaces for ordinary users and operators
@@ -302,10 +303,10 @@ Every field on a screen was traced to a `core` query, a table in Section 3.2.2, 
 
 | Backend | Status |
 |---|---|
-| `core`: login, Hubs, vehicles, spaces, charging points, history | Implemented |
-| Reservation (M2): reserve, pick up, cancel, return | Implemented with routes; S4 and S5 are connected (TC-M7-028 to TC-M7-030) |
-| Reservation (M2): parking, return-space hold | Planned |
-| Charging (M3): requests, schedule, sessions, queue, private EV | Implemented with routes; S7, S8 and O3 are connected (S8: no change or cancel yet) |
-| Allocation (M4): plan, approve, pick-up, delivery, cancel | Implemented and connected in O4; reject and settings planned |
-| Monitoring (M5): incidents and metrics | Incidents connected in O5 (acknowledge, resolve, close); remote reset and stale data planned |
-| Simulation (M6) | Demand surge implemented with a route and connected in O6 (TC-M7-031, TC-M7-032); the other scenarios and approval planned |
+| `core`: login, Hubs, vehicles, spaces, charging points, history; vehicle, point and Hub commands in O2 | Connected (TC-M7-038, TC-M7-039) |
+| Reservation (M2): search, reserve, pick up, cancel, return | Connected in S3 to S5 (TC-M7-028 to TC-M7-030, TC-M7-034) |
+| Reservation (M2): parking, return-space hold | Connected in S5 and S6 (TC-M7-035, TC-M7-036) |
+| Charging (M3): requests, change, cancel, sessions, queue, moved sessions, private EV | Connected in S7, S8 and O3 (TC-M7-037, TC-M7-040) |
+| Allocation (M4): plan, approve, reject, pick-up, delivery, cancel, settings | Connected in O4 (TC-M7-041, TC-M7-043) |
+| Monitoring (M5): incidents | Connected in O5: filters, acknowledge, escalate, resolve, close, history (TC-M7-043); remote reset and stale-data icon are not offered |
+| Simulation (M6) | Five scenarios connected in O6 with the comparison, approve, reject and export (TC-M7-031, TC-M7-032, TC-M7-041, TC-M7-042) |

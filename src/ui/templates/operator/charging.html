@@ -1,45 +1,116 @@
-{# O3. Charging coordination (wireframes-operator.md), UC-M7-03. Read-only: points from core,
-   queue from M3 (`/charging/queue`). "!" is the low-battery override (`is_emergency`). #}
+{# O3. Charging coordination (wireframes-operator.md), UC-M7-03, UC-M7-04. Points from core; the
+   queue (BR-M3-03 order with rank, reason and owner), the sessions and the sessions moved after a
+   point failure from M3. "Optimize" binds queued requests to free slots (UC-M3-07); start, finish
+   and stop call M3's session routes. #}
 {% extends "base.html" %}
 {% block title %}Charging · Smart E-Mobility Hub{% endblock %}
 {% block content %}
+{% set reasons = {
+  "EMERGENCY_LOW_BATTERY": "! low battery",
+  "BOOKED_WITHIN_1H": "booked within 1 h",
+  "LOWEST_BATTERY_FIRST": "lowest battery first",
+} %}
 <h1>Charging</h1>
 
-<form method="get" action="{{ url_for('operator_charging') }}">
-  <label>Hub
-    <select name="hub_id" onchange="this.form.submit()">
-      {% for h in hubs %}
-      <option value="{{ h.hub_id }}"{% if h.hub_id == hub.hub_id %} selected{% endif %}>{{ h.hub_id }} {{ h.name }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <noscript><button class="button" type="submit">Show</button></noscript>
+<form class="filters" method="get" action="{{ url_for('operator_charging') }}">
+  <p>
+    <label>Hub
+      <select name="hub_id">
+        {% for h in hubs %}
+        <option value="{{ h.hub_id }}"{% if h.hub_id == hub.hub_id %} selected{% endif %}>{{ h.hub_id }} {{ h.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Owner
+      <select name="owner">
+        <option value="">all</option>
+        <option value="FLEET"{% if owner == "FLEET" %} selected{% endif %}>fleet</option>
+        <option value="PRIVATE"{% if owner == "PRIVATE" %} selected{% endif %}>private</option>
+      </select>
+    </label>
+    <button class="button" type="submit">Show</button>
+  </p>
 </form>
 
 <p>
-  Charging points {{ points | length }}: in use {{ in_use }} · out of service {{ out_of_service }}
+  Charging points {{ points | length }}: in use {{ in_use }} · out of service {{ out_of_service }} ·
+  <a href="{{ url_for('operator_hub', hub_id=hub.hub_id) }}#points">change a point</a>
 </p>
 
-<h2>Queue</h2>
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Vehicle</th><th>Battery → target</th><th>Status</th><th>Point</th></tr>
-    </thead>
-    <tbody>
-      {% for item in queue %}
-      <tr>
-        <td>{{ item.vehicle_id }}</td>
-        <td>{{ item.current_soc | round | int }}% → {{ item.target_soc | round | int }}%{% if item.is_emergency %} !{% endif %}</td>
-        <td>{{ item.status }}</td>
-        <td>{{ item.charger_id or "–" }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4">No vehicle is waiting to charge at this Hub.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<section>
+  <h2>Queue</h2>
+  <form class="actions" action="{{ url_for('charging_optimize', hub_id=hub.hub_id) }}" method="post">
+    <button class="button primary" type="submit"{% if not queue %} disabled{% endif %}>Optimize: give free slots to the queue</button>
+  </form>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Rank</th><th>Vehicle</th><th>Owner</th><th>Battery → target</th><th>Why this rank</th><th>Requested</th></tr>
+      </thead>
+      <tbody>
+        {% for item in queue %}
+        <tr>
+          <td>{{ item.rank }}</td>
+          <td>{{ item.plate }}</td>
+          <td>{{ "fleet" if item.ownership == "FLEET" else "private" }}{% if item.owner_user_id %} ({{ item.owner_user_id }}){% endif %}</td>
+          <td>{{ item.current_soc | round | int }}% → {{ item.target_soc | round | int }}%</td>
+          <td>{{ reasons.get(item.priority_reason, item.priority_reason) }}</td>
+          <td>{{ item.requested_at | ict if item.requested_at else "–" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No vehicle is waiting to charge at this Hub.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Order (BR-M3-03): battery at or below the low-battery limit first, then vehicles booked within an hour, then the lowest battery.</p>
+</section>
+
+<div class="split">
+<section>
+  <h2>Sessions</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Vehicle</th><th>Point</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>{{ s.plate }}</td>
+          <td>{{ s.charger_id or "–" }}</td>
+          <td>{{ s.status }}</td>
+          <td>{% if s.start_time %}{{ s.start_time | ict }} to {{ s.end_time | ict }}{% else %}–{% endif %}</td>
+          <td>
+            {% if s.status == "SCHEDULED" %}
+            <form class="inline" action="{{ url_for('session_action', hub_id=hub.hub_id, request_id=s.request_id, action='start') }}" method="post">
+              <button class="button primary" type="submit">Start</button>
+            </form>
+            {% elif s.status == "CHARGING" %}
+            <form class="inline" action="{{ url_for('session_action', hub_id=hub.hub_id, request_id=s.request_id, action='finish') }}" method="post">
+              <button class="button primary" type="submit">Finish</button>
+            </form>
+            <form class="inline" action="{{ url_for('session_action', hub_id=hub.hub_id, request_id=s.request_id, action='interrupt') }}" method="post">
+              <button class="button" type="submit">Stop</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No scheduled or running session at this Hub.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>Moved after a charging-point failure</h2>
+  <ul class="plain">
+    {% for m in moved %}
+    <li>{{ m.plate }}: stopped on {{ m.from_charger_id or "–" }}{% if m.interrupted_at %} at {{ m.interrupted_at | ict }}{% endif %} → {{ m.to_status }}{% if m.to_charger_id %} on {{ m.to_charger_id }}{% endif %}{% if m.to_start_time %} from {{ m.to_start_time | ict }}{% endif %}</li>
+    {% else %}
+    <li>No session was moved at this Hub.</li>
+    {% endfor %}
+  </ul>
+</section>
 </div>
-<p>! = low-battery override (battery at or below the low-battery limit).</p>
-<p><span class="planned">Planned</span> Owner filter, priority score, and the list of sessions moved after a charging-point failure.</p>
 {% endblock %}

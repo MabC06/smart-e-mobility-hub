@@ -1,60 +1,63 @@
 {#
-  S3. Search for a vehicle (wireframes-student.md), UC-M2-01, FR-02. Only fleet vehicles that
-  are AVAILABLE are listed (filtered in routes.py, student rule 3). The chosen vehicle goes to
-  S4 as query parameters.
+  S3. Search for a vehicle (wireframes-student.md), UC-M2-01, FR-02. The list is M2's search
+  (GET /reservations/vehicles): fleet vehicles the student can reserve now, best battery first.
+  Each vehicle is one small card to pick (a radio button); the return Hub and the main button stay
+  in a bar at the bottom of the screen, so they are visible however long the list is (D-027).
 #}
 {% extends "base.html" %}
 {% block title %}Vehicles at {{ hub.name }} · Smart E-Mobility Hub{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('student_hubs') }}">&lt; Hubs</a></p>
 <h1>Vehicles at {{ hub.hub_id }} {{ hub.name }}</h1>
+<p>{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }} you can reserve now, highest battery first.</p>
 
-<p>
-  <label>Type <select disabled><option>any</option></select></label>
-  <label>Minimum battery <input type="number" value="20" min="0" max="100" disabled> %</label>
-  <span class="planned">Planned</span> Search filters. A value under 20 has no effect:
-  M2 requires at least 20%.
-</p>
+<form class="filters" method="get" action="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">
+  <p>
+    <label>Type
+      <select name="type">
+        <option value="">any</option>
+        {% for t in vehicle_types %}
+        <option value="{{ t }}"{% if t == chosen_type %} selected{% endif %}>{{ t | type_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Minimum battery
+      <input type="number" name="min_battery" value="{{ min_battery }}" min="20" max="100" size="4"> %
+    </label>
+    <button class="button" type="submit">Search</button>
+    <span class="note">A vehicle needs at least 20% battery to be rented.</span>
+  </p>
+</form>
 
 {% if vehicles %}
-<form action="{{ url_for('student_confirm') }}">
+<form action="{{ url_for('student_confirm') }}" class="pick">
   <input type="hidden" name="hub_id" value="{{ hub.hub_id }}">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th></th><th>Vehicle</th><th>Type</th><th>Battery</th></tr>
-      </thead>
-      <tbody>
-        {% for vehicle in vehicles %}
-        <tr>
-          <td>
-            <input type="radio" id="v-{{ vehicle.vehicle_id }}" name="vehicle_id"
-                   value="{{ vehicle.vehicle_id }}" required>
-          </td>
-          <td><label for="v-{{ vehicle.vehicle_id }}">{{ vehicle.plate_or_code }}</label></td>
-          <td>{{ vehicle.vehicle_type | type_label }}</td>
-          <td>{{ vehicle.battery_pct | round | int }}%</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <fieldset class="choice-grid">
+    <legend>Choose a vehicle</legend>
+    {% for vehicle in vehicles %}
+    <label class="choice">
+      <input type="radio" name="vehicle_id" value="{{ vehicle.vehicle_id }}" required>
+      <span class="choice-title">{{ vehicle.plate_or_code }}</span>
+      <span class="choice-meta">{{ vehicle.vehicle_type | type_label }} · <strong>{{ vehicle.battery_pct | round | int }}%</strong></span>
+    </label>
+    {% endfor %}
+  </fieldset>
 
-  <p>
+  <div class="action-bar">
     <label>Return to
       <select name="return_hub_id">
         <option value="">any Hub</option>
         {% for other in hubs %}
-        <option value="{{ other.hub_id }}">{{ other.hub_id }} {{ other.name }}: {{ other.free_spaces }} free spaces now</option>
+        <option value="{{ other.hub_id }}">{{ other.hub_id }} {{ other.name }} ({{ other.free_spaces }} free now)</option>
         {% endfor %}
       </select>
     </label>
-    Not a reservation: the return space is not held.
-  </p>
-  <p><button class="button primary" type="submit">Reserve selected vehicle</button></p>
+    <button class="button primary" type="submit">Reserve selected vehicle</button>
+    <span class="note">The return space is not held; you can hold one during the ride.</span>
+  </div>
 </form>
 {% else %}
-<p>No vehicle can be rented at this Hub now. <a href="{{ url_for('student_hubs') }}">Choose another Hub</a>.</p>
+<p>No vehicle matches at this Hub now. Change the filters or <a href="{{ url_for('student_hubs') }}">choose another Hub</a>.</p>
 {% endif %}
 
 <p class="note">Hub data as of {{ as_of | ict }} · results can change before you confirm.</p>

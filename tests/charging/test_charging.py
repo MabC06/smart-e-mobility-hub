@@ -1157,3 +1157,26 @@ def test_moved_route_lists_sessions_moved_after_a_point_failure() -> None:
     assert row["to_status"] == "SCHEDULED" and row["vehicle_id"] == "V-DOCKED"
     assert client.get("/charging/moved", headers=_bearer(client, "2452030")).status_code == 403
     assert client.get("/charging/moved?hub_id=H2", headers=operator).json() == []
+
+
+def test_a_request_waits_only_while_no_slot_is_free() -> None:
+    """TC-M3-039 · Verifies: FR-06, BR-M3-03, UC-M3-01, UC-M3-07.
+
+    Expected: a "now" request of a vehicle that is not in a bay gets the earliest free slot at
+    once (SCHEDULED with a point), not QUEUED; two requests get two different points.
+    """
+    _, _, _, client = _api()
+    student = _bearer(client, "2452030")
+
+    rows = [
+        client.post(
+            "/charging/requests/immediate",
+            headers=student,
+            json={"request_id": rid, "vehicle_id": vid, "hub_id": "H1"},
+        ).json()
+        for rid, vid in (("R-A", "V-400"), ("R-B", "V-151"))
+    ]
+
+    assert [r["status"] for r in rows] == ["SCHEDULED", "SCHEDULED"]
+    assert rows[0]["charger_id"] != rows[1]["charger_id"]
+    assert all(r["start_time"] is not None for r in rows)
