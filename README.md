@@ -260,4 +260,4 @@ Each member records their own usage in `docs/ai-usage/<student-id>.md` **at the 
 
 A pre-recorded demo (≈3 minutes within the ≈20-minute presentation; live demos are not permitted). The video file is **not** committed to the repo — linked here instead.
 
-*Link to the recorded demo video: TBD.*
+**[Watch the demo video (3 min)](https://drive.google.com/file/d/1U3SI5GsNhtepRAzS3Hv1koZy3C_U6NjJ/view)**: the student screens on a phone first, then the student and operator screens in a laptop browser.
