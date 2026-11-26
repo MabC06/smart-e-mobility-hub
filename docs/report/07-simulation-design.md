@@ -1,6 +1,6 @@
-# 7. Simulation Design
+## 3.5 What-if Simulation and Coordination Design
 
-## 7.1. Overview
+### 3.5.1 Overview
 
 The M6 — What-if Simulation & Coordination module enables system
 operators to evaluate hypothetical operational situations before making
@@ -21,11 +21,11 @@ The detailed technical specification is documented in [M6 What-if
 Simulation & Coordination Design
 Specification](../design/simulation/m6-simulation-design.md).
 
-## 7.2. Simulation Scenarios
+### 3.5.2 Simulation Scenarios
 
 M6 supports five standard simulation scenarios:
 
-### SC-01. Peak-Hour Demand Surge
+#### SC-01. Peak-Hour Demand Surge
 
 This scenario evaluates whether the available vehicle fleet can satisfy
 a sudden increase in student rental demand.
@@ -39,7 +39,7 @@ a sudden increase in student rental demand.
 **Expected outcome:** Identify vehicle shortages and recommend feasible
 vehicle redistribution from surplus hubs to shortage hubs.
 
-### SC-02. Hub at Capacity
+#### SC-02. Hub at Capacity
 
 This scenario evaluates parking-capacity risks and rejected vehicle
 returns.
@@ -52,7 +52,7 @@ returns.
 **Expected outcome:** Recommend alternative return hubs or feasible
 vehicle redistribution to reduce parking congestion.
 
-### SC-03. Charging Surge
+#### SC-03. Charging Surge
 
 This scenario evaluates charging congestion, queue waiting time, and
 low-battery risks.
@@ -66,7 +66,7 @@ low-battery risks.
 **Expected outcome:** Recommend charging prioritization, rescheduling,
 or redirection to alternative charging points.
 
-### SC-04. Charging-Point Failure
+#### SC-04. Charging-Point Failure
 
 This scenario evaluates the impact of charging-point failures on
 charging capacity and vehicle readiness.
@@ -79,7 +79,7 @@ charging capacity and vehicle readiness.
 **Expected outcome:** Recommend alternative charging assignments and
 identify vehicles at risk of charging delays.
 
-### SC-05. Vehicle Imbalance
+#### SC-05. Vehicle Imbalance
 
 This scenario evaluates vehicle shortages and surpluses across Mobility
 Hubs.
@@ -93,11 +93,11 @@ Hubs.
 **Expected outcome:** Recommend feasible vehicle redistribution to
 improve fleet balance without creating additional operational shortages.
 
-## 7.3. Impact Metrics
+### 3.5.3 Impact Metrics
 
 M6 calculates four primary metrics to evaluate operational conditions.
 
-### 1. Vehicle Shortage Rate
+#### 1. Vehicle Shortage Rate
 
 Measures the percentage of valid rental requests that cannot be
 fulfilled because suitable vehicles are unavailable.
@@ -112,7 +112,7 @@ Where:
 A lower shortage rate indicates better demand fulfillment. If there are
 no valid requests, the result is reported as N/A.
 
-### 2. Hub Overflow / Return Rejection Rate
+#### 2. Hub Overflow / Return Rejection Rate
 
 Measures the percentage of valid vehicle return attempts rejected
 because the destination hub lacks available parking capacity.
@@ -127,7 +127,7 @@ Where:
 A lower rejection rate indicates better parking-capacity availability.
 If there are no return attempts, the result is reported as N/A.
 
-### 3. Average Charging Queue Waiting Time
+#### 3. Average Charging Queue Waiting Time
 
 Measures the average time between a charging request and the start of
 its charging session.
@@ -144,24 +144,24 @@ The result is expressed in minutes. If no charging session starts during
 the measurement period, the result is reported as N/A. Requests still
 waiting at the end of the simulation are reported separately.
 
-### 4. Critical Battery Depletion Count
+#### 4. Critical Battery Depletion Count
 
 Counts vehicles whose battery percentage is at or below the configured
 critical threshold while not charging at the end of the simulation.
 
-$$N_{\mathrm{crit}}=\left|\left\{v\in V:\ battery\_pct(v)\le LOW\_BATTERY\_THRESHOLD\ \land\ State(v)\neq \mathrm{Charging}\right\}\right|$$
+$$N_{\mathrm{crit}}=\left|\left\{v\in V:\ b(v)\le \theta_{\mathrm{low}}\ \land\ s(v)\neq \mathrm{Charging}\right\}\right|$$
 
 Where:
 
 - $V$: set of vehicles included in the simulation.
-- `battery_pct(v)`: battery percentage of vehicle $v$, on a 0–100 scale.
-- `LOW_BATTERY_THRESHOLD`: value obtained from Core configuration through `get_config()`; Core defines it as 15.0 (%).
-- $State(v)$: simulated vehicle state at the end of the measurement period.
+- $b(v)$ (`battery_pct(v)`): battery percentage of vehicle $v$, on a 0–100 scale.
+- $\theta_{\mathrm{low}}$ (`LOW_BATTERY_THRESHOLD`): value obtained from Core configuration through `get_config()`; Core defines it as 15.0 (%).
+- $s(v)$: simulated vehicle state at the end of the measurement period.
 
 M6 must read the threshold from Core configuration at runtime rather
 than defining an independent local constant.
 
-### Baseline and Mitigated Comparison
+#### Baseline and Mitigated Comparison
 
 M6 compares baseline results with mitigated simulation results when
 feasible mitigation actions are available.
@@ -179,7 +179,7 @@ $$\Delta M=M_{\mathrm{baseline}}-M_{\mathrm{mitigated}}$$
 
 A positive value indicates improvement.
 
-## 7.4. Coordination Recommendation Rules
+### 3.5.4 Coordination Recommendation Rules
 
 M6 uses explainable, rule-based logic to generate coordination
 recommendations based on simulation results.
@@ -193,7 +193,7 @@ with supporting metrics and explanations.
 
 Five primary recommendation rules are defined:
 
-### R1. Vehicle Redistribution
+#### R1. Vehicle Redistribution
 
 **Trigger:** A hub experiences unmet rental demand while another hub has
 eligible surplus vehicles.
@@ -210,7 +210,7 @@ shortage hubs.
 
 **Target module:** M4 — Allocation & Dispatching.
 
-### R2. Hub Capacity Relief
+#### R2. Hub Capacity Relief
 
 **Trigger:** Hub occupancy reaches the configured warning threshold.
 
@@ -226,7 +226,7 @@ feasible vehicle redistribution.
 **Target module:** M2 — Reservation & Trip, or M4 — Allocation &
 Dispatching, depending on the proposed action.
 
-### R3. Charging Congestion
+#### R3. Charging Congestion
 
 **Trigger:** Charging queue length exceeds the configured threshold or
 available charging capacity becomes insufficient.
@@ -242,7 +242,7 @@ rescheduling, or redirection to alternative charging points.
 
 **Target module:** M3 — Charging & Smart Scheduling.
 
-### R4. Charging-Point Failure Recovery
+#### R4. Charging-Point Failure Recovery
 
 **Trigger:** A charging-point failure causes charging sessions to become
 unavailable, delayed, or infeasible.
@@ -258,7 +258,7 @@ prioritize vehicles required for upcoming trips.
 
 **Target module:** M3 — Charging & Smart Scheduling.
 
-### R5. Fleet Balance Improvement
+#### R5. Fleet Balance Improvement
 
 **Trigger:** Some hubs have surplus vehicles while other hubs experience
 shortages relative to their target levels.
@@ -275,7 +275,7 @@ destination hubs.
 
 **Target module:** M4 — Allocation & Dispatching.
 
-### Recommendation Priority
+#### Recommendation Priority
 
 Recommendations are ranked according to the following priorities:
 
@@ -291,7 +291,7 @@ All recommendations are advisory. Operator approval is required before
 submission, and the receiving operational module must revalidate the
 request against the current real operational state.
 
-## 7.5. Operational Snapshot Integration with M1 Core
+### 3.5.5 Operational Snapshot Integration with M1 Core
 
 M6 requires an initial operational snapshot to create an isolated
 simulation environment.
@@ -328,7 +328,7 @@ Reservation demand and charging demand are obtained separately through
 the `ReservationDemand` (M2) and `ChargingDemand` (M3) interfaces. They
 are not embedded in the operational snapshot.
 
-### Snapshot Processing Workflow
+#### Snapshot Processing Workflow
 
 1.  M6 requests an operational snapshot from M1.
 2.  M1 provides a consistent snapshot through `export_snapshot()`.
@@ -344,7 +344,7 @@ are not embedded in the operational snapshot.
 M6 must not directly modify Core state or bypass the responsible
 operational modules.
 
-## 7.6. Detailed Design Reference
+### 3.5.6 Detailed Design Reference
 
 This section provides a high-level overview of the M6 simulation design.
 

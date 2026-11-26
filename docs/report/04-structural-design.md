@@ -1,6 +1,6 @@
 ## 3.2 Structural and Data Design
 
-> **Status:** v1.0 · **Owner:** M1 (class diagram, 3.2.1 and 3.2.3) · M7 (data model, 3.2.2) · **Date:** 2026-11-04
+> **Status:** Final v1.1 · **Owner:** M1 (class diagram, 3.2.1 and 3.2.3) · M7 (data model, 3.2.2) · **Date:** 2026-11-26 (v1.0 2026-11-04; M2 parking and M3 tables added)
 > The full diagrams and design notes are in `docs/design/structural/class-diagram-core.md`. Decision IDs (`D-xxx`) refer to `docs/DECISIONS.md`.
 
 ### 3.2.1 Class diagram of `core`
@@ -255,6 +255,11 @@ erDiagram
     hubs ||--o{ rental_trips : "origin"
     hubs |o--o{ rental_trips : "return Hub"
     parking_spaces |o--o{ rental_trips : "return space"
+    user_accounts ||--o{ parking_bookings : places
+    vehicles ||--o{ parking_bookings : "parks"
+    parking_spaces ||--o{ parking_bookings : "held space"
+    resource_claims ||--o| parking_bookings : "is held by"
+    rental_trips |o--o| parking_bookings : "return hold"
 
     rental_reservations {
         string reservation_id PK
@@ -284,13 +289,64 @@ erDiagram
         string return_space_id FK
         int version
     }
+    parking_bookings {
+        string parking_id PK
+        string user_id FK
+        string purpose
+        string vehicle_id FK
+        string hub_id FK
+        string parking_space_id FK
+        datetime start_at
+        datetime hold_expires_at
+        string claim_id FK, UK
+        datetime planned_end_at
+        string trip_id FK
+        string status
+        datetime arrived_at
+        datetime departed_at
+        int version
+    }
 ```
 
 *Figure 3.5 — Tables of the reservation module (M2).*
 
 - A reservation holds exactly one claim (`claim_id`, not null, unique). The reservation module releases the claim at pick-up.
 - `PENDING` is not stored. It is a short state of the request with no record. The code stores five statuses.
-- Parking reservations (FR-05, FR-07 parking side) are planned and not in the tables yet.
+- A parking booking is either a `RENTAL_RETURN` hold for an open Trip (with `trip_id`, ten minutes) or a `PRIVATE_STAY` of a private EV (with `planned_end_at`); a check constraint enforces exactly one of the two. It holds one claim on its space; the return or the arrival consumes it (FR-05, FR-07).
+
+```mermaid
+erDiagram
+    vehicles ||--o{ charging_requests : "is charged"
+    hubs ||--o{ charging_requests : "at Hub"
+    charging_points |o--o{ charging_requests : "bound to"
+    resource_claims |o--o| charging_requests : "point claim"
+    resource_claims |o--o| charging_requests : "vehicle claim"
+    user_accounts |o--o{ charging_requests : "requested by"
+
+    charging_requests {
+        string request_id PK
+        string vehicle_id FK
+        string station_id FK
+        float current_soc
+        float target_soc
+        datetime requested_at
+        bool is_emergency
+        float energy_kwh
+        string charger_id FK
+        datetime start_time
+        datetime end_time
+        string point_claim_id FK
+        string vehicle_claim_id FK
+        string status
+        string user_id FK
+        int version
+    }
+```
+
+*Figure 3.6 — Table of the charging module (M3).*
+
+- A request without a point is `QUEUED` and has no start, end or claims. When it is bound, M3 sets `charger_id`, the interval and one claim on the point and one on the vehicle; finishing, interrupting or cancelling releases them.
+- `station_id` is the Hub; the name is kept from M3's first design.
 
 ```mermaid
 erDiagram
@@ -312,7 +368,7 @@ erDiagram
     }
 ```
 
-*Figure 3.6 — Table of the allocation module (M4).*
+*Figure 3.7 — Table of the allocation module (M4).*
 
 - `vehicle_ids` is one text column with vehicle IDs separated by commas. Normally a task and its vehicles would be a separate table with two foreign keys. The code does not do this, so the database cannot check the IDs. This is recorded as a deviation (Section 4.4).
 - On approval the allocation module places claims on the vehicles and one destination space (`holder_kind = DISPATCH_TASK`, `holder_ref = task_id`).
@@ -354,7 +410,7 @@ erDiagram
     }
 ```
 
-*Figure 3.7 — Tables of the monitoring module (M5).*
+*Figure 3.8 — Tables of the monitoring module (M5).*
 
 - Each ticket belongs to one Hub and has an audit log with one row for each change of status.
 - `entity_type` and `entity_id` name the failed component and have no foreign key. `assigned_operator_id` has no foreign key either.

@@ -1,13 +1,11 @@
 # 4. Implementation
 
-> **Status:** outline · **Owner:** M1 (4.1, 4.2; consolidates 4.3, 4.4) · **Date:** 2026-11-16
-> The rubric asks for "technically meaningful implementation choices rather than repeating the design section". Each point below says what to write and where the facts are; it links to Section 3 instead of copying it. M2–M6 write their own parts of 4.3 and 4.4 inside their blocks by 17/11 (`task-assignment-timeline.md`, Phase 4).
+> **Status:** Final v1.0 · **Owner:** M1 (4.1, 4.2, 4.3.1; consolidates 4.3 and 4.4) · **Date:** 2026-11-26
+> This section explains how the design of Section 3 became code and which choices were not obvious; it links to Section 3 instead of repeating it. Each module owner wrote their part of 4.3 and 4.4.
 
 ## 4.1 Technology Stack and Development Environment
 
-Write: the table below, one sentence of justification per row, and how the system is run. Source: D-002, `docs/design/architecture/tech-stack-proposal.md`, `requirements.txt`, `requirements-dev.txt`, `README.md` "Getting Started".
-
-| Concern | Choice (pinned version) | Why (one sentence each, from D-002) |
+| Concern | Choice (pinned version) | Why |
 |---|---|---|
 | Language | Python 3.12, pip + venv with pinned `requirements*.txt` | One language for every module and the tests; runs from a clean clone (NFR-14). |
 | Web API | FastAPI 0.162 with Pydantic 2.14, served by uvicorn 0.54 | Request and response types are checked from the same models as the core interface; OpenAPI pages come for free. |
@@ -17,35 +15,35 @@ Write: the table below, one sentence of justification per row, and how the syste
 | Quality tools | pytest 9.2, pytest-cov 7.1, ruff 0.17, mypy 2.4 (strict on `core`, `reservation`, `main.py`) | The same commands run on a laptop and in CI (D-019, D-025). |
 | CI | GitHub Actions on Ubuntu | Lint, format, types, tests, coverage per module and the import-boundary check on every PR (NFR-22, NFR-24, NFR-27). |
 
-Points to cover after the table:
-- Runtime: one process (`python -m uvicorn --app-dir src main:create_app --factory`), settings from `.env` (`APP_ENV`, `DATABASE_URL`, `SECRET_KEY`, `SEED_ON_START`; `.env.example`). Empty `DATABASE_URL` means an in-memory store.
-- Time: every timestamp is UTC from an injectable clock (D-005), so tests and simulation runs are repeatable (NFR-13).
-- No external services or paid APIs. The IoT layer is the simulator in `src/iot_sim/` (D-004).
-- Development process in one or two sentences: work on short branches from `develop`, one PR per change, one approval and a green CI before merge (CONTRIBUTING section 8, D-001).
+The whole system runs as one process: `python -m uvicorn --app-dir src main:create_app --factory`. Settings come from `.env` (`APP_ENV`, `DATABASE_URL`, `SECRET_KEY`, `SEED_ON_START`, `DEMO_PASSWORD`; see `.env.example`); an empty `DATABASE_URL` gives an in-memory store. With `SEED_ON_START=true` an empty database is loaded with the DS-STD network of the simulator, and the seeded accounts can sign in with the demo password (D-028). Five documented commands take a fresh clone to a running, tested system (NFR-14).
+
+Every timestamp is UTC and comes from an injectable clock (D-005), so tests and What-if runs are repeatable (NFR-13); the screens show times in ICT. The system uses no external service or paid API: the IoT layer is the simulator in `src/iot_sim/` (D-004).
+
+Work was done on short branches from `develop`, one pull request per change, merged after one approval and a green CI run (CONTRIBUTING section 8, D-001); `main` receives `develop` at each release.
 
 ## 4.2 Implementation Structure
 
-Write: how Section 3.1 maps to code. One figure (folder tree or package diagram) and one table, then one short paragraph per mechanism. Do not list every file. Source: `architecture-diagram.md`, `src/main.py`, `core-api-spec.md`.
+Section 3.1 maps to code as one Python package per component under `src/`, wired together by `main.py`.
 
 ### 4.2.1 Packages and owners
 
-| Package (`src/`) | Owner | Realizes (Section 3) | Size (lines of Python, 2026-11-16) |
+| Package (`src/`) | Owner | Realizes (Section 3) | Lines of Python (2026-11-26) |
 |---|---|---|---|
-| `core` | M1 | Shared state, state machine, claims, events, snapshot, REST API, sign-in | ≈ 5 300 |
-| `reservation` | M2 | Rental and parking reservations, trips | ≈ 700 |
-| `charging` | M3 | Charging sessions and queue | ≈ 1 300 |
-| `allocation` | M4 | Rebalancing plans, arbitration, alternatives | ≈ 1 800 |
-| `monitoring` | M5 | Incidents and escalation | ≈ 900 |
-| `simulation` | M6 | What-if engine on a snapshot | ≈ 200 (update after SC-02 to SC-05) |
-| `ui` | M7 | Operator and student screens | ≈ 1100 |
-| `iot_sim` | M8 | Sensor events and seed network (outside the system boundary, D-004) | ≈ 240 |
-| `main.py` | M1 | Composition root (D-013) | — |
+| `core` | M1 | Shared state, state machine, claims, events, snapshot, REST API, sign-in | 5,288 |
+| `reservation` | M2 | Rental and parking reservations, trips, return-space holds | 1,726 |
+| `charging` | M3 | Charging requests, queue and schedule, point failures | 1,403 |
+| `allocation` | M4 | Dispatch plans, arbitration, alternative Hubs | 1,945 |
+| `monitoring` | M5 | Hub status, incidents and escalation | 1,196 |
+| `simulation` | M6 | What-if engine on a snapshot, SC-01 to SC-05 | 670 |
+| `ui` | M7 | Operator and student screens (plus Jinja2 templates and one stylesheet) | 1,393 |
+| `iot_sim` | M8 | Sensor events and seed network (outside the system boundary, D-004) | 236 |
+| `main.py` | M1 | Composition root (D-013), settings, seeding | 316 |
 
-Refresh the sizes on 18/11; they are only there to show where the logic is.
+The sizes only show where the logic is; the tests (about 1,560) are in `tests/`, one folder per package.
 
 ### 4.2.2 Inside `core`
 
-Short paragraph per layer, mapped to the class diagram (Section 3.2.1):
+The layers of `core` follow the class diagram (Section 3.2.1):
 - `domain/`: entities, enums, the vehicle state machine and the invariant checker (BR-M1-01 to BR-M1-03, NFR-07).
 - `services/`: commands, queries, unit of work, sensor intake, snapshot.
 - `repository/`: one `Repository` interface with two stores, `memory.py` (tests, What-if runs) and `sql.py` (SQLite).
@@ -65,18 +63,18 @@ Short paragraph per layer, mapped to the class diagram (Section 3.2.1):
 
 ### 4.2.5 APIs and events
 
-- REST: core router plus one router per module, all behind the same token check (NFR-16, D-014, D-023). List only the route prefixes; the full list is the OpenAPI page.
-- Events: in-process `EventBus`, published only after a commit; a failing handler is logged and does not undo the commit (`core/events.py`). Name the main events and who listens (table from `core-api-spec.md` §6).
+- REST: the core router (`/auth/login`, `/me`, `/hubs`, `/config`) and one router per module (`/reservations`, `/charging`, `/allocation`, `/api/v1/monitoring`, `/simulation`), all behind the same token check (NFR-16, D-014, D-023). The pages of `ui` are under `/ui` and call these routes (D-026). The full list is the OpenAPI page at `/docs`.
+- Events: in-process `EventBus`, published only after a commit; a failing handler is logged and does not undo the commit (`core/events.py`). The main events are `SpaceOccupancyChanged` and `VehicleBatteryChanged` (M5), `ChargingPointStatusChanged` (M3 and M5), `SensorEventRejected` and `SensorHeartbeat` (M5, which runs its periodic checks on the heartbeat).
 - Provider ports: `core` calls a module only through a port that the module registered (§6.1), so the dependency still points into `core`.
 
 ### 4.2.6 Simulation subsystem
 
 - M6 takes an `OperationalSnapshot` (one commit point, copies only, content hash as ID), loads it into an in-memory store and runs the scenario there (NFR-12). The live store is never written.
-- One sentence linking to Section 3.5 for the scenarios; details of isolation go in 4.3 (M6).
+- The five scenarios, their metrics and the recommendation rules are designed in Section 3.5; the isolation and determinism choices are in 4.3.6.
 
 ## 4.3 Important Implementation Decisions
 
-Write: 3 to 5 decisions per module that were hard or not obvious, each as **problem → what the code does → why → where (file, test)**. Skip anything already explained in Section 3. The rubric's examples, with the module that covers each:
+Each module owner describes the decisions that were hard or not obvious: the problem, what the code does, why, and where (file, test). The rubric's examples are covered as follows:
 
 | Rubric example | Covered by |
 |---|---|
@@ -88,15 +86,17 @@ Write: 3 to 5 decisions per module that were hard or not obvious, each as **prob
 | Isolating simulated state from operational state | M6 |
 
 <!-- BEGIN M1: Core -->
-Draft points for M1:
-- One owner of shared state: modules hold **claims** on resources and release only their own (D-017); `core` never expires a claim.
-- All writes go through one runtime lock and the unit of work; M4 plans on a snapshot and commits with `snapshot_version`, failing with `VERSION_CONFLICT` if the state moved (`services/unit_of_work.py`).
-- Events after commit, never inside the transaction, so a handler cannot see uncommitted state.
-- Bad sensor events are rejected as a whole and reported as `SensorEventRejected` (NFR-10, `services/sensor_intake.py`).
-- No command-result store: idempotency is kept by M2 from its own records (D-015).
+### 4.3.1 M1 — Core
+
+1. **One owner of shared state, with claims.** Problem: reservation, charging and dispatch all want the same vehicle, space or charging point, sometimes for overlapping times. Code: a module asks `core` for an interval claim on a resource (`domain/claims.py`); `core` refuses any overlap (BR-M1-01), and only the module that placed a claim releases or consumes it. `core` never expires a claim itself: the owner does, because only the owner knows its deadlines (D-017). Where: `services/commands.py`, `tests/core/test_claims.py`, `test_commands_claims.py`.
+2. **One lock, a unit of work and an optimistic version.** Problem: a pick-up changes the vehicle, the space and the reservation together, and two students can try the same vehicle at once (NFR-06, NFR-09). Code: every write runs inside a unit of work under one runtime lock (`services/runtime.py`); on SQLite the transaction starts with `BEGIN IMMEDIATE`, each command runs in a savepoint, and each entity carries a `version` that a command must match or it fails with `VERSION_CONFLICT`. M4 plans on a snapshot and commits with its `snapshot_version`, so a plan made on old data is refused. Where: `services/unit_of_work.py`, `repository/sql.py`, `tests/core/test_concurrency.py` (42 tests), `test_unit_of_work.py`.
+3. **Events only after commit.** Problem: a subscriber that reacts to a change must never see a change that is later rolled back. Code: the unit of work collects events and publishes them only after the commit; a failing handler is logged and does not undo the commit (`events.py`). Where: `tests/core/test_queries_events.py`.
+4. **Faulty sensor input is refused as a whole.** Problem: the simulator can send malformed or impossible events (NFR-10). Code: `SensorIntake` checks an event completely before applying it; a bad event changes nothing and is published as `SensorEventRejected`, which M5 turns into an incident. Where: `services/sensor_intake.py`, `tests/core/test_sensor_events.py`.
+5. **IDs that survive a restart, and no command-result store.** Problem: after a restart on SQLite, new IDs collided with stored ones, and a retried request must not create a second record. Code: the ID generator resumes above the highest stored suffix (D-022); idempotency is kept by each module from its own records (M2 looks up its reservation, D-015), so `core` stores no command results. Where: `ids.py`, `tests/core/test_id_recovery.py`.
 <!-- END M1: Core -->
 
 <!-- BEGIN M2: Reservation & Trip -->
+### 4.3.2 M2 — Reservation and Trip
 
 1. **Serializing admission across different resources.** A vehicle version
    detects a stale update to one vehicle, while a student can attempt to reserve
@@ -163,7 +163,7 @@ Draft points for M1:
 <!-- END M2: Reservation & Trip -->
 
 <!-- BEGIN M3: Charging & Smart Scheduling -->
-**M3 Charging & Smart Scheduling**
+### 4.3.3 M3 — Charging and Smart Scheduling
 
 - **Charging allocation with claims.** Problem: two sessions must never share a bay in the same interval, and a bay must be found even when the requested time is taken. Code: `_earliest_slot` tries start times every 15 minutes for up to 2 hours; `_bind_bay` places a `CHARGING_SESSION` claim on the charging point and one on the vehicle, and finish, interrupt and cancel release them (D-017). Why: Core's claim check rejects overlaps, so the rule is enforced in one place and not by M3's own bookkeeping. Where: `src/charging/service.py`; TC-M3-022 to TC-M3-026.
 - **One unit of work per queued request.** Problem: `_bind_bay` commits, and a commit closes the unit of work, so binding a whole queue in one unit of work failed on the second request (DEF-M3-002). Code: `optimize_queue` ranks the queue first, then binds each request in its own `_run`. Why: a failure on one request leaves the others bound, and no half-placed claims remain. Where: `optimize_queue`; TC-M3-024, TC-M3-025.
@@ -173,7 +173,8 @@ Draft points for M1:
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
-Draft points for M4:
+### 4.3.4 M4 — Resource Allocation and Dispatching
+
 - **Consistent resource state across dispatch lifecycle (BR-M4-04, D-017):** Dispatch tasks require atomic co-allocation of suitable fleet vehicles at the source hub and parking spaces at the destination hub. `approve_task()` places `HolderKind.DISPATCH_TASK` claims on both resources inside one atomic unit of work (`src/allocation/service.py`). If any claim fails, placed claims are released and `_mark_task_failed()` runs in a separate external UoW so failure transitions complete cleanly without nested transaction errors (`tests/allocation/test_review.py`). When completing return, `carry_out_return()` passes `parking_space_id` and `claim_id` from the active space claim into `TransitionCtx` for `VehicleEvent.RETURN` and releases remaining active task claims.
 - **Resolving competing resource requests under scarcity (BR-M4-01, UC-M4-06):** When multiple concurrent demands compete for the same scarce vehicle or bay space, `ArbitrationService.arbitrate()` sorts requests strictly by priority class tier (`OPERATOR_INCIDENT > RESERVATION_PICKUP > VEHICLE_RETURN > CHARGING > REBALANCE > WALK_IN`), breaking ties deterministically by `requested_at` ascending and request ID (`src/allocation/arbitration.py`, `tests/allocation/test_arbitration.py`). The winning request is granted the resource atomically, while displaced requests receive typed errors with explicit reason codes (`ErrorCode.RESOURCE_UNAVAILABLE`).
 - **Decoupled provider port integration without fallback stubs (D-020, NFR-22):** Rather than importing M2/M3 modules directly or falling back to silent empty mocks, `AllocationService._fetch_hub_demand()` queries `ProviderPort.RESERVATION_DEMAND` through Core's registry. A missing or failing port raises `RESOURCE_UNAVAILABLE` immediately (`src/allocation/service.py`). Conversely, M4 implements `AlternativeHubProvider` and `AlternativeChargingProvider` using frozen dataclass contracts (`src/core/providers.py`), verified by 25 import-boundary checks (`tests/test_import_boundaries.py`).
@@ -181,7 +182,8 @@ Draft points for M4:
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->
-Draft points for M5:
+### 4.3.5 M5 — Monitoring and Incident Handling
+
 - **Decoupled incident ingestion via Core EventBus**: M5 consumes only Core's domain events (`ChargingPointStatusChanged`, `VehicleBatteryChanged`, `SensorEventRejected`, `SensorHeartbeat`), never importing `iot_sim` directly (NFR-22, D-004). Telemetry liveness is tracked in an internal timestamp map (`_heartbeats`) to detect connection loss (> 30s) deterministically. Unmapped sensors log a warning and skip ticket creation to protect schema integrity.
   *File:* `src/monitoring/service.py`, `tests/monitoring/test_monitoring.py` (`TC-M5-001`, `TC-M5-002`, `TC-M5-006`, `TC-M5-020`).
 - **Deterministic escalation timer on injectable clock**: `BR-M5-04` requires unacknowledged `HIGH`/`CRITICAL` tickets to auto-escalate after 5 minutes. Rather than relying on OS daemon threads and wall-clock time, `check_and_escalate_unacknowledged` computes ticket age against `core.queries.get_config().as_of` (`FixedClock`, D-005), preserving deterministic replayability (NFR-13).
@@ -193,6 +195,8 @@ Draft points for M5:
 <!-- END M5: Monitoring & Incident Handling -->
 
 <!-- BEGIN M6: What-if Simulation -->
+### 4.3.6 M6 — What-if Simulation
+
 #### Technical Decision 1: Sandbox Isolation via CoreFacade over OperationalSnapshot (NFR-12)
 - **Problem:** Executing hypothetical what-if scenarios could accidentally mutate live Core entities or persistent state store.
 - **Implementation:** M6 imports `OperationalSnapshot` from `core` and instantiates a standalone sandbox environment via `CoreFacade` backed by an in-memory repository derived from the snapshot (`snapshot.to_repository()`).
@@ -208,7 +212,7 @@ Draft points for M5:
 
 ## 4.4 Deviations and Implementation Limitations
 
-Write: one table for the whole team. Every row says what the design said, what the code does, why, and the effect. Work not finished at 23:59 on 17/11 goes here and is left out of the demo (`task-assignment-timeline.md`, Phase 3+4 cut-off rule).
+Each row says what the design or the brief said, what the code does, why, and the effect. None of them blocks a workflow of the demo; the measured effects are in Section 5.
 
 | ID | Module | Design or brief said | Implementation does | Reason | Effect / follow-up |
 |---|---|---|---|---|---|
@@ -220,7 +224,7 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-06 | M3 | FR-11.M3.2: prevent overload of the Hub's power supply | `optimize_queue` binds requests to the earliest free slot in priority order; there is no power limit per Hub | Core has no power budget per Hub, only `power_rate_kw` per charging point | Overload of a Hub is not prevented |
 | DEV-07 | M3 | A request keeps the start time and length the user asked for | A request that finds no bay, immediate or scheduled, becomes `QUEUED` without a start or end. Since 25/11 the route then runs `optimize_queue` for the Hub at once, and again after a cancel, finish or stop, so a request stays `QUEUED` only while no slot is free in the next 2 hours (TC-M3-039); `optimize_queue` binds it from the current time for 60 minutes | The queue only stores the request, not the requested window | A queued scheduled request can be bound earlier than asked and for the wrong length |
 | DEV-08 | M6 | Execute standard simulation scenarios SC-01 through SC-05 with discrete time steps | All five scenarios run (TC-M6-006 to 010), each as a count over the whole horizon per Hub, not step by step; the report gives the baseline and the mitigated rate after applying every recommendation (FR-12.6) | A count model was enough to compare plans before the code freeze | `time_step_minutes` is checked but not used to evolve the state; battery drain and charging progress during the horizon are not modelled |
-| DEV-09 | M5 | Automated overdue vehicle incident generation (INC-USR-01) | Calls `ProviderPort.RESERVATION_DEMAND.open_trips()`; returns empty when provider is missing | M2 `ReservationDemand` port not yet registered in develop at code cut-off | INC-USR-01 tickets generated once M2 registers port; verified via mock provider in unit test |
+| DEV-09 | M5 | Automated overdue vehicle incident generation (INC-USR-01) | The periodic checks, run on each `SensorHeartbeat`, read open Trips through `ProviderPort.RESERVATION_DEMAND.open_trips()` and open one LOW ticket per overdue Trip; if the port is missing the check returns nothing | The port was not registered at the code cut-off; M2 registered it in PR #54 | Works with M2's real provider; the unit test uses a mock provider (TC-M5-007) |
 | DEV-10 | M7 | S4 makes the rental; S5 lists the student's bookings and picks up, cancels and returns, holds a return space and shows a return receipt | S3 to S6 call M2's routes: search, reserve, pick up, cancel, return, return-space hold and private parking. After a return S5 lists the booking as `COMPLETED`; there is no separate receipt screen | The return result is shown in the list | The student sees the Hub of a return in the booking, not a receipt with the space |
 | DEV-11 | M7 | O6 runs the five standard scenarios and sends an approved recommendation to M4 | O6 runs SC-01 to SC-05 and shows the rate with and without the plan. A vehicle redistribution can be approved (M4 makes a RECOMMENDED task for O4) or rejected; a charging shift or return redirection links to O3 or O2 instead | M3 and M2 have no route that takes such a recommendation | The operator acts on a charging or return recommendation by hand |
 | DEV-12 | M7 | S8 changes and cancels charging; O3 lets an operator act on the queue; O4 rejects tasks and edits M4's settings; O2 acts on vehicles and points | All of these are connected. O3 can optimize the queue and start, finish or stop sessions, but cannot move one request up the queue by hand | M3 orders the queue by BR-M3-03 only; a manual override was left to be confirmed with M3 (UC-M7-04) | An urgent vehicle is put first only by the rule, not by the operator |
@@ -229,5 +233,3 @@ Write: one table for the whole team. Every row says what the design said, what t
 | DEV-15 | M2 | FR-05 and the parking part of FR-07 include parking holds, private arrival/departure and coordination with charging | An open Trip can hold an empty space of its destination for 10 min and the return uses it; a private EV can book a space up to 24 h ahead for 30 to 240 min, arrive in its 10-min window, depart, cancel, and expire (TC-M2-030 to 032). There is no parking/charging bundle (BR-M2-12), no move to another space when the held one is taken, and no overstay notice to M5 | The bundle needs one joint M2/M3 command and the move needs a claim transfer in Core | A private EV books parking and charging separately; a parked EV past its planned end stays ACTIVE and S6 shows the overstay |
 | DEV-16 | M2 | M2 provides demand and hold data through the D-020 ports and can use M4 for alternatives | PR #54 registers the read-only `ReservationDemand` provider for live pickup holds and open trips. `HoldConsumer` is unregistered and M2 makes no call to M4 for an alternative Hub | Rental demand can be read from M2 tables. Coordinated hold consumption and alternative selection remain separate integration work | Consumers can read real rental demand. They cannot consume an M2 hold through that port, and an unsuccessful rental does not produce an M4 Hub suggestion |
 | DEV-17 | M2 | Due uncollected rentals are processed; pre-pickup faults and overdue trips are handled across modules (BR-M2-04/14/15) | There is no scheduler: every M2 route first runs `RentalLifecycle.sweep()`, which expires due bookings and marks open Trips past due + 60 min as `OVERDUE` (TC-M2-028, 029). Pickup refuses expired/ineligible vehicles. An owner cancellation or expiry can settle an unused faulty vehicle while retaining Maintenance and its bay. Faulty in-use return is implemented | The application has no background job; running the sweep on each request needs none | A due booking stays Confirmed until any student calls M2, and the providers read by M4 and M5 see it until then. There is no automatic pre-pickup fault settlement |
-
-Rows to check on 17/11 and add if still true: M3 step 3 of BR-M3-02 (call to M4) missing; M6 scenarios SC-02 to SC-05.
