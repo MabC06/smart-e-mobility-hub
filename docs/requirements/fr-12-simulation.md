@@ -1,7 +1,7 @@
 # FR-12: What-if Simulation & Coordination Design
 **Owner:** M6 – Thân Ngô Tuấn  
 **Phase:** Phase 0 — Requirements Analysis  
-**Status:** Draft v1 — ready for review
+**Status:** Final v1 (reviewed and merged; deviations in report section 4.4, DEV-08)
 
 ---
 

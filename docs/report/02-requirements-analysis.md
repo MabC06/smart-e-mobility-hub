@@ -103,7 +103,7 @@ Each module owner's analysis: goals, rules with their rationale, and quality tra
 <!-- BEGIN M2: Reservation & Trip -->
 ### 2.6.1 M2 — Reservation and Trip
 
-> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**.
+> Author: 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Reviewed and merged**.
 > This section records the intended M2 requirements. The [implemented subset and deviations](08-implementation.md#44-deviations-and-implementation-limitations) are tracked separately.
 
 #### Actors, goals and scope
@@ -239,7 +239,7 @@ Functional requirements are mapped to the system's Use-Case architecture to ensu
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
 ### 2.6.3 M4 — Resource Allocation and Dispatching
 
-> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Reviewed and merged**.
 > This section contains only M4's contribution (FR-10 and the allocation side of FR-11).
 
 #### Actors, goals and scope
@@ -282,7 +282,7 @@ Rule IDs and use-case IDs follow D-011. Key interface and architectural uncertai
 <!-- BEGIN M5: Monitoring & Incident Handling -->
 ### 2.6.4 M5 — Monitoring and Incident Handling
 
-> Author: 2453413 Đỗ Hoàng Việt. Date: 2026-11-06. **Proposed for team review**.
+> Author: 2453413 Đỗ Hoàng Việt. Date: 2026-11-06. **Reviewed and merged**.
 
 #### Stakeholders and System Actors
 

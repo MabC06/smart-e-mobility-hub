@@ -1,6 +1,6 @@
 # IoT Simulator Test Cases
 
-> **Owner:** M8 · **Status:** Planned until executed in the repository environment  
+> **Owner:** M8 · **Status:** Executed and passing (2026-11-26, `develop` at `0056f23`)  
 > **Test folder:** `tests/iot_sim/`
 
 | TC ID | Test case | Verifies | Technique | Expected result |
@@ -27,4 +27,4 @@ Fill this table when running the tests in the target `.venv`; do not infer a pas
 
 | Run date | Commit | Command | Result | Evidence |
 |---|---|---|---|---|
-| Pending | Pending | `python -m pytest tests/iot_sim -q` | Not run in this artifact build | |
+| 2026-11-26 | `0056f23` (`develop`) | `python -m pytest tests/iot_sim -q` | 14 passed | `../test-execution-report.md` section 2 |

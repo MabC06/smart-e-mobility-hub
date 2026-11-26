@@ -1,6 +1,6 @@
 # Stakeholder and actor analysis
 
-> Consolidation owner: M2 - 2452620. Updated 2026-11-01. Draft for module-owner review; identifiers follow CONTRIBUTING section 5.
+> Consolidation owner: M2 - 2452620. Updated 2026-11-01. Final (reviewed by the module owners); identifiers follow CONTRIBUTING section 5.
 
 ## Boundary and stakeholders
 

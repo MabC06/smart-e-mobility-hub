@@ -74,7 +74,7 @@ After login the operator lands on O1. The tab bar and the alert strip are on eve
 
 - **Session.** The token is kept in a cookie and lasts 60 minutes by default. When it is no longer valid, any screen goes to S1 and returns to the same screen after login.
 - **Role.** A student cannot reach O1 to O6. After login each role goes to its own home screen.
-- **Slow commands (Planned).** For rental commands M2 proposes that after 5 seconds without an answer the screen says "Outcome unknown, checking status" and reads the booking again before saying "failed". A retry reuses the same reservation ID. No timeout rule exists for the operator's commands.
+- **Retries.** The pages call the modules inside the same process (D-026), so a command does not time out on a network. A repeated rental command is answered by M2 from its own records instead of acting twice (D-015). No timeout rule exists for the operator's commands.
 - **Refresh.** Parts of a page are re-read by polling every 3 seconds, so a change appears within 5 seconds (NFR-01).
 - **Empty, loading and error states.** Every list and form has them (M8 tests them).
 - **Events.** The UI never talks to `iot_sim` and gets no push. `core` publishes events inside the process after a commit and does not store them, so the UI re-reads the state and shows `as_of`.

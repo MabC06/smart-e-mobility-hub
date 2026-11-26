@@ -1,7 +1,7 @@
 # M2 - Reservation & Trip: requirements and design baseline
 
 > Owner: M2 - 2452620 Đặng Tuấn Kiệt. Created: 2026-10-11; updated: 2026-11-04 (ICT).
-> Status: **Proposed for team review**. M2 policies and interaction designs remain Proposed. Do not code against the design until the Core API spec, class diagram and Vehicle state machine are on develop.
+> Status: **Final** (reviewed and merged). The values below are the design; the implemented subset and its deviations are in report section 4.4 (DEV-14 to DEV-17).
 
 ## 1. Scope
 

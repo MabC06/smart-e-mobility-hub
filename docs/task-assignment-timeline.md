@@ -1,6 +1,6 @@
 # Task Assignment & Team Timeline
 
-Software Engineering — HK261 | Team of 8 | Internal target deadline: **Nov 24** (the course's official deadline has not been announced — update this file once known)
+Software Engineering — HK261 | Team of 8 | Internal target deadline: **Nov 24** · Team presentation: **Dec 2** (presentations run from Nov 25) · Report PDF due on the LMS: **Dec 11**
 
 ---
 
@@ -26,8 +26,8 @@ Software Engineering — HK261 | Team of 8 | Internal target deadline: **Nov 24*
 - Use-case diagrams — each module draws its own (`uc-m<n>-<topic>`); M2 consolidates them: overview diagram, stakeholder/actor list and a consistency check across modules.
 - Overall ERD — M7 consolidates, coordinating with M1.
 - Testing techniques (equivalence partitioning, boundary value, decision table...) — each member applies to their own module; M8 checks consistency.
-- Evaluation, Conclusion, AI Declaration — each member writes their own AI usage; M8 consolidates.
-- Demo video (3 min) + presentation (20 min) — each member demos their own module; M7 edits/assembles the video.
+- Evaluation, Conclusion, AI Declaration — each member writes their own AI usage; M8 writes the Evaluation and consolidates.
+- Demo video (3 min, laptop browser and phone) — M1 records and edits it. Slide deck for the 20-minute presentation — M7 and M8.
 
 
 
@@ -50,7 +50,7 @@ Software Engineering — HK261 | Team of 8 | Internal target deadline: **Nov 24*
 
 
 
-## 3. Proposed Timeline (Oct 3 – Nov 24)
+## 3. Proposed Timeline (Oct 3 – Nov 24; presentation Dec 2; report PDF Dec 11)
 
 
 | Phase                                           | Timeframe                   | Main content                                                                                                                                                                                                                                                                                                                              |
@@ -60,7 +60,7 @@ Software Engineering — HK261 | Team of 8 | Internal target deadline: **Nov 24*
 | Phase 2 — Implementation Sprint 1               | Oct 26 – Nov 8 (reviews Nov 9) | M1's `core` (domain, state-update interface, REST API) was merged into `develop` on Nov 4 (PR #20); M2, M3, M4 build on it in parallel; M5, M6 scaffold their modules; M2–M6 code against the real `core` (only M4 may stub M2/M3 services until Phase 3); M7 finalizes the UI; M8 builds the IoT simulator and prepares test data. |
 | Phase 3 — Implementation Sprint 2 & Integration | Nov 6 – Nov 12 (1 week)     | Finalize module logic, integrate M4↔M2/M3 and M6↔M1. M8 finalizes the Test Plan & starts writing test cases with the team.                                                                                                                                                                                                                |
 | Phase 4 — Testing & Validation                  | Nov 13 – Nov 18 (~6 days)   | Per-module test cases (equivalence partitioning, boundary value, state-transition...), integration testing, defect logging & fixes. M8 consolidates results.                                                                                                                                                                              |
-| Phase 5 — Report, Demo & Presentation           | Nov 19 – Nov 24 (~6 days)   | Write Introduction/Evaluation/AI Declaration (M8 consolidates), record the demo video (3 min, pre-recorded — M7 edits), prepare the 20-minute slide deck, final review, report freeze on Nov 22, submit by Nov 24 at the latest (Nov 23–24 is buffer).                                                                                    |
+| Phase 5 — Report, Demo & Presentation | Nov 19 – Nov 24 (~6 days) | Final report sections (Introduction, Evaluation, AI Declaration), the demo video (3 min, pre-recorded, laptop browser and phone — M1), the 20-minute slide deck (M7, M8), final review; report freeze on Nov 22; team presentation on Dec 2; report PDF on the LMS by Dec 11. |
 
 
 
@@ -178,15 +178,30 @@ Integration phase — the dependencies run both ways (M2/M3 ↔ M4, M1 ↔ M6), 
 
 
 
-#### Phase 5 — Report, Demo & Presentation (report freeze Nov 22; submit by Nov 24)
+#### Phase 4 — Completion (Nov 25–26, actual deliverables)
+
+The screens still marked Planned after the Nov 18 deadline were completed on Nov 25–26, together with the fixes found by running the demo on the seeded network. Merged in PRs #58 to #63; the rerun of the tests and the report follow in the last Phase 4 PR.
+
+| Module | Delivered | File(s) |
+| ------ | --------- | ------- |
+| **M1** | Decisions D-027 (UI layout and phone use) and D-028 (demo password from `DEMO_PASSWORD`); review and merge of PRs #58 to #63; Introduction and Architecture final (3.1.8 changes made during implementation); report sections aligned with the structure in 1.9; README "Running the Demo" for a laptop and a phone | `docs/DECISIONS.md` · `src/main.py` · `docs/report/01-introduction.md`, `03-architecture.md` · `README.md`, `.env.example` |
+| **M2** | Vehicle search (FR-02); due bookings expire and late Trips become `OVERDUE` at the start of every request, with no scheduler (DEF-M2-002/003); parking: return-space hold for an open Trip and private stay (FR-05, FR-07 parking side) | `src/reservation/` (`service.py`, `lifecycle.py`, `parking.py`, `router.py`) · TC-M2-027 to 032 |
+| **M3** | A Hub's queue is bound to free slots right after a request is queued or a slot is freed (BR-M3-03, DEF-M3-008); queue rank, reason and owner; sessions moved after a point failure | `src/charging/` (`service.py`, `router.py`) · TC-M3-037 to 039 |
+| **M4** | Reject a dispatch task; create a task from a simulation recommendation (`TASK-SIM-`) | `src/allocation/` · TC-M4-033, 034 |
+| **M5** | No new code: overdue-Trip incidents (INC-USR-01) now read M2's real `ReservationDemand` provider (DEV-09) | — |
+| **M6** | Scenarios SC-02 to SC-05 with the baseline and mitigated comparison (FR-12) | `src/simulation/` · TC-M6-006 to 010 |
+| **M7** | Every student and operator screen connected to its module (no sample data); layout review of every screen (D-027, desktop); phone layout of the student screens (D-027); UI defects from the demo fixed (DEF-M7-001 to 003); UI section final | `src/ui/` (`routes.py`, templates, `static/app.css`) · TC-M7-034 to 045 · `docs/report/06-ui-design.md` |
+| **M8** | Rerun of the full suite, coverage and NFR-01 to NFR-05, NFR-12, NFR-13 on `develop`; defect log (29 defects), traceability sheet v1.7 and test documents updated; Testing section (5) and Evaluation section (6, with the consolidated AI Declaration) | `tests/performance/` · `docs/testing/` · `docs/report/09-testing.md`, `10-evaluation.md` |
+
+
+#### Phase 5 — Report, Demo & Presentation (report freeze Nov 22; presentation Dec 2; report PDF Dec 11)
 
 
 | Module    | Deadline (23:59)                                                                         | Deliverables due                                                                                                           | File(s)                                                                                                                                                                                    | Needs from                                                                                                         |
 | --------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| **M2–M6** | **20/11 (demo segment, hard)** · 21/11 (AI usage file, report sections, slide deck part) | Record own demo segment; own AI usage file complete; own report sections final; own part of the slide deck                 | `docs/presentation/demo-segments/<module>.mp4` (or a shared-drive link recorded here) · `docs/ai-usage/<student-id>.md` · own `docs/report/*.md` sections (final) · own slide-deck section | — (each module's own output, fully parallel)                                                                       |
-| **M1**    | 21/11                                                                                    | Final Introduction + Architecture; report consistency pass on requirements ↔ design ↔ code                                 | `docs/report/01-introduction.md`, `docs/report/03-architecture.md` (final) · consistency notes across `docs/report/*.md`                                                                   | — (the consistency pass reads everyone's sections, but M1's own writing doesn't block on anyone)                   |
-| **M7**    | **22/11 (hard)**                                                                         | Demo video (3 min) edited from segments; UI section final; slide deck layout                                               | `docs/presentation/demo-video.mp4` · `docs/report/06-ui-design.md` (final) · slide-deck file                                                                                               | **M2–M6** — needs everyone's recorded segment by 20/11 (hard: only 2 days to edit before the 22/11 video deadline) |
-| **M8**    | **22/11 (report freeze, hard)** · submit by 24/11 at the latest                          | Evaluation, Conclusion & consolidated AI Declaration; final consistency checklist; assemble the final report and submit it | `docs/report/10-evaluation.md` · `docs/ai-usage/` (consolidated) · `docs/testing/report-consistency-checklist.md` · final assembled report in `docs/report/`                               | **M1–M7** — needs everyone's final report sections by 21/11 (hard: report freeze is 22/11)                         |
+| **M1** | **22/11 (hard)** | Demo video (3 min, pre-recorded): the student journey on a laptop browser and on a phone, and the operator screens on the laptop | Video file on the shared drive, linked in `README.md` (Demo); not committed (CONTRIBUTING 11.3) | **M7, M8** — the video follows the storyline of the slide deck |
+| **M7** | **22/11 (hard)** | 20-minute slide deck, with M8: layout, UI and design slides | Slide-deck file on the shared drive | **M1** — demo video for the demo slot |
+| **M8** | **22/11 (hard)** · presentation **2/12** · report PDF **11/12** | 20-minute slide deck, with M7: testing, evaluation and conclusion slides; final report assembled as one PDF and submitted on the LMS | Slide-deck file on the shared drive · final report (PDF) | **M1, M7** — video and slides ready by 22/11 |
 
 
 **Notes:**
@@ -198,7 +213,8 @@ Integration phase — the dependencies run both ways (M2/M3 ↔ M4, M1 ↔ M6), 
 - The Testing phase (Phase 4) is tight — test cases should be written alongside code during Sprint 2, not left entirely until Phase 4.
 - Code freeze (Nov 12) means no new features or interface changes. Bugs found during testing can still be fixed until Nov 18, through the normal PR process.
 - Write each report section right after its diagrams are done (Phase 1) and revise it in Phase 3, so Phase 5 is only for finishing and assembling, not for writing from scratch.
-- Nov 22 is the internal report freeze; Nov 23–24 is buffer, because the official deadline has not been announced and may be earlier than Nov 24.
+- Nov 22 is the internal report freeze. The team presents on Dec 2 (presentations started on Nov 25), with the demo video and the slide deck; the report PDF is submitted on the LMS by Fri Dec 11.
+- The screens still Planned at the Nov 18 deadline were completed on Nov 25–26; see "Phase 4 — Completion".
 - `core` has been in `develop` since Nov 4, so M2–M6 code against it. Only M4's calls to M2/M3 services may use stubs until Phase 3 integration.
 - Use-case diagrams live in `docs/requirements/use-case-diagrams/` and are named `uc-m<n>-<topic>` (lowercase, words joined with hyphens; the owner chooses `<topic>`, e.g. `uc-m3-charging`). Commit both the `.puml` source and the `.svg`. Keep a diagram to about 6–8 use cases and split it if it needs more. Link each diagram from the module's requirements file; M2's `uc-overview` lists them all.
 

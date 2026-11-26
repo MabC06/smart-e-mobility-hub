@@ -79,8 +79,9 @@ shared Core low-battery lockout, one live rental per student, planned duration
 
 The [Core API v1.2](../../docs/design/architecture/core-api-spec.md#62-m2-port-types-d-021)
 defines M2 provider argument/result shapes for M1/M4/M6 review. The service does
-not install successful-empty placeholders. Until Phase 3 registration, the Core
-registry correctly reports RESOURCE_UNAVAILABLE for an absent provider.
+not install successful-empty placeholders. M2 registers `ReservationDemand` at
+start-up (PR #54); `HoldConsumer` is not registered, so the Core registry reports
+RESOURCE_UNAVAILABLE for it (DEV-16).
 
 Since November 25 `GET /reservations/vehicles` searches the rentable fleet
 vehicles of one Hub (FR-02), and the route sweep expires due bookings and marks

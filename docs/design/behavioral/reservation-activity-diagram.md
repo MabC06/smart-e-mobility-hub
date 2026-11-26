@@ -1,6 +1,6 @@
 # M2 - Reservation activity diagrams
 
-> Owner: 2452620 Đặng Tuấn Kiệt (M2). 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
+> Owner: 2452620 Đặng Tuấn Kiệt (M2). 2026-11-04. **Reviewed and merged**; what the code does and the deviations are in report section 4.4. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 These are UML activity diagrams authored in PlantUML, not flowcharts relabelled as UML. Initial/final nodes, actions, decisions with guards and responsibility partitions describe control flow. Concurrent requests are separate activity executions serialized at Core admission; a fork is deliberately not used to imply that a single Student makes two bookings.
 

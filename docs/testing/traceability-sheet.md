@@ -7,7 +7,7 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 
 **Summary:** 209 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
 
-**NFR-26 is not yet met:** the uncovered IDs below are listed with the reason known so far; module owners must confirm or add TCs.
+**NFR-26 is partly met:** the uncovered IDs below are listed with their reason and accepted as known gaps (report sections 4.4 and 5.5).
 
 ## 1. Functional requirements
 

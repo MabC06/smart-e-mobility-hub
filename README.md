@@ -14,6 +14,7 @@ The system manages Mobility Hubs consisting of parking spaces, charging points, 
 - [Repository Structure](#repository-structure)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
+- [Running the Demo](#running-the-demo)
 - [Contributing](#contributing)
 - [Testing](#testing)
 - [Generative AI Usage Declaration](#generative-ai-usage-declaration)
@@ -102,7 +103,8 @@ smart-e-mobility-hub/
 │   └── ui/                     # M7 — student & operator interfaces
 ├── tests/
 │   ├── <module>/               # unit tests, written by each module's owner
-│   └── integration/            # integration tests, owned by M8
+│   ├── integration/            # integration tests, owned by M8
+│   └── performance/            # NFR measurement scripts (M8), results in docs/testing/
 ├── .github/                    # pull_request_template.md, CODEOWNERS, workflows/ci.yml (CI)
 ├── .env.example                 # required environment variables (names only)
 ├── .gitignore
@@ -117,11 +119,11 @@ No hardware is used, so vehicle, parking and charging-point state comes from sim
 Decided in D-002 (details and reasons: [`docs/design/architecture/tech-stack-proposal.md`](docs/design/architecture/tech-stack-proposal.md)).
 
 - Backend language/framework: Python 3.12, FastAPI with Pydantic
-- Frontend: server-rendered pages with Jinja2 + HTMX, served by the same application
+- Frontend: server-rendered pages with Jinja2 + HTMX, served by the same application; the pages call the module routes in-process with `httpx` (D-026); student pages also fit phone screens (D-027)
 - Database: SQLite through SQLAlchemy 2.x
 - UML/wireframing tools: Mermaid in the Markdown files; draw.io or PlantUML where Mermaid is not enough
 - Test framework / test-case management: pytest with pytest-cov; test cases as Markdown tables in `docs/testing/`, linked to pytest by `TC-M<n>-###` markers
-- Quality checks: ruff (lint and format), mypy (strict on `core`), run by CI on every PR
+- Quality checks: ruff (lint and format), mypy (strict on `core`, `reservation` and `main.py`), coverage per module (D-025), run by CI on every PR
 
 ## Getting Started
 
@@ -146,13 +148,47 @@ pip install -r requirements-dev.txt
 
 # 5. Run the project locally
 python -m uvicorn --app-dir src main:create_app --factory --port 8000
-#    then open http://127.0.0.1:8000/docs  (hidden when APP_ENV=production-demo)
+#    then open http://127.0.0.1:8000 for the screens (see Running the Demo)
+#    and http://127.0.0.1:8000/docs for the API  (hidden when APP_ENV=production-demo)
 
 # 6. Run the checks (the same commands CI runs)
 python -m pytest -q && ruff check . && ruff format --check . && mypy
 ```
 
 Activate the virtual environment again (step 4, second line) in every new terminal; without it Python cannot find the installed packages. `SECRET_KEY` is required and has no default: any text of at least 16 characters works locally. Set `SEED_ON_START=true` in `.env` to load the demo network from the simulator (`src/iot_sim`, M8) into an empty database. Also set `DEMO_PASSWORD` (at least 8 characters, chosen by you and never committed): every seeded account then logs in with it, students as `STU-0001` to `STU-1000` and operators as `OPS-01` to `OPS-05` (D-028). The password is set only when the demo network is loaded, so with a database file (`DATABASE_URL`) delete the file to load it again with a new password.
+
+## Running the Demo
+
+**1. Settings in `.env`** (never commit it):
+
+```bash
+SECRET_KEY=<any text of at least 16 characters>
+SEED_ON_START=true
+DEMO_PASSWORD=<at least 8 characters, chosen by you>
+DATABASE_URL=            # empty: in memory, a fresh demo network at every start
+```
+
+**2. On the laptop (browser).** Start the server as in step 5 of Getting Started and open http://127.0.0.1:8000. The login screen takes an account code and `DEMO_PASSWORD`:
+
+| Account | Code | Screens |
+|---|---|---|
+| Student | `STU-0001` to `STU-1000` | Hubs, vehicle search and rental, my bookings, parking, charging (S1 to S9) |
+| Operator | `OPS-01` to `OPS-05` | Network overview, Hub detail, charging queues, dispatch, incidents, What-if Simulation (O1 to O6) |
+
+Operator screens are made for a desktop screen (from 1280 px wide).
+
+**3. On a phone (student screens).** The phone and the laptop must be on the same Wi-Fi.
+
+```bash
+# start the server on every network interface of the laptop, not only 127.0.0.1
+python -m uvicorn --app-dir src main:create_app --factory --host 0.0.0.0 --port 8000
+```
+
+- Find the laptop's address: `ipconfig` on Windows (IPv4 Address of the Wi-Fi adapter, for example `192.168.1.23`), `ipconfig getifaddr en0` on macOS, `hostname -I` on Linux.
+- On the phone open `http://<that address>:8000` and log in as a student.
+- On Windows, the first start shows a firewall prompt for Python: allow it on **private** networks only. If the page does not open, check that the Wi-Fi is set as a private network.
+- Some campus or public Wi-Fi networks block devices from reaching each other. Then turn on the phone's hotspot, connect the laptop to it and use the laptop's address on that network.
+- `--host 0.0.0.0` lets anyone on the same network reach the server: use it only on a network you trust, and stop the server (Ctrl+C) after the demo.
 
 ## Contributing
 

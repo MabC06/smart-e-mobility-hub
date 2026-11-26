@@ -2,7 +2,7 @@
 
 > **Owner:** M8 — Testing, QA & Report Integration Lead
 > **Phase:** Phase 0 — Requirements Analysis
-> **Status:** Skeleton (v0.1)
+> **Status:** Skeleton (v0.1) · superseded by `test-plan-final.md`; kept as the Phase 0 record
 > **Last updated:** 2026-10-09
 
 This document defines the structure and initial testing strategy for Smart E-Mobility Hub. It is intentionally a skeleton for Phase 0; detailed test cases, test data, environment configuration, and execution results will be completed as the requirements and design are locked.

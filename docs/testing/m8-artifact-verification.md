@@ -1,5 +1,7 @@
 # M8 Artifact Verification Notes
 
+> Phase 2 note, kept as history. The final results are in `test-execution-report.md` (rerun on `develop`, 2026-11-26).
+
 - Repository snapshot: GitHub/local ZIP supplied by user after syncing `develop` to `6777736`.
 - Python test command: `PYTHONPATH=src python -m pytest tests/iot_sim -q`
 - Result: **13 passed**.

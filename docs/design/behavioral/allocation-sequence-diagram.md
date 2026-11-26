@@ -1,6 +1,6 @@
 # M4 - Allocation interaction design
 
-> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Reviewed and merged**; what the code does and the deviations are in report section 4.4.
 
 ## Responsibility
 

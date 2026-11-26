@@ -1,6 +1,6 @@
 # M2 - Reservation interaction design
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Reviewed and merged**; what the code does and the deviations are in report section 4.4. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 ## Contract status and responsibility
 
