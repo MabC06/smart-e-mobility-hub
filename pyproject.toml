@@ -41,6 +41,7 @@ markers = [
     "tc_m2_030: TC-M2-030 return-space hold (FR-05, BR-M2-10)",
     "tc_m2_031: TC-M2-031 private parking arrival and departure (FR-05, FR-07)",
     "tc_m2_032: TC-M2-032 private parking limits, cancel and expiry (BR-M2-03, BR-M2-05)",
+    "tc_m2_033: TC-M2-033 departure refused while the EV is charging (FR-07, NFR-21)",
     "tc_m6_001: TC-M6-001 (docs/testing/test-cases/simulation.md)",
     "tc_m6_002: TC-M6-002 (docs/testing/test-cases/simulation.md)",
     "tc_m6_003: TC-M6-003 (docs/testing/test-cases/simulation.md)",

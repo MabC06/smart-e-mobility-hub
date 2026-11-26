@@ -3,9 +3,9 @@
 > **Owner:** M8 · **Version:** v1.7 · **Date:** 2026-11-26 · **Baseline:** `develop` at `0056f23` (rerun by M1); first round `01d68e7` (testing branch); v1.2 to v1.6 by M1 (PR #58, the M2 search, expiry and overdue fix, M2 parking, the M3/M4/M6 backend gaps, and the connected UI)
 > Generated from `docs/requirements/*.md` and the test-case documents (`docs/testing/test-cases/*.md`, `reservation-phase2.md`, M7 test docstrings).
 
-Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. Every TC listed here passed on `develop` at `0056f23` on 2026-11-26 (1,560 passed, 1 skipped; `test-execution-report.md`), except that `test-cases/integration.md` records TC-M8-026 as passing at 15 queued per Hub only (DEF-M3-007, Accepted).
+Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at least one TC names the ID. Every TC listed here passed on `develop` at `0056f23` on 2026-11-26 (1,560 passed, 1 skipped; `test-execution-report.md`). TC-M2-033, TC-M3-040 to TC-M3-042, TC-M7-046 and TC-M7-047 were added by the last demo review and pass on branch `fix/demo-review` (1,566 passed). `test-cases/integration.md` records TC-M8-026 as passing at 15 queued per Hub only (DEF-M3-007, Accepted).
 
-**Summary:** 209 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
+**Summary:** 215 TCs. FR 12/12; BR 28/34; UC 36/38; NFR 18/27 have a TC. TCs with no FR/BR/UC: TC-M5-016, TC-M8-016 (decision references D-013/D-018). Orphan TC references: none.
 
 **NFR-26 is partly met:** the uncovered IDs below are listed with their reason and accepted as known gaps (report sections 4.4 and 5.5).
 
@@ -18,8 +18,8 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 | FR-03 | Covered | TC-M2-001, TC-M2-002, TC-M2-003, TC-M2-004, TC-M2-006, TC-M2-008, TC-M2-014, TC-M2-015, TC-M2-019, TC-M2-022, TC-M2-023, TC-M2-024, TC-M2-026, TC-M2-028, TC-M7-002, TC-M7-009, TC-M7-028, TC-M7-030 |
 | FR-04 | Covered | TC-M2-001, TC-M2-004, TC-M2-006, TC-M2-007, TC-M2-008, TC-M2-010, TC-M2-012, TC-M2-016, TC-M2-017, TC-M2-020, TC-M2-024, TC-M2-026, TC-M2-029, TC-M7-010, TC-M7-028, TC-M7-029 |
 | FR-05 | Covered | TC-M2-030, TC-M2-031, TC-M2-032, TC-M7-035, TC-M7-036 |
-| FR-06 | Covered | TC-M3-006, TC-M3-007, TC-M3-014, TC-M3-015, TC-M3-016, TC-M3-037, TC-M3-038, TC-M3-039, TC-M7-023, TC-M7-037, TC-M7-040, TC-M8-018 |
-| FR-07 | Covered | TC-M2-031, TC-M2-032, TC-M3-019, TC-M3-020, TC-M3-021, TC-M7-024, TC-M7-025, TC-M7-036, TC-M7-037 |
+| FR-06 | Covered | TC-M3-006, TC-M3-007, TC-M3-014, TC-M3-015, TC-M3-016, TC-M3-037, TC-M3-038, TC-M3-039, TC-M3-040, TC-M3-041, TC-M3-042, TC-M7-023, TC-M7-037, TC-M7-040, TC-M7-046, TC-M8-018 |
+| FR-07 | Covered | TC-M2-031, TC-M2-032, TC-M2-033, TC-M3-019, TC-M3-020, TC-M3-021, TC-M7-024, TC-M7-025, TC-M7-036, TC-M7-037, TC-M7-046 |
 | FR-08 | Covered | TC-M5-003, TC-M5-004, TC-M5-012, TC-M5-013, TC-M5-014, TC-M5-015, TC-M7-009, TC-M7-016, TC-M7-017, TC-M7-038 |
 | FR-09 | Covered | TC-M5-001, TC-M5-002, TC-M5-003, TC-M5-004, TC-M5-005, TC-M5-006, TC-M5-007, TC-M5-008, TC-M5-009, TC-M5-010, TC-M5-011, TC-M5-015, TC-M5-020, TC-M7-008, TC-M7-011, TC-M7-016, TC-M7-019, TC-M7-039, TC-M7-043, TC-M8-013 |
 | FR-10 | Covered | TC-M4-001, TC-M4-002, TC-M4-003, TC-M4-004, TC-M4-005, TC-M4-006, TC-M4-011, TC-M4-012, TC-M4-013, TC-M4-014, TC-M4-015, TC-M4-018, TC-M4-019, TC-M4-020, TC-M4-021, TC-M4-022, TC-M4-023, TC-M4-024, TC-M4-025, TC-M4-026, TC-M4-028, TC-M4-029, TC-M4-033, TC-M4-034, TC-M7-007, TC-M7-009, TC-M7-016, TC-M7-021, TC-M7-022, TC-M7-041, TC-M7-043, TC-M8-022, TC-M8-027 |
@@ -30,11 +30,11 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 
 | ID | Status | Test cases |
 |---|---|---|
-| BR-M1-01 | Covered | TC-M4-024 |
-| BR-M1-02 | Covered | TC-M4-017, TC-M4-018 |
+| BR-M1-01 | Covered | TC-M3-042, TC-M4-024 |
+| BR-M1-02 | Covered | TC-M3-040, TC-M3-041, TC-M3-042, TC-M4-017, TC-M4-018 |
 | BR-M1-03 | **GAP** | — |
 | BR-M2-02 | Covered | TC-M2-003, TC-M2-004, TC-M2-015, TC-M2-016, TC-M2-022, TC-M2-027 |
-| BR-M2-03 | Covered | TC-M2-014, TC-M2-030, TC-M2-032 |
+| BR-M2-03 | Covered | TC-M2-014, TC-M2-030, TC-M2-032, TC-M7-047 |
 | BR-M2-04 | Covered | TC-M2-001, TC-M2-007, TC-M2-023, TC-M2-026, TC-M2-028, TC-M2-030, TC-M2-032 |
 | BR-M2-05 | Covered | TC-M2-023, TC-M2-032 |
 | BR-M2-09 | Covered | TC-M2-001, TC-M2-008, TC-M2-009, TC-M2-025 |
@@ -76,8 +76,8 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 | UC-M2-05 | Covered | TC-M2-001, TC-M2-005, TC-M2-006, TC-M2-008, TC-M2-009, TC-M2-010, TC-M2-011, TC-M2-013, TC-M2-017, TC-M2-020, TC-M2-021, TC-M2-024, TC-M2-029, TC-M2-030, TC-M7-029, TC-M7-035 |
 | UC-M2-06 | Covered | TC-M2-030, TC-M2-031, TC-M7-035, TC-M7-036 |
 | UC-M2-07 | Covered | TC-M2-032, TC-M7-036 |
-| UC-M2-08 | Covered | TC-M2-031, TC-M7-036 |
-| UC-M3-01 | Covered | TC-M3-006, TC-M3-016, TC-M3-039 |
+| UC-M2-08 | Covered | TC-M2-031, TC-M2-033, TC-M7-036 |
+| UC-M3-01 | Covered | TC-M3-006, TC-M3-016, TC-M3-039, TC-M3-040, TC-M7-046 |
 | UC-M3-02 | Covered | TC-M3-006, TC-M3-007, TC-M3-008, TC-M3-009, TC-M3-010, TC-M3-011, TC-M3-012, TC-M3-013 |
 | UC-M3-03 | Covered | TC-M3-015, TC-M3-016, TC-M3-017, TC-M7-037 |
 | UC-M3-04 | Covered | TC-M3-019, TC-M3-020, TC-M3-021 |
@@ -132,7 +132,7 @@ Rule (NFR-26): `FR / BR / UC / NFR → TC → result → defect`. `Covered` = at
 | NFR-18 | Covered | TC-M2-002, TC-M2-009, TC-M2-019, TC-M2-025, TC-M2-027, TC-M2-032, TC-M3-012, TC-M3-023, TC-M3-029, TC-M4-010, TC-M4-015, TC-M4-025, TC-M4-029, TC-M5-011, TC-M5-020, TC-M7-005, TC-M8-006, TC-M8-011, TC-M8-015 |
 | NFR-19 | **GAP** | — |
 | NFR-20 | Covered | TC-M7-006, TC-M7-020 |
-| NFR-21 | Covered | TC-M3-014, TC-M3-031, TC-M4-013, TC-M6-010, TC-M7-002, TC-M7-005, TC-M7-012, TC-M7-014, TC-M7-016, TC-M7-018, TC-M7-021, TC-M7-024, TC-M7-027, TC-M7-030, TC-M7-032, TC-M7-045 |
+| NFR-21 | Covered | TC-M2-033, TC-M3-014, TC-M3-031, TC-M3-040, TC-M3-041, TC-M3-042, TC-M4-013, TC-M6-010, TC-M7-002, TC-M7-005, TC-M7-012, TC-M7-014, TC-M7-016, TC-M7-018, TC-M7-021, TC-M7-024, TC-M7-027, TC-M7-030, TC-M7-032, TC-M7-045, TC-M7-046, TC-M7-047 |
 | NFR-22 | Covered | TC-M2-018, TC-M4-011, TC-M4-027, TC-M8-017 |
 | NFR-23 | **GAP** | — |
 | NFR-24 | **GAP** | — |

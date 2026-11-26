@@ -92,6 +92,9 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-037 | FR-06, FR-11, BR-M3-03, UC-M7-03 | Decision table | F1 on the real Core app; three queued requests | `GET /queue` as operator | Rank 1..3 in BR-M3-03 order; EMERGENCY_LOW_BATTERY at 14.9%, LOWEST_BATTERY_FIRST otherwise; owner STU1, ownership FLEET | Pass | `test_queue_route_gives_rank_reason_and_owner` |
 | TC-M3-038 | FR-06, UC-M3-08, UC-M7-03, NFR-16 | Failure injection | F1 on the real Core app; REQ-S1 charging on CP01 | CP01 goes OUT_OF_SERVICE; `GET /moved` as operator, as student, and for H2 | REQ-S1 from CP01 to REQ-S1-R1 on CP02 (SCHEDULED); 403 for a student; empty for H2 | Pass | `test_moved_route_lists_sessions_moved_after_a_failure` |
 | TC-M3-039 | FR-06, BR-M3-03, UC-M3-01, UC-M3-07 | State transition | F1 on the real Core app; two vehicles not in a bay | `POST /requests/immediate` for each as a student | Both are SCHEDULED at once on two different points with a start time; none stays QUEUED while a slot is free | Pass | `test_a_request_waits_only_while_no_slot_is_free` |
+| TC-M3-040 | FR-06, BR-M1-02, NFR-21 | EP | F1; `V-AWAY` is IN_USE, at no Hub | Request "now" at H1, then for T0 + 1 h | "Now" refused INVALID_STATE, message says to book a space and record the arrival, nothing stored; the later request is SCHEDULED | Pass | `test_charge_now_refused_while_the_vehicle_is_away` |
+| TC-M3-041 | FR-06, BR-M1-02, NFR-21 | State transition | F1; `V-AWAY` booked at T0 + 30 min | Start at T0 + 30 min | INVALID_STATE naming the Hub; session stays SCHEDULED, vehicle IN_USE | Pass | `test_start_refused_with_a_clear_message_while_the_vehicle_is_away` |
+| TC-M3-042 | FR-06, BR-M1-01, BR-M1-02, NFR-21 | Decision table | F1; `V-DOCKED` in the bay of CP01 but booked on CP02; CP01 held by another session | Start; cancel the other session; Start again | First refused, naming bay H1-S002 of CP02; then the session moves to CP01 and charges; no claim left on CP02 | Pass | `test_start_moves_the_session_to_the_free_bay_the_vehicle_is_in` |
 
 ## 3. Not covered (known gaps)
 
@@ -115,3 +118,4 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-030 to TC-M3-033 | Security and visibility | EP | NFR-16 | Pass |
 | TC-M3-037 to TC-M3-038 | Queue rank, reason, owner and moved sessions | Decision table / failure injection | FR-06, FR-11, BR-M3-03, UC-M3-08, UC-M7-03 | Pass |
 | TC-M3-039 | A request waits only while no slot is free | State transition | FR-06, BR-M3-03, UC-M3-01, UC-M3-07 | Pass |
+| TC-M3-040 to TC-M3-042 | Charging needs the EV at the Hub and in the bay; clear refusals | EP / state transition / decision table | FR-06, BR-M1-01, BR-M1-02, NFR-21 | Pass |

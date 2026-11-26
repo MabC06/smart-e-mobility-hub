@@ -224,3 +224,54 @@ def test_private_parking_checks_owner_times_and_releases_on_cancel_or_expiry(api
     assert {p["parking_id"]: p["status"] for p in parking} == {"PK1": "CANCELLED", "PK2": "EXPIRED"}
     assert _claim(core, second["claim_id"]).status is ClaimStatus.RELEASED
     assert core.check_invariants() == []
+
+
+@pytest.mark.tc_m2_033
+def test_departure_while_charging_says_to_finish_charging_first():
+    """Verifies: FR-07, UC-M2-08, NFR-21.
+
+    Expected: a private EV that arrived in a charging bay and is charging cannot depart; the
+    refusal says to finish charging first. After the owner finishes charging it departs.
+    """
+    clock = FixedClock(CLOCK_START)
+    settings = main.Settings.from_env(
+        {"SECRET_KEY": "m2-parking-test-token-key-0123456789", "LOG_LEVEL": "WARNING"}
+    )
+    app = main.build_app(settings, clock=clock, module_names=("reservation", "charging"))
+    network = NetworkSpec(
+        hubs=(HubSpec("H1", "Bays", "A", 2, 2),),
+        users=(UserSpec("U1", "STUDENT-1", Role.STUDENT, hash_password(PASSWORD, 1000)),),
+        private_vehicles=(
+            VehicleSpec("P1", "PRIVATE-1", VehicleType.E_BIKE, 40, 0.5, "U1", "TYPE2"),
+        ),
+    )
+    core = app.state.core
+    assert isinstance(core.commands.load_network(network, main.SEEDER), Ok)
+    with TestClient(app) as client:
+        headers = _login(client)
+        booking = _ok(_park(client, headers, hub_id="H1", duration_minutes=120))
+        url = f"{PREFIX}/parking/PK1"
+        _ok(
+            client.post(
+                f"{url}/arrive", headers=headers, json={"expected_version": _version(core, "P1")}
+            )
+        )
+        body = {"request_id": "CR1", "vehicle_id": "P1", "hub_id": "H1"}
+        charging = _ok(client.post("/charging/requests/immediate", headers=headers, json=body))
+        assert charging["status"] == "CHARGING"
+        assert booking["parking_space_id"] == "H1-S001"
+
+        refused = client.post(
+            f"{url}/depart", headers=headers, json={"expected_version": _version(core, "P1")}
+        )
+        assert _code(refused, 409) == "INVALID_STATE"
+        assert "still charging" in refused.json()["detail"]["message"]
+        assert core.queries.get_vehicle("P1").value.state is VehicleState.CHARGING
+
+        _ok(client.post("/charging/sessions/CR1/finish", headers=headers, json={}))
+        left = _ok(
+            client.post(
+                f"{url}/depart", headers=headers, json={"expected_version": _version(core, "P1")}
+            )
+        )
+        assert left["status"] == "COMPLETED"
