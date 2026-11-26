@@ -3,7 +3,7 @@
 <!-- BEGIN M2: Reservation & Trip -->
 ### 3.3.1 M2 — Reservation and Trip
 
-> Author: 2452620 Đặng Tuấn Kiệt. Design baseline: 2026-11-04. The [Core API v1.2](../design/architecture/core-api-spec.md) is released. This section describes the reviewed design, including flows listed as implementation limitations in [Section 4.4](08-implementation.md#44-deviations-and-implementation-limitations).
+> Author: 2452620 Đặng Tuấn Kiệt. Design baseline: 2026-11-04. The [Core API v1.3](../design/architecture/core-api-spec.md) is released. This section describes the reviewed design, including flows listed as implementation limitations in [Section 4.4](08-implementation.md#44-deviations-and-implementation-limitations).
 
 #### Design overview
 

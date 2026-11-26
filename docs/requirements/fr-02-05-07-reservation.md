@@ -182,7 +182,7 @@ Core v1.1 provides the required atomic boundary, shared-state commands and read 
 
 UC-M2-01..08 and the retained BR-M2 IDs are stable module-scoped IDs under CONTRIBUTING section 5. No flat-number conversion is planned. FR-07 remains one M2 parking row; if it is split, use FR-07.M2.1, FR-07.M2.2, etc., distinct from M3. Verification labels V-M2 below are local design scenarios, **not TC IDs**.
 
-Current operator-view mappings and external/internal actor boundaries are recorded in [stakeholder/actor analysis](stakeholder-actor-analysis.md). M7 UI views do not create duplicate business use cases; its UC-M7-02 resource-state override remains a separately owned capability pending M1 state guards.
+Current operator-view mappings and external/internal actor boundaries are recorded in [stakeholder/actor analysis](stakeholder-actor-analysis.md). M7 UI views do not create duplicate business use cases; its UC-M7-02 resource-state override is a separately owned capability, built in O2 on core's state guards (TC-M7-039, TC-M7-051).
 
 ## 9. Traceability and planned verification
 

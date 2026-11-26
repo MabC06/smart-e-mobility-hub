@@ -95,6 +95,7 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-040 | FR-06, BR-M1-02, NFR-21 | EP | F1; `V-AWAY` is IN_USE, at no Hub | Request "now" at H1, then for T0 + 1 h | "Now" refused INVALID_STATE, message says to book a space and record the arrival, nothing stored; the later request is SCHEDULED | Pass | `test_charge_now_refused_while_the_vehicle_is_away` |
 | TC-M3-041 | FR-06, BR-M1-02, NFR-21 | State transition | F1; `V-AWAY` booked at T0 + 30 min | Start at T0 + 30 min | INVALID_STATE naming the Hub; session stays SCHEDULED, vehicle IN_USE | Pass | `test_start_refused_with_a_clear_message_while_the_vehicle_is_away` |
 | TC-M3-042 | FR-06, BR-M1-01, BR-M1-02, NFR-21 | Decision table | F1; `V-DOCKED` in the bay of CP01 but booked on CP02; CP01 held by another session | Start; cancel the other session; Start again | First refused, naming bay H1-S002 of CP02; then the session moves to CP01 and charges; no claim left on CP02 | Pass | `test_start_moves_the_session_to_the_free_bay_the_vehicle_is_in` |
+| TC-M3-043 | FR-06, NFR-21 | EP | F1; `V-AWAY` with plate `PRIVATE-9` is IN_USE, at no Hub | Request "now" at H1; book for T0 + 30 min and Start then | Both refusals say "Vehicle PRIVATE-9 is not parked at Hub H1" and never name `V-AWAY` (DEF-M3-011) | Pass | `test_refusals_name_the_vehicle_by_its_plate` |
 
 ## 3. Not covered (known gaps)
 
@@ -119,3 +120,4 @@ In the Evidence column, `test_*` is a function in `tests/charging/test_charging.
 | TC-M3-037 to TC-M3-038 | Queue rank, reason, owner and moved sessions | Decision table / failure injection | FR-06, FR-11, BR-M3-03, UC-M3-08, UC-M7-03 | Pass |
 | TC-M3-039 | A request waits only while no slot is free | State transition | FR-06, BR-M3-03, UC-M3-01, UC-M3-07 | Pass |
 | TC-M3-040 to TC-M3-042 | Charging needs the EV at the Hub and in the bay; clear refusals | EP / state transition / decision table | FR-06, BR-M1-01, BR-M1-02, NFR-21 | Pass |
+| TC-M3-043 | Refusals name the vehicle by its plate | EP | FR-06, NFR-21 | Pass |

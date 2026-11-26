@@ -1,6 +1,6 @@
 # Defect Log
 
-> **Status:** Final, 2026-11-26: 38 defects, 37 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
+> **Status:** Final, 2026-11-26: 42 defects, 41 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
 > Every member records the defects of their own module in their own block by 17/11 (`task-assignment-timeline.md`, Phase 4). M8 merges the summary into report section 5.6. A failed test is never changed to pass to close a defect (`test-plan-v1.md` section 8).
 
 ## 1. How to record a defect
@@ -26,12 +26,12 @@
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | M2 reservation | 4 | 0 | 2 | 1 | 1 | 4 | 0 |
-| M3 charging | 10 | 0 | 3 | 4 | 3 | 9 | 1 |
+| M3 charging | 11 | 0 | 3 | 4 | 4 | 10 | 1 |
 | M4 allocation | 6 | 0 | 0 | 4 | 2 | 6 | 0 |
 | M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| M7 user interface | 8 | 0 | 0 | 4 | 4 | 8 | 0 |
-| **Total** | **38** | **0** | **7** | **14** | **17** | **37** | **1** |
+| M7 user interface | 11 | 0 | 1 | 4 | 6 | 11 | 0 |
+| **Total** | **42** | **0** | **8** | **14** | **20** | **41** | **1** |
 
 The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -87,6 +87,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M3-008 | A "charge now" request of a vehicle not standing in a bay stayed QUEUED while points were free; only the operator's Optimize or a point event bound it | Medium | Demo of S8, M1 (2026-11-25) | BR-M3-03, UC-M3-01, UC-M3-07 | Closed | The request routes bind the Hub's queue right after a request is queued, and after a cancel, finish or stop | PR #62, `d2f13ac`; TC-M3-039 |
 | DEF-M3-009 | A "charge now" request of an EV away from the Hub was accepted and bound to a bay, and Start then failed with core's text "event 'start_charging' is not allowed in state 'IN_USE'"; a session booked on another bay than the one the EV stood in could never start | Medium | Demo review, M1 (2026-11-26) | FR-06, FR-07, BR-M1-02, UC-M3-01, NFR-21 | Closed | "Now" is refused while the EV is not at the Hub, with what to do; Start says where the EV must be, and moves the session to the free bay the EV stands in | branch `fix/demo-review`; TC-M3-040 to TC-M3-042 |
 | DEF-M3-010 | A request for an EV already at or above its target showed "target_soc must exceed battery_pct." only | Low | Demo review, M1 (2026-11-26) | FR-06, NFR-21 | Closed | The message also gives the EV's battery level and says there is nothing to charge | branch `fix/demo-review` |
+| DEF-M3-011 | The refusals of "charge now" and of a start while the EV is away named the vehicle by its internal ID ("Vehicle P-002 is not parked at Hub H01"), not the plate the student knows | Low | M7 review of `main` (2026-11-26) | FR-06, NFR-21 | Closed | The messages name the plate (`plate_or_code`), also in the "nothing to charge" message | branch `fix/ui-review-m7`; TC-M3-043 |
 
 **DEF-M3-002** (High)
 - Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
@@ -175,4 +176,12 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M7-006 | O6's default inputs for SC-03 and SC-04 gave no impact and no recommendation, so the two scenarios showed nothing in a demo | Low | Demo review, M1 (2026-11-26) | FR-12, UC-M6-01 | Closed | Defaults: 30 extra drained vehicles for SC-03; every point of the first Hub fails for SC-04 | branch `fix/demo-review` |
 | DEF-M7-007 | In O6, approving the second recommendation of a run failed with "We could not use this result": the decision list was written into a double-quoted attribute with `tojson`, so the first decision's quotes cut it off | Medium | Demo of SC-01, M1 (2026-11-26) | FR-12, UC-M7-10 | Closed | The hidden field is single-quoted, as Jinja requires for `tojson` in an attribute | branch `fix/ui-simulation-decide`; TC-M7-048 |
 | DEF-M7-008 | After a run, O6's ticked boxes (target Hubs, source and destination Hubs, failed points) went back to their defaults although the result used the operator's choice, and after Approve or Reject the whole form went back to SC-01; running again silently used other inputs | Medium | Review of every O6 path, M1 (2026-11-26) | FR-12, UC-M7-09, NFR-21 | Closed | The form shows the inputs of the last run, including after a decision | branch `fix/ui-simulation-decide`; TC-M7-049 |
+| DEF-M7-009 | O2 set a charging point that M3 was charging on to AVAILABLE with one click: the status list had no CHARGING, so the browser preselected AVAILABLE, the route read any unknown value as AVAILABLE, and core accepted it. O1 and O3 then showed the point free while M3's session still ran on it, and M3 could plan another request on that point | High | M7 review of `main` (2026-11-26) | FR-09, UC-M7-02, UC-M3-08, NFR-21 | Closed | O2 offers only OUT_OF_SERVICE or MAINTENANCE for a point in use; the route refuses an unknown value (INVALID_INPUT); core refuses CHARGING, and CHARGING to AVAILABLE, from any module but `charging` (FORBIDDEN) | branch `fix/ui-review-m7`; TC-M7-051 |
+| DEF-M7-010 | Screens used internal codes or raw values: O2's history named F-0004 and ui/OP-01 (also for a vehicle opened from another Hub's page), its Fault column showed "–" for a vehicle in MAINTENANCE, S5's earlier bookings showed COMPLETED without the day or Hub, S3's count did not say it was filtered by battery, and the brand and "< Back" links were under 44 px on a phone (D-027) | Low | M7 review of `main` (2026-11-26) | UC-M2-03, UC-M7-02, NFR-21 | Closed | Plates (looked up in core when the vehicle is elsewhere) and login codes, "Completed" with Hub and day, the battery floor in S3's count, 44 px tap targets | branch `fix/ui-review-m7`; TC-M7-052 |
+| DEF-M7-011 | O6 showed the random seed only in the form, not with the result, and M6's report and its JSON export had no seed, so a saved run could not be repeated (NFR-13); the duration field of SC-02 was hidden although M6 uses it, and a time step M6 does not use was sent | Low | M7 review of `main` (2026-11-26) | FR-12, UC-M7-09, NFR-13 | Closed | M6's `SimulationReport` carries `random_seed`, which the result line and the export show; the Duration field belongs to SC-01 and SC-02; the time step is no longer sent | branch `fix/ui-review-m7`; TC-M7-053, TC-M6-005 |
+
+**DEF-M7-009** (High)
+- Steps: a student charges a parked EV now at H01 (S6 Arrive, S8 Now), so `H01-CP01` is CHARGING; the operator opens O2 for H01 and presses **Set** on that point without changing the list.
+- Expected: the point stays CHARGING, or the operator stops the session on purpose. Actual: the point became AVAILABLE; O2 showed "charging 0/10" and O3 "in use 0" while the session `PRIVATE-001 · H01-CP01 · CHARGING` still ran. The event also made M3 run `optimize_queue` for the Hub, which could plan a queued request on the same point.
+- Resolution: O2 lists only OUT_OF_SERVICE and MAINTENANCE for a point in use, with no status selected; the route answers INVALID_INPUT for any other value; `set_charging_point_status` in core answers FORBIDDEN when a caller other than the `charging` module sets CHARGING or moves a point from CHARGING to AVAILABLE (`core-api-spec.md` v1.3 section 5, D-029). Retest: TC-M7-051 and `test_only_charging_sets_a_point_to_or_from_charging` pass.
 <!-- END M7: User Interface -->

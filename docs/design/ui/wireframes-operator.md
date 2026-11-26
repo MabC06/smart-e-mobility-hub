@@ -1,6 +1,6 @@
 # Wireframes: Operator Dashboard
 
-> Update of 2026-11-25 (PR 4, M1): every screen is connected; what each screen calls is in `docs/report/06-ui-design.md`, Section 3.4.8. The notes below that still say "Planned" describe the design before that date.
+> Update of 2026-11-25 (PR 4, M1): every screen is connected; what each screen calls is in `docs/report/06-ui-design.md`, Section 3.4.8. Update of 2026-11-26 (M7 review): the notes below were checked against the code; "Planned" now marks only what is still not built, and the report figures 3.33 to 3.36 show the screens as built.
 
 > Owner: M7 (Nguyễn Trung Kiên) · Date: 2026-11-09 · Revised for Phase 3: 2026-11-25 · Reviewer: M5 (Đỗ Hoàng Việt)
 > Report section: 3.4 (`docs/report/06-ui-design.md`). Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. Student screens: `wireframes-student.md`.
@@ -12,10 +12,10 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 
 1. **Layout.** Every screen has a header (`user_id`, Logout), a tab bar (Overview, Charging, Dispatch, Incidents, Simulation Lab), the alert strip, and a footer with the time of the data and Refresh.
 2. **Alert strip (NFR-20).** It lists the Hubs whose status is `WARNING` or `CRITICAL`, and the number of active incidents. M5 sets the Hub status in `core` (`set_hub_status`: `WARNING` from 90% parking use, BR-M5-01, and `CRITICAL` at 100%, BR-M5-02), and the strip reads that stored status (Implemented). The number of active incidents (not `RESOLVED` or `CLOSED`) is read from M5's incident route; if M5 does not answer, the strip shows "Incidents: ? active", never "0".
-3. **Refresh (NFR-01).** A change must appear within 5 seconds. Pages re-read by polling every 3 seconds, the interval in M5's sequence diagram. That diagram polls `GET /api/v1/hubs/overview`, which does not exist in `core`; M5's code offers `GET /api/v1/monitoring/metrics/hubs` and `/metrics/hubs/{hub_id}` instead.
+3. **Refresh (NFR-01).** A change must appear within 5 seconds. O1 re-reads its Hub cards and the time of the data every 3 seconds, the interval in M5's sequence diagram; the alert strip and the other screens show the new state after an action or Refresh. That diagram polls `GET /api/v1/hubs/overview`, which does not exist in `core`; M5's code offers `GET /api/v1/monitoring/metrics/hubs` and `/metrics/hubs/{hub_id}` instead.
 4. **Stale data (Planned).** M5: telemetry delayed more than 30 seconds gives the Hub a "STALE DATA" icon and creates an `INC-COMM-01` ticket. The screen keeps showing the last numbers.
 5. **Time.** Stored in UTC, shown in Asia/Ho_Chi_Minh (D-005).
-6. **Version conflicts.** An action sends the `version` it read. `VERSION_CONFLICT` shows "Changed by someone else. Refreshed." and reloads the item.
+6. **Version conflicts.** An action sends the `version` it read. `VERSION_CONFLICT` shows the error block with core's cause and a link back to the Hub; the operator reopens it and tries again.
 7. **Confirm first (Planned).** Override, approve, cancel, resolve and apply-recommendation ask for confirmation. The Phase 3 buttons act at once.
 8. **Errors (NFR-21).** A title, the cause, an alternative if there is one, and the code under "Details". No stack trace. The code comes from a `Result` (direct call) or from the REST body. M4's router returns `{"detail": {"code", "message"}}`, `core` returns `{"error": {...}}`.
 9. **Role.** Only an operator reaches these screens. A student token gets `403` on the operator REST routes.
@@ -77,10 +77,10 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 
 - Data: `core.queries` `get_hub`, `find_vehicles` (an operator also sees private vehicles), `list_spaces`, `list_charging_points`, `get_state_log` for the vehicle history, and `get_claims` for the next claim on a space or charging point. Filters by type, state and owner are done on the page. All except `get_claims` have REST routes.
 - Actions on a vehicle: two events belong to the operator (`vehicle-state-machine.md`, T11 and T12): `report_fault` (to `MAINTENANCE`) from `AVAILABLE`, `RESERVED`, `RETURNED` or `CHARGING`, and `repair` from `MAINTENANCE`. After `repair`, `core` also applies `mark_ready` if the battery is above the threshold and there is no fault, so the vehicle becomes `AVAILABLE`; otherwise it stays `RETURNED`. The page shows the button that fits the vehicle's state. `core` decides, and a wrong event gives `INVALID_TRANSITION` "This vehicle cannot be changed directly now. Handle its reservation or trip first."
-- A charging point can be set `OUT_OF_SERVICE`, `MAINTENANCE` or back to `AVAILABLE`, and a Hub `MAINTENANCE` or back to `ACTIVE`. The page does not offer `WARNING` and `CRITICAL` (M5 sets them) or the point status `CHARGING` (M3 sets it).
+- A charging point can be set `OUT_OF_SERVICE`, `MAINTENANCE` or back to `AVAILABLE`, and a Hub `MAINTENANCE` or back to `ACTIVE`. The page does not offer `WARNING` and `CRITICAL` (M5 sets them) or the point status `CHARGING` (M3 sets it). A point that is `CHARGING` offers only `OUT_OF_SERVICE` and `MAINTENANCE`, which make M3 move its session; core refuses `CHARGING` to `AVAILABLE` from anyone but M3 (`FORBIDDEN`, DEF-M7-009).
 - Why: the history under the vehicle shows how it got there before the operator overrides it.
 
-### O3. Charging coordination (Implemented, read-only) · `UC-M7-03`, `UC-M7-04`
+### O3. Charging coordination (Implemented) · `UC-M7-03`, `UC-M7-04`
 
 ```
 +--------------------------------------------------------------------------+
@@ -100,9 +100,9 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- The queue comes from M3's route `GET /charging/queue?hub_id=...` (through `ui/api.py`): vehicle, battery and target, status, point and the low-battery flag `is_emergency`, shown as "!". The route returns no owner kind and no priority score, so the owner filter and the score are Planned. The counts of charging points (in use, out of service) come from `core`.
+- The queue comes from M3's route `GET /charging/queue?hub_id=...` (through `ui/api.py`): vehicle, battery and target, status, point and the low-battery flag `is_emergency`, shown as "!". The route also returns the owner kind (`ownership`) and the reason of the rank (`priority_reason`), so O3 shows the rank with its reason and filters by owner. The counts of charging points (in use, out of service) come from `core`.
 - The status words are the session states of M3's code: Queued, Scheduled, Charging, Completed, Interrupted, Cancelled.
-- `UC-M3-06` and `UC-M3-07` name the operator as an actor, but M3 does not say what the operator can change. Buttons such as Move to another slot or Recalculate are shown only if M3 offers them. Otherwise the screen is read-only.
+- `UC-M3-06` and `UC-M3-07` name the operator as an actor. O3 offers what M3's routes offer: Optimize the queue, and Start, Finish or Stop a session. Moving one request up the queue by hand is not offered (DEV-12).
 - The last block shows the result of `UC-M3-08` (session moved to another point, or put back in the queue). The screen decides nothing there.
 - Why: fleet and private vehicles compete for the same points, so one queue with an owner filter shows that.
 
@@ -156,7 +156,7 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M5's code is in `develop`. Routes under `/api/v1/monitoring/incidents`: list (filters Hub, status, severity), detail, `logs`, `acknowledge`, `escalate`, `resolve`, `close`. The screen uses the list, `acknowledge`, `resolve` and `close`.
+- M5's code is in `develop`. Routes under `/api/v1/monitoring/incidents`: list (filters Hub, status, severity), detail, `logs`, `acknowledge`, `escalate`, `resolve`, `close`. The screen uses the list, `acknowledge`, `escalate`, `resolve`, `close` and `logs` (Show history).
 - Data (table `monitoring_incidents`): type with its code, severity, status, Hub, component (`entity_type` and `entity_id`), `error_code`, `description`, `reported_by`, `assigned_operator_id`, `resolution_notes` and the time stamps. History comes from `monitoring_incident_audit_logs`.
 - Types: `INC-HW-01` charging-point fault, `INC-HW-02` parking sensor, `INC-CAP-01` Hub full, `INC-CAP-02` vehicle deficit, `INC-BAT-01` low battery, `INC-COMM-01` telemetry loss, `INC-USR-01` overdue rental.
 - Lifecycle: `OPEN` to `IN_PROGRESS` to `RESOLVED` to `CLOSED`, and `OPEN` to `ESCALATED` to `IN_PROGRESS` or `RESOLVED`. A `HIGH` or `CRITICAL` ticket that stays `OPEN` for 5 minutes becomes `ESCALATED` by the system, which also notifies the duty supervisor (`BR-M5-04`). The screen never sets `ESCALATED`. M5's code has an `escalate` route (from `OPEN` only) but no 5-minute timer yet.
@@ -192,8 +192,8 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 +--------------------------------------------------------------------------+
 ```
 
-- M6's code has the demand-surge scenario only. "Run" calls its route `POST /simulation/runs` with a simulation ID made by the screen and shows the result under the form; the other scenarios, the mitigated run, Approve, Reject, Export and Discard are Planned (DEV-11, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
-- Five scenarios: demand surge, Hub at capacity, charging surge, charging-point failure, vehicle imbalance. Common inputs: scenario, time horizon, time step, random seed. The form changes with the scenario. Inputs per scenario (from the design):
+- M6 runs all five scenarios (SC-01 to SC-05). "Run" calls its route `POST /simulation/runs` with a simulation ID made by the screen and shows the result under the form, with the rate when every recommendation is applied; Approve, Reject, Export (JSON) and Discard are built (DEV-11, report Section 4.4). The rest follows `m6-simulation-design.md`. M6 asks M7 to agree on the configuration fields, the report and the approval steps, so this screen is also M7's proposal to M6.
+- Five scenarios: demand surge, Hub at capacity, charging surge, charging-point failure, vehicle imbalance. Common inputs: scenario, time horizon, random seed (O6 does not offer the time step, because M6 does not use it, DEV-08). The form changes with the scenario. Inputs per scenario (from the design):
 
 | Scenario | Inputs |
 |---|---|
@@ -204,9 +204,9 @@ Each screen is marked **Implemented** (the backend function exists in the code I
 | Vehicle imbalance | surplus Hubs, deficit Hubs, batch size, transit delay |
 
 - The screen does not fix the allowed ranges, because M6's design and code differ (for demand surge the design says duration 15 to 240 and horizon 60 to 360; the code accepts 15 to 360 and 30 to 360). M6 checks the inputs before running and answers a wrong value with `INVALID_INPUT` and its own text (for example "time_step_minutes must be between 1 and 15"), which the error block shows. A message per field is Planned (DEV-13).
-- Result: the code returns `baseline_shortage_rate_pct` and, for each Hub, total requests, unmet requests and shortage rate, plus a list of recommendations (type, source and destination Hub, batch size, reason). The design adds the mitigated run, the comparison, assumptions and errors, and four metrics (shortage rate, Hub overflow or return rejection, average charging queue wait, critical battery count). The wireframe shows the design.
-- A recommendation has a type, Hubs, quantity, reason, target module, feasibility and approval status. It stays advice until the operator approves. Approve sends it to the owning module (M4, M3 or M2), which checks it against the real state and may refuse. How M6 passes a recommendation to M4 is not defined: M4's router has no endpoint that creates a task from outside. Until then the operator uses O4 or O3.
-- The banner "SIMULATION: a copy of the state" is only on this screen. The seed is shown with each result (NFR-13). Export format is open; I propose a JSON file of the report.
+- Result: the code returns `baseline_shortage_rate_pct` and, for each Hub, total requests, unmet requests and shortage rate, plus a list of recommendations (type, source and destination Hub, batch size, reason). The design adds the mitigated run, the comparison, assumptions and errors, and four metrics (shortage rate, Hub overflow or return rejection, average charging queue wait, critical battery count). The screen shows one metric per scenario, the baseline and the mitigated rate, and the table per Hub (report Figure 3.36).
+- A recommendation has a type, Hubs, quantity, reason, target module, feasibility and approval status. It stays advice until the operator approves. Approve sends it to the owning module (M4, M3 or M2), which checks it against the real state and may refuse. A vehicle redistribution goes to M4's `POST /allocation/tasks/from-recommendation`, which makes a RECOMMENDED task for O4; a charging shift or a return redirection links to O3 or O2 (DEV-11). M4 caps a task at `max_vehicles_per_task` (10 by default), so a recommendation of 20 vehicles becomes a task of 10, while the mitigated rate counts all 20.
+- The banner "SIMULATION: a copy of the state" is only on this screen. The seed is shown with each result (NFR-13, TC-M7-053). Export is a JSON file of M6's report, which carries the seed, so a saved run can be repeated.
 
 ## 3. Messages for refused actions
 
@@ -235,6 +235,6 @@ In Phase 3 the error block shows the cause text that the module sends, with its 
 
 1. Settled with M1 (D-026): a page reads `core` directly and calls the other modules' REST routes through the internal client in `src/ui/api.py`.
 2. M3: what the operator may change in the queue (the session states are settled, see O3).
-3. M4: a reject endpoint; how a recommendation from M6 becomes a task.
+3. Done: M4 has a reject endpoint and makes a task from an approved recommendation.
 4. M5: the remote-reset command, how stale data is reported, alert records, the polled route in its sequence, and the 5-minute escalation timer.
-5. M6: final input ranges, how an approved recommendation is sent, and the export format.
+5. Done: M6 checks its own input ranges, an approved recommendation is sent to M4, and the report exports as JSON.

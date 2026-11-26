@@ -191,7 +191,7 @@ The screens still marked Planned after the Nov 18 deadline were completed on Nov
 | **M5** | No new code: overdue-Trip incidents (INC-USR-01) now read M2's real `ReservationDemand` provider (DEV-09) | — |
 | **M6** | Scenarios SC-02 to SC-05 with the baseline and mitigated comparison (FR-12) | `src/simulation/` · TC-M6-006 to 010 |
 | **M7** | Every student and operator screen connected to its module (no sample data); layout review of every screen (D-027, desktop); phone layout of the student screens (D-027); UI defects from the demo fixed (DEF-M7-001 to 003); UI section final | `src/ui/` (`routes.py`, templates, `static/app.css`) · TC-M7-034 to 045 · `docs/report/06-ui-design.md` |
-| **M8** | Rerun of the full suite, coverage and NFR-01 to NFR-05, NFR-12, NFR-13 on `develop`; defect log (38 defects), traceability sheet v1.7 and test documents updated; Testing section (5) and Evaluation section (6, with the consolidated AI Declaration) | `tests/performance/` · `docs/testing/` · `docs/report/09-testing.md`, `10-evaluation.md` |
+| **M8** | Rerun of the full suite, coverage and NFR-01 to NFR-05, NFR-12, NFR-13 on `develop`; defect log (42 defects), traceability sheet v1.8 and test documents updated; Testing section (5) and Evaluation section (6, with the consolidated AI Declaration) | `tests/performance/` · `docs/testing/` · `docs/report/09-testing.md`, `10-evaluation.md` |
 
 
 #### Phase 5 — Report, Demo & Presentation (report freeze Nov 22; presentation Dec 2; report PDF Dec 11)
