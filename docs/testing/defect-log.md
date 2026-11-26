@@ -1,6 +1,6 @@
 # Defect Log
 
-> **Status:** Final, 2026-11-26: 35 defects, 34 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
+> **Status:** Final, 2026-11-26: 38 defects, 37 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
 > Every member records the defects of their own module in their own block by 17/11 (`task-assignment-timeline.md`, Phase 4). M8 merges the summary into report section 5.6. A failed test is never changed to pass to close a defect (`test-plan-v1.md` section 8).
 
 ## 1. How to record a defect
@@ -27,11 +27,11 @@
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | M2 reservation | 4 | 0 | 2 | 1 | 1 | 4 | 0 |
 | M3 charging | 10 | 0 | 3 | 4 | 3 | 9 | 1 |
-| M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
+| M4 allocation | 6 | 0 | 0 | 4 | 2 | 6 | 0 |
 | M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| M7 user interface | 6 | 0 | 0 | 2 | 4 | 6 | 0 |
-| **Total** | **35** | **0** | **7** | **11** | **17** | **34** | **1** |
+| M7 user interface | 8 | 0 | 0 | 4 | 4 | 8 | 0 |
+| **Total** | **38** | **0** | **7** | **14** | **17** | **37** | **1** |
 
 The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -122,6 +122,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M4-003 | `carry_out_return()` failed to supply `parking_space_id` and `claim_id` in `TransitionCtx` | Medium | PR #27 review & lifecycle tests | UC-M4-03, BR-M1-02 | Closed | Extracted active `SPACE` claim ID and parking space ID from task claims into `TransitionCtx` for `VehicleEvent.RETURN` | PR #27, `9f4a825` |
 | DEF-M4-004 | `AllocationService` and `AlternativeHubService` read simulated time directly from `core._clock.now()` | Low | PR #27 review (M4-3) | D-005, NFR-13 | Closed | Switched all service time reads to `core.queries.get_config().as_of` via injected runtime facade | PR #27, `9f4a825` |
 | DEF-M4-005 | Router endpoints allowed unauthenticated operator operations without token verification | Medium | PR #27 review (M4-7) | D-023, NFR-16 | Closed | Guarded all 12 endpoints with `Depends(require_operator)` and constructed actors via `acting_as(principal, "allocation")` | PR #27, `4cdf184` |
+| DEF-M4-006 | A Hub near capacity (WARNING) got no task to move vehicles out unless another Hub was short, and a full (CRITICAL) Hub was left out of planning; O4 had no way for the operator to move vehicles | Medium | Demo of O1 and O4, M1 (2026-11-26) | FR-10.2, FR-10.7, BR-M4-04, BR-M5-01, UC-M4-02 | Closed | Planning step 6 relieves a Hub at or above the near-capacity threshold; a CRITICAL Hub is a source, never a destination; O4 "Move vehicles yourself" makes a TASK-OPS- task (`POST /allocation/tasks/manual`) | branch `fix/ui-simulation-decide`; TC-M4-035 to TC-M4-037, TC-M7-050 |
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->
@@ -172,4 +173,6 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M7-004 | S8 had no way for a student to end their own charging session, so the EV could not depart until an operator finished it | Medium | Demo review, M1 (2026-11-26) | FR-06, UC-M3-01, UC-M2-08 | Closed | S8 shows "Finish charging" for a running session (M3 already allows the owner) | branch `fix/demo-review`; TC-M7-046 |
 | DEF-M7-005 | S3 let a student with a live rental pick and reserve a vehicle, and only then refused it | Low | Demo review, M1 (2026-11-26) | BR-M2-03, NFR-21 | Closed | S3 shows the one-rental notice with a link to My bookings and disables the reserve button | branch `fix/demo-review`; TC-M7-047 |
 | DEF-M7-006 | O6's default inputs for SC-03 and SC-04 gave no impact and no recommendation, so the two scenarios showed nothing in a demo | Low | Demo review, M1 (2026-11-26) | FR-12, UC-M6-01 | Closed | Defaults: 30 extra drained vehicles for SC-03; every point of the first Hub fails for SC-04 | branch `fix/demo-review` |
+| DEF-M7-007 | In O6, approving the second recommendation of a run failed with "We could not use this result": the decision list was written into a double-quoted attribute with `tojson`, so the first decision's quotes cut it off | Medium | Demo of SC-01, M1 (2026-11-26) | FR-12, UC-M7-10 | Closed | The hidden field is single-quoted, as Jinja requires for `tojson` in an attribute | branch `fix/ui-simulation-decide`; TC-M7-048 |
+| DEF-M7-008 | After a run, O6's ticked boxes (target Hubs, source and destination Hubs, failed points) went back to their defaults although the result used the operator's choice, and after Approve or Reject the whole form went back to SC-01; running again silently used other inputs | Medium | Review of every O6 path, M1 (2026-11-26) | FR-12, UC-M7-09, NFR-21 | Closed | The form shows the inputs of the last run, including after a decision | branch `fix/ui-simulation-decide`; TC-M7-049 |
 <!-- END M7: User Interface -->

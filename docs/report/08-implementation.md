@@ -39,7 +39,7 @@ Section 3.1 maps to code as one Python package per component under `src/`, wired
 | `iot_sim` | M8 | Sensor events and seed network (outside the system boundary, D-004) | 236 |
 | `main.py` | M1 | Composition root (D-013), settings, seeding | 316 |
 
-The sizes only show where the logic is; the tests (1,566) are in `tests/`, one folder per package.
+The sizes only show where the logic is; the tests (1,572) are in `tests/`, one folder per package.
 
 ### 4.2.2 Inside `core`
 
@@ -179,6 +179,7 @@ Each module owner describes the decisions that were hard or not obvious: the pro
 - **Resolving competing resource requests under scarcity (BR-M4-01, UC-M4-06):** When multiple concurrent demands compete for the same scarce vehicle or bay space, `ArbitrationService.arbitrate()` sorts requests strictly by priority class tier (`OPERATOR_INCIDENT > RESERVATION_PICKUP > VEHICLE_RETURN > CHARGING > REBALANCE > WALK_IN`), breaking ties deterministically by `requested_at` ascending and request ID (`src/allocation/arbitration.py`, `tests/allocation/test_arbitration.py`). The winning request is granted the resource atomically, while displaced requests receive typed errors with explicit reason codes (`ErrorCode.RESOURCE_UNAVAILABLE`).
 - **Decoupled provider port integration without fallback stubs (D-020, NFR-22):** Rather than importing M2/M3 modules directly or falling back to silent empty mocks, `AllocationService._fetch_hub_demand()` queries `ProviderPort.RESERVATION_DEMAND` through Core's registry. A missing or failing port raises `RESOURCE_UNAVAILABLE` immediately (`src/allocation/service.py`). Conversely, M4 implements `AlternativeHubProvider` and `AlternativeChargingProvider` using frozen dataclass contracts (`src/core/providers.py`), verified by 25 import-boundary checks (`tests/test_import_boundaries.py`).
 - **Injected clock time and RBAC authorization (D-005, D-023, NFR-16):** All time calculations read `core.queries.get_config().as_of` from Core's injectable clock instead of system wall-clock, ensuring deterministic rebalancing in simulation scenarios (M6). Every REST endpoint in `src/allocation/router.py` is protected by `Depends(require_operator)` and derives domain actors via `acting_as(principal, "allocation")` (`tests/allocation/test_api.py`).
+- **Capacity relief and the operator's own tasks (FR-10.2, FR-10.7, added 2026-11-26):** the greedy plan only moves vehicles towards a Hub that is short, so a Hub that filled up stayed full when no Hub was short. A sixth step moves vehicles out of every Hub at or above core's near-capacity threshold (90 %) to the nearest Hubs that stay below it and above their buffer; a CRITICAL Hub is a source but never a destination. O4 also lets the operator create a `TASK-OPS-` task, checked again on approval like any other (`allocation/planner.py::_plan_capacity_relief`, `POST /allocation/tasks/manual`; TC-M4-035 to TC-M4-037, TC-M7-050).
 <!-- END M4: Resource Allocation & Dispatching -->
 
 <!-- BEGIN M5: Monitoring & Incident Handling -->

@@ -224,7 +224,7 @@ Done on 2026-11-26 on `develop` at `0056f23` (measurements on `267919e`; details
 - NFR-24 coverage: core 98.8 %; reservation 92.1 %; charging 89.0 %; allocation 91.7 %; monitoring 87.3 %; simulation 92.7 %; ui 91.9 %; iot_sim 99.0 %.
 - NFR-01, 02, 03 pass; NFR-04 charging passes at 15 queued per Hub and exceeds 3 s at depth 50 (DEF-M3-007, Accepted); NFR-04 allocation passes with M2's real provider; NFR-05, 12, 13 pass for SC-01 to SC-05.
 - NFR-14 pass on 2026-11-23 (5 commands, 4m34s ≤ 15 min on `fresh-nfr14`); not repeated.
-- Defect log: 35 defects, 34 Closed, 1 Accepted (DEF-M3-007); twelve found by running the demo on 2026-11-25 and 26, all fixed with tests (the last six after this run, with TC-M2-033, TC-M3-040 to 042, TC-M7-046 and 047; 1,566 tests pass).
+- Defect log: 38 defects, 37 Closed, 1 Accepted (DEF-M3-007); fifteen found by running the demo on 2026-11-25 and 26, all fixed with tests (the last nine after this run, with TC-M2-033, TC-M3-040 to 042, TC-M4-035 to 037, TC-M7-046 to 050; 1,572 tests pass).
 
 Open (accepted into report section 4.4):
 

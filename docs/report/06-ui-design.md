@@ -237,7 +237,7 @@ flowchart TD
 | Operator action | On success | When refused |
 |---|---|---|
 | Change a vehicle, point or Hub state (O2) | New state and a new line in the history | "Cannot be changed directly now. Handle its reservation or trip first", or "Changed by someone else. Refreshed" |
-| Plan, approve, reject, pick-up, delivery, cancel; save settings (O4) | The task with its new status; the saved values | The task keeps its reason when it fails, or the request is refused with the cause |
+| Plan, create a task ("Move vehicles yourself"), approve, reject, pick-up, delivery, cancel; save settings (O4) | The task with its new status; the saved values | The task keeps its reason when it fails, or the request is refused with the cause |
 | Acknowledge, escalate, resolve, close (O5) | Ticket "In progress", "Escalated", "Resolved" or "Closed"; history on demand | The action is hidden when the status does not allow it |
 | Run any of the five scenarios (O6) | The result under the form, with and without the plan | M6's message for an invalid input |
 | Approve or reject a recommendation (O6) | "Sent to Dispatch as TASK-SIM-..." (a RECOMMENDED task in O4) or "Rejected" | M4 may refuse (no vehicle to dispatch) |
