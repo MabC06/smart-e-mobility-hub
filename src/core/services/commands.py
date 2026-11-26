@@ -786,6 +786,8 @@ class StateCommands:
         """Change a charging point.
 
         ``OUT_OF_SERVICE`` does not end sessions by itself; the event lets M3 interrupt them.
+        Only the ``charging`` module sets a point to ``CHARGING`` or from ``CHARGING`` back to
+        ``AVAILABLE``; any other caller gets ``FORBIDDEN``.
         """
         return self._rt.run(
             lambda: self._set_charging_point_status(
@@ -812,6 +814,23 @@ class StateCommands:
             )
         if point.status is status:
             return Ok(ChargingPointView.of(point))
+        # Only M3 starts and ends a session on a point; another caller stops one with
+        # OUT_OF_SERVICE or MAINTENANCE, which M3 handles (UC-M3-08, DEF-M7-009).
+        if actor.module != "charging":
+            if status is ChargingPointStatus.CHARGING:
+                return Err(
+                    ErrorCode.FORBIDDEN,
+                    f"Only charging sets charging point {charging_point_id} to CHARGING.",
+                )
+            if (
+                point.status is ChargingPointStatus.CHARGING
+                and status is ChargingPointStatus.AVAILABLE
+            ):
+                return Err(
+                    ErrorCode.FORBIDDEN,
+                    f"Charging point {charging_point_id} is in use; it becomes AVAILABLE when "
+                    "its session ends. Set it OUT_OF_SERVICE or MAINTENANCE to stop the session.",
+                )
         previous = point.status
         point.status = status
         rt.repo.update(point, expected_version)

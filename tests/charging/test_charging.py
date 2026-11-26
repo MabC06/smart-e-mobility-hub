@@ -1182,13 +1182,13 @@ def test_a_request_waits_only_while_no_slot_is_free() -> None:
     assert all(r["start_time"] is not None for r in rows)
 
 
-def _add_away_vehicle(core: CoreFacade, vehicle_id: str = "V-AWAY") -> None:
+def _add_away_vehicle(core: CoreFacade, vehicle_id: str = "V-AWAY", plate: str = "") -> None:
     """A vehicle that is away from every Hub (IN_USE, no Hub, no space)."""
     with core.unit_of_work() as uow:
         uow.repository.add(
             Vehicle(
                 vehicle_id,
-                vehicle_id,
+                plate or vehicle_id,
                 Ownership.FLEET,
                 VehicleType.E_BIKE,
                 40.0,
@@ -1278,3 +1278,28 @@ def test_start_moves_the_session_to_the_free_bay_the_vehicle_is_in() -> None:
     )
     end = T0 + timedelta(hours=2)
     assert core.queries.get_claims("H1-CP02", T0, end) == []
+
+
+def test_refusals_name_the_vehicle_by_its_plate() -> None:
+    """TC-M3-043 · Verifies: FR-06, NFR-21 (DEF-M3-011).
+
+    Expected: "now" for an away vehicle and a start while it is away name the plate the student
+    knows (PRIVATE-9), never the internal vehicle ID (V-AWAY).
+    """
+    core, clock, service = _setup()
+    _add_away_vehicle(core, plate="PRIVATE-9")
+
+    now = service.submit_charging_request("R-NOW", "V-AWAY", "H1", STUDENT, target_soc=80.0)
+    assert isinstance(now, ChargingError)
+    assert "Vehicle PRIVATE-9 is not parked at Hub H1" in now.message
+    assert "V-AWAY" not in now.message
+
+    booked = service.submit_charging_request(
+        "R-AWAY", "V-AWAY", "H1", STUDENT, target_soc=80.0, start_at=T0 + timedelta(minutes=30)
+    )
+    assert isinstance(booked, Ok)
+    clock.advance(timedelta(minutes=30))
+    start = service.start_scheduled_session("R-AWAY", STUDENT)
+    assert isinstance(start, ChargingError)
+    assert "Vehicle PRIVATE-9 is not parked at Hub H1" in start.message
+    assert "V-AWAY" not in start.message

@@ -38,10 +38,12 @@
   </fieldset>
   <p data-scenario="SC-01">
     <label>Surge multiplier <input name="surge_multiplier" value="{{ value('surge_multiplier', '1.5') }}" size="5"> × (1 to 5)</label>
-    <label>Surge duration <input name="duration_minutes" value="{{ value('duration_minutes', '60') }}" size="5"> min</label>
   </p>
   <p data-scenario="SC-02">
     <label>Returns arriving <input name="incoming_return_rate" value="{{ value('incoming_return_rate', '6') }}" size="5"> per 10 min</label>
+  </p>
+  <p data-scenario="SC-01 SC-02">
+    <label>Duration <input name="duration_minutes" value="{{ value('duration_minutes', '60') }}" size="5"> min (surge or returns)</label>
   </p>
   <p data-scenario="SC-03 SC-04">
     <label>Charge below <input name="soc_threshold" value="{{ value('soc_threshold', '20') }}" size="5"> %</label>
@@ -97,7 +99,7 @@
 <section class="card">
   <h2>Result · {{ scenario_names.get(result.scenario_id, result.scenario_id) }}</h2>
   <p class="note">
-    Snapshot {{ result.snapshot_id }} taken {{ result.executed_at | ict }} · simulation {{ result.simulation_id }}
+    Snapshot {{ result.snapshot_id }} taken {{ result.executed_at | ict }} · simulation {{ result.simulation_id }} · random seed {{ result.random_seed }}
   </p>
   <div class="compare">
     <p>{{ result.metric_name }}, do nothing<strong>{{ result.baseline_shortage_rate_pct }}%</strong></p>

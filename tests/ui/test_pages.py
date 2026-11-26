@@ -716,7 +716,7 @@ def test_student_reserves_and_cancels_a_vehicle(student, app):
 
     Verifies: FR-03, FR-04, UC-M2-02, UC-M2-03
     Expected: after Confirm, S5 shows RENT-1 as Reserved; after Cancel it is listed under
-    "Earlier bookings" as CANCELLED.
+    "Earlier bookings" as Cancelled, from H01, with the day it was booked.
     """
     response = reserve(student, app)
 
@@ -727,14 +727,15 @@ def test_student_reserves_and_cancels_a_vehicle(student, app):
     response = student.post(f"/ui/student/bookings/{reservation_id}/cancel")
 
     assert "Earlier bookings" in response.text
-    assert "RENT-1 · CANCELLED" in response.text and reservation_id in response.text
+    assert "RENT-1 · Cancelled · from H01 · booked " in response.text
+    assert reservation_id in response.text
 
 
 def test_student_picks_up_and_returns_a_vehicle(student, app):
     """TC-M7-029 · INT · S5 picks up a reserved vehicle and returns it to another Hub (M2).
 
     Verifies: FR-04, UC-M2-04, UC-M2-05
-    Expected: after pick-up the booking is In progress; after the return to H02 it is COMPLETED
+    Expected: after pick-up the booking is In progress; after the return to H02 it is Completed
     and V1 is parked at H02 in core.
     """
     html = reserve(student, app).text
@@ -749,7 +750,7 @@ def test_student_picks_up_and_returns_a_vehicle(student, app):
     back = {"destination_hub_id": "H02", "version": version}
     html = student.post(f"/ui/student/bookings/{reservation_id}/return", data=back).text
 
-    assert "RENT-1 · COMPLETED" in html
+    assert "RENT-1 · Completed" in html
     assert app.state.core.queries.get_vehicle("V1").value.hub_id == "H02"
 
 
@@ -873,8 +874,8 @@ def test_student_books_parking_arrives_and_leaves(student, app):
     """TC-M7-036 · INT · S6 books a space for the private EV, records arrival and departure.
 
     Verifies: FR-05, FR-07, UC-M2-06, UC-M2-07, UC-M2-08
-    Expected: Booked, then Parked at H02, then listed under "Earlier parking" as COMPLETED; a
-    second booking cancelled at once is CANCELLED.
+    Expected: Booked, then Parked at H02, then listed under "Earlier parking" as Completed; a
+    second booking cancelled at once is Cancelled.
     """
     private_ev_away(app)
     form = {"vehicle_id": "P1", "hub_id": "H02", "when": "now", "duration_minutes": "60"}
@@ -889,11 +890,11 @@ def test_student_books_parking_arrives_and_leaves(student, app):
     version = re.search(r'name="version" value="(\d+)"', html).group(1)
     html = student.post(f"/ui/student/parking/{parking_id}/depart", data={"version": version}).text
 
-    assert "EV-1 · H02 · COMPLETED" in html
+    assert "EV-1 · H02 · Completed" in html
     html = student.post("/ui/student/parking", data=form).text
     second = re.search(r"Booking (PK-\w+)", html).group(1)
     html = student.post(f"/ui/student/parking/{second}/cancel").text
-    assert "EV-1 · H02 · CANCELLED" in html
+    assert "EV-1 · H02 · Cancelled" in html
 
 
 def test_student_changes_and_cancels_a_charging_request(student):
@@ -901,7 +902,8 @@ def test_student_changes_and_cancels_a_charging_request(student):
 
     Verifies: FR-06, FR-07, UC-M3-03
     Expected: the request is listed as Booked with its day and time; after "Change time" the new
-    start is listed; after "Cancel" the request is CANCELLED; the Start field is for a later time.
+    start is listed; after "Cancel" the request is listed as Cancelled; the Start field is for a
+    later time.
     """
     start = (datetime.now(UTC) + timedelta(hours=3)).astimezone(routes.ICT)
     form = {
@@ -922,7 +924,7 @@ def test_student_changes_and_cancels_a_charging_request(student):
     assert 'class="error-block"' not in html and later.strftime("%H:%M") in html
 
     html = student.post(f"/ui/student/charging/{request_id}/cancel").text
-    assert "CANCELLED" in html
+    assert "· Cancelled ·" in html
 
 
 def test_overview_filters_by_zone_and_status(operator):
@@ -961,7 +963,7 @@ def test_operator_controls_vehicles_points_and_the_hub(operator, app):
         assert core.queries.get_vehicle("V2").value.state in states
     assert not core.queries.get_vehicle("V2").value.fault_flag
     html = operator.get("/ui/operator/hubs/H01", params={"vehicle": "V2"}).text
-    assert "Last changes of V2" in html and "AVAILABLE → MAINTENANCE" in html
+    assert "Last changes of RENT-2" in html and "AVAILABLE → MAINTENANCE" in html
 
     def cp01():
         points = core.queries.list_charging_points("H01")
@@ -1156,7 +1158,7 @@ def test_student_charges_now_and_finishes_on_s8(student, app):
     assert "● Charging</span> at point <strong>H01-CP02" in html
 
     html = student.post(f"/ui/student/charging/{request_id}/finish").text
-    assert 'class="error-block"' not in html and "COMPLETED" in html
+    assert 'class="error-block"' not in html and "· Completed ·" in html
     assert app.state.core.queries.get_vehicle("P1").value.state.value == "AVAILABLE"
 
 
@@ -1313,3 +1315,125 @@ def test_operator_moves_vehicles_with_a_task_of_their_own(operator, student):
     same = operator.post("/ui/operator/dispatch/manual", data={**form, "target_hub_id": "H01"})
     assert 'class="error-block"' in same.text
     assert student.post("/ui/operator/dispatch/manual", data=form).status_code == 403
+
+
+def test_a_point_in_use_cannot_be_set_available_in_o2(operator, student, app):
+    """TC-M7-051 · DT · O2 never frees a charging point that M3 is charging on (DEF-M7-009).
+
+    Verifies: FR-09, UC-M7-02, UC-M3-08, NFR-21
+    Expected: with P1 charging on H01-CP02, O2 offers no AVAILABLE for that point and selects
+    nothing; sending AVAILABLE is refused (FORBIDDEN) and an unknown value is refused
+    (INVALID_INPUT), and the point and the session stay CHARGING; OUT_OF_SERVICE stops it.
+    """
+    core = app.state.core
+    form = {"vehicle_id": "P1", "hub_id": "H01", "when": "now", "duration_minutes": "60"}
+    assert "● Charging</span>" in student.post("/ui/student/charging", data=form).text
+
+    def cp02():
+        points = core.queries.list_charging_points("H01")
+        return next(p for p in points if p.charging_point_id == "H01-CP02")
+
+    assert cp02().status == "CHARGING"
+    html = operator.get("/ui/operator/hubs/H01").text
+    row = html[html.index("<td>H01-CP02</td>") :]
+    row = row[: row.index("</tr>")]
+    assert '<option value="" selected disabled>CHARGING: choose a status to stop it' in row
+    assert 'value="AVAILABLE"' not in row and "required" in row
+
+    def post(status):
+        data = {"status": status, "version": cp02().version}
+        return operator.post("/ui/operator/hubs/H01/points/H01-CP02", data=data)
+
+    freed = post("AVAILABLE")
+    assert freed.status_code == 400 and "Details: FORBIDDEN" in freed.text
+    unknown = post("")
+    assert unknown.status_code == 400 and "Details: INVALID_INPUT" in unknown.text
+    assert cp02().status == "CHARGING"
+    assert core.queries.get_vehicle("P1").value.state.value == "CHARGING"
+
+    assert 'class="error-block"' not in post("OUT_OF_SERVICE").text
+    assert cp02().status == "OUT_OF_SERVICE"
+    assert core.queries.get_vehicle("P1").value.state.value != "CHARGING"
+
+
+def test_screens_show_codes_and_words_people_know(operator, student, app):
+    """TC-M7-052 · UX · Screens use plates, login codes and words, and phone tap targets are 44 px
+    (DEF-M7-010).
+
+    Verifies: UC-M2-03, UC-M7-02, NFR-21
+    Expected: S3 says the battery floor of its count; O2 marks a vehicle in MAINTENANCE as a
+    fault and its history names RENT-2 and the operator's login code OP-1 (ui), also when opened
+    from another Hub's page; the phone
+    block makes the brand and the "< Back" links 44 px high.
+    """
+    html = student.get("/ui/student/hubs/H01/vehicles").text
+    assert "with at least 20% battery you can reserve now" in html
+    assert re.search(r'<a class="back" href="[^"]*/ui/student/hubs">&lt; Hubs</a>', html)
+
+    version = app.state.core.queries.get_vehicle("V2").value.version
+    operator.post("/ui/operator/hubs/H01/vehicles/V2/report_fault", data={"version": version})
+    html = operator.get("/ui/operator/hubs/H01", params={"vehicle": "V2"}).text
+    row = html[html.index("<td>RENT-2</td>") :]
+    assert "MAINTENANCE</td>" in row[: row.index("</tr>")]
+    assert "✖ yes" in row[: row.index("</tr>")]
+    assert "Last changes of RENT-2" in html and f"by {OPERATOR[0]} (ui)" in html
+    elsewhere = operator.get("/ui/operator/hubs/H02", params={"vehicle": "V2"}).text
+    assert "Last changes of RENT-2" in elsewhere
+
+    css = student.get("/ui/static/app.css").text
+    phone = css[css.index("@media (max-width: 640px)") :]
+    rule = ".site-header .brand, a.back { display: inline-flex; align-items: center; "
+    assert rule + "min-height: 44px; }" in phone
+
+
+def test_the_lab_shows_the_seed_and_the_sc02_duration(operator, monkeypatch):
+    """TC-M7-053 · UX · O6 shows the random seed with the result and the duration for SC-02
+    (DEF-M7-011).
+
+    Verifies: FR-12, UC-M7-09, NFR-13
+    Expected: the Duration field belongs to SC-01 and SC-02 and its value is sent with SC-02;
+    no time step is sent (M6 does not use it); the result names the seed M6 used (7, or 42
+    when the field is left empty), and the exported JSON carries it.
+    """
+    report = {
+        "simulation_id": "SIM-SEED",
+        "scenario_id": "SCENARIO_02_HUB_AT_CAPACITY",
+        "snapshot_id": "SNAP-1",
+        "executed_at": datetime.now(UTC).isoformat(),
+        "metric_name": "Rejected returns",
+        "baseline_shortage_rate_pct": 30.0,
+        "mitigated_shortage_rate_pct": 10.0,
+        "hub_metrics": [],
+        "mitigated_hub_metrics": [],
+        "recommendations": [],
+    }
+    sent: dict[str, object] = {}
+    real_call = routes.call
+
+    def call(request, method, path, **options):
+        if path == "/simulation/runs":
+            sent.update(options["json"])
+            return 200, {**report, "random_seed": int(options["json"]["random_seed"])}
+        return real_call(request, method, path, **options)
+
+    monkeypatch.setattr(routes, "call", call)
+    html = operator.get("/ui/operator/simulation").text
+    assert 'name="time_step_minutes"' not in html
+    before = html[: html.index('name="duration_minutes"')]
+    assert before.rsplit("data-scenario=", 1)[1].startswith('"SC-01 SC-02"')
+
+    form = {
+        "scenario": "SC-02",
+        "target_hub_ids": "H01",
+        "duration_minutes": "90",
+        "random_seed": "7",
+    }
+    html = operator.post("/ui/operator/simulation", data=form).text
+    assert sent["duration_minutes"] == "90" and sent["random_seed"] == "7"
+    assert "time_step_minutes" not in sent
+    assert "· random seed 7" in html
+
+    monkeypatch.undo()  # a real run in M6 with the seed field left empty
+    form = {"scenario": "SC-01", "target_hub_ids": "H01", "random_seed": ""}
+    html = operator.post("/ui/operator/simulation", data=form).text
+    assert "· random seed 42" in html and "%22random_seed%22%3A%2042" in html
