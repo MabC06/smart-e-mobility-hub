@@ -86,6 +86,9 @@ markers = [
     "tc_m4_032: TC-M4-032 (docs/testing/test-cases/allocation.md)",
     "tc_m4_033: TC-M4-033 reject a recommended task (UC-M4-02)",
     "tc_m4_034: TC-M4-034 task from a simulation recommendation (FR-12, UC-M7-10)",
+    "tc_m4_035: TC-M4-035 capacity relief of a near-full Hub (FR-10.2, FR-10.7)",
+    "tc_m4_036: TC-M4-036 a full Hub is a source, never a destination (FR-10, BR-M4-04)",
+    "tc_m4_037: TC-M4-037 task created by the operator (FR-10.4, UC-M4-02)",
 ]
 
 [tool.ruff]

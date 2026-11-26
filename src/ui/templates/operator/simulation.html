@@ -11,7 +11,9 @@
 {% block content %}
 {% set chosen = form.get("scenario", "SC-01") %}
 {% macro value(name, default) %}{{ form.get(name, default) }}{% endmacro %}
-{% macro hub_boxes(field, checked) %}
+{# A list field shows what was sent with the last run; its defaults only before the first run. #}
+{% macro hub_boxes(field, defaults) %}
+  {% set checked = form[field] if field in form else defaults %}
   {% for hub in hubs %}
   <label><input type="checkbox" name="{{ field }}" value="{{ hub.hub_id }}"{% if hub.hub_id in checked %} checked{% endif %}> {{ hub.hub_id }}</label>
   {% endfor %}
@@ -50,8 +52,9 @@
   </p>
   <fieldset data-scenario="SC-04">
     <legend>Failed charging points (SC-04; the defaults fail every point of {{ points[0].hub_id }})</legend>
+    {% set failed = form.get("failed_charging_point_ids") %}
     {% for point in points %}
-    <label><input type="checkbox" name="failed_charging_point_ids" value="{{ point.charging_point_id }}"{% if point.hub_id == points[0].hub_id %} checked{% endif %}> {{ point.charging_point_id }}</label>
+    <label><input type="checkbox" name="failed_charging_point_ids" value="{{ point.charging_point_id }}"{% if (failed is none and point.hub_id == points[0].hub_id) or (failed is not none and point.charging_point_id in failed) %} checked{% endif %}> {{ point.charging_point_id }}</label>
     {% endfor %}
   </fieldset>
   <p data-scenario="SC-04">
@@ -141,7 +144,9 @@
     {% for decision, label, style in (("approve", "Approve: send to Dispatch", "button primary"), ("reject", "Reject", "button")) %}
     <form class="inline" action="{{ url_for('simulation_decide') }}" method="post">
       <input type="hidden" name="result_json" value="{{ result_json }}">
-      <input type="hidden" name="decisions_json" value="{{ decisions | tojson }}">
+      {# tojson leaves double quotes as they are, so the attribute is single-quoted (Jinja docs) #}
+      <input type="hidden" name="decisions_json" value='{{ decisions | tojson }}'>
+      <input type="hidden" name="form_json" value='{{ form | tojson }}'>
       <input type="hidden" name="index" value="{{ i }}">
       <input type="hidden" name="decision" value="{{ decision }}">
       <button class="{{ style }}" type="submit">{{ label }}</button>

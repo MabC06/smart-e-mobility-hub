@@ -75,6 +75,9 @@ Technique abbreviations follow `docs/testing/test-technique-assignment.md`:
 | TC-M4-032 / `tc_m4_032` | `test_api.py`, `test_review.py` | NFR-16, D-023 | SEC | Every allocation endpoint returns HTTP 403 `FORBIDDEN` for student bearer tokens and allows authenticated operator tokens via `acting_as(principal, "allocation")`. |
 | TC-M4-033 / `tc_m4_033` | `test_api.py` | FR-10, UC-M4-02, BR-M4-08 | ST | `POST /allocation/tasks/{id}/reject` turns a RECOMMENDED task into REJECTED with the reason; a repeat returns it; an APPROVED task is 409 and an unknown task 404. |
 | TC-M4-034 / `tc_m4_034` | `test_api.py` | FR-10, FR-12, UC-M7-10, BR-M4-08 | INT | `POST /allocation/tasks/from-recommendation` makes a RECOMMENDED `TASK-SIM-` task with the best-battery vehicles of the source (at most the quantity); the same ID returns it; a new plan keeps it; a bad ID or equal Hubs are refused and a source with nothing to dispatch is 503. |
+| TC-M4-035 / `tc_m4_035` | `test_planner.py` | FR-10.2, FR-10.3, FR-10.7, BR-M4-04, BR-M4-05, BR-M5-01 | DT | No Hub is short; H01 holds 19 of 20 spaces (95 %): one task H01 → H02 of 5 vehicles, priority 2, reason "Relieve parking at H01: 1 free of 20…". At 85 % nothing is planned. |
+| TC-M4-036 / `tc_m4_036` | `test_planner.py` | FR-10.2, FR-10.7, BR-M4-04, BR-M1-02 | DT | A full H01 (CRITICAL) sends vehicles; a full and short H03 receives none; each destination keeps its buffer and stays below 90 %. |
+| TC-M4-037 / `tc_m4_037` | `test_api.py` | FR-10.4, UC-M4-02, BR-M4-08 | INT | `POST /allocation/tasks/manual` makes a RECOMMENDED `TASK-OPS-` task with the default reason; a new plan keeps it; Approve succeeds; a `TASK-SIM-` ID, equal Hubs or quantity 0 are refused. |
 
 ## Execution record
 
@@ -82,3 +85,4 @@ Technique abbreviations follow `docs/testing/test-technique-assignment.md`:
 |---|---|---|---|
 | 2026-11-17 | `python -m pytest --strict-markers -q tests/allocation/ --cov=allocation --cov-report=term-missing` | 93 passed (32/32 `TC-M4-###` markers verified, 0 untagged) | 92% (779 stmts, 66 missed; NFR-24 minimum 60%) |
 | 2026-11-25 (M1, branch `feat/backend-planned-gaps`) | `python -m pytest -q tests/allocation --cov=allocation` | 95 passed (TC-M4-033, TC-M4-034 added) | 91.72% (845 stmts, 70 missed) |
+| 2026-11-26 (M1, branch `fix/ui-simulation-decide`) | `python -m pytest -q tests/allocation --cov=allocation` | 98 passed (TC-M4-035 to TC-M4-037 added) | 92% (901 stmts, 72 missed) |

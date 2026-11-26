@@ -2,7 +2,8 @@
   O4. Dispatch (wireframes-operator.md), UC-M7-05, UC-M7-06. Tasks of M4 with the actions their
   status allows: Approve (the quantity can only be lowered) or Reject on RECOMMENDED, pick-up on
   APPROVED, delivery on IN_PROGRESS, Cancel on APPROVED and IN_PROGRESS. Open tasks come first.
-  Tasks named TASK-SIM-... came from a Simulation Lab recommendation. The settings are M4's
+  Tasks named TASK-SIM-... came from a Simulation Lab recommendation, TASK-OPS-... from the form
+  "Move vehicles yourself" (POST /allocation/tasks/manual). The settings are M4's
   (GET/PUT /allocation/config, UC-M4-09).
 #}
 {% extends "base.html" %}
@@ -24,6 +25,40 @@
     <button class="button primary" type="submit">Update recommendations</button>
   </form>
 </div>
+
+<details>
+  <summary>Move vehicles yourself</summary>
+  <form action="{{ url_for('dispatch_manual') }}" method="post">
+    <div class="settings">
+      <label>From
+        <select name="source_hub_id" required>
+          {% for hub in hubs %}
+          <option value="{{ hub.hub_id }}"{% if loop.first %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }} · {{ hub.status.value }} · {{ hub.available_vehicles }} vehicles, {{ hub.free_spaces }} free</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>To
+        <select name="target_hub_id" required>
+          {% for hub in hubs %}
+          <option value="{{ hub.hub_id }}"{% if loop.index == 2 %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }} · {{ hub.status.value }} · {{ hub.free_spaces }} free</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Vehicles
+        <span><input type="number" name="quantity" value="5" min="1" max="{{ config.max_vehicles_per_task }}" size="4"> at most {{ config.max_vehicles_per_task }}</span>
+      </label>
+      <label>Type
+        <select name="vehicle_type">
+          <option value="">the most numerous</option>
+          {% for t in vehicle_types %}<option value="{{ t.value }}">{{ t | type_label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Reason <input name="reason" placeholder="e.g. H01 nearly full" size="24"></label>
+    </div>
+    <p><button class="button primary" type="submit">Create task</button>
+    <span class="note">The task is RECOMMENDED; Approve checks the vehicles and the destination's free spaces again.</span></p>
+  </form>
+</details>
 
 <div class="card-grid">
 {% for task in tasks %}
@@ -62,7 +97,7 @@
   </div>
 </section>
 {% else %}
-<p>No task{% if status %} with status {{ status }}{% endif %}. "Update recommendations" asks M4 to plan, and the Simulation Lab can send one.</p>
+<p>No task{% if status %} with status {{ status }}{% endif %}. "Update recommendations" asks M4 to plan, "Move vehicles yourself" makes one, and the Simulation Lab can send one.</p>
 {% endfor %}
 </div>
 

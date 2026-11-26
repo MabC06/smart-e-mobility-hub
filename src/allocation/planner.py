@@ -9,6 +9,7 @@ It produces deterministic outputs without reading external clocks (NFR-13, D-003
 """
 
 from dataclasses import dataclass
+from math import ceil
 
 from core.domain.enums import Ownership, VehicleState, VehicleType
 
@@ -44,6 +45,8 @@ class HubStateView:
     free_spaces: int
     vehicles: list[HubVehicleInfo]
     demand: HubDemandInfo = HubDemandInfo()
+    capacity: int = 0  # parking spaces; 0 leaves the Hub out of capacity relief
+    accepts_vehicles: bool = True  # False for a full (CRITICAL) Hub: a source, never a destination
 
 
 def plan_redistribution(
@@ -51,6 +54,7 @@ def plan_redistribution(
     active_tasks: list[DispatchTask],
     config: AllocationConfig | None = None,
     slot_id: str = "slot1",
+    near_capacity_pct: float = 90.0,
 ) -> list[DispatchTask]:
     """Execute Algorithm A to propose vehicle redistribution tasks.
 
@@ -59,6 +63,8 @@ def plan_redistribution(
     2. Sort destinations by urgency descending, then hub_id.
     3. Greedily match with closest surplus sources.
     4. Propose Recommended DispatchTask instances with deterministic keys.
+    5. Capacity relief: a Hub at or above ``near_capacity_pct`` sends vehicles to the nearest
+       Hubs that stay below it, even when no Hub is short (FR-10.2, FR-10.7, BR-M5-01).
     """
     cfg = config or default_config()
 
@@ -129,7 +135,8 @@ def plan_redistribution(
             urgency[h.hub_id] = (h_need / denom) if denom > 0 else 0.0
 
         # Step 4.2.3: Sort destinations by urgency (descending), then hub_id
-        deficit_hubs = [hid for hid, n in need.items() if n > 0]
+        accepting = {h.hub_id for h in hubs if h.accepts_vehicles}
+        deficit_hubs = [hid for hid, n in need.items() if n > 0 and hid in accepting]
         deficit_hubs.sort(key=lambda hid: (-urgency[hid], hid))
 
         # Step 4.2.4: Greedily match with sources
@@ -221,6 +228,118 @@ def plan_redistribution(
                 hub_active_task_count[source_id] = hub_active_task_count.get(source_id, 0) + 1
                 hub_active_task_count[dest_id] = hub_active_task_count.get(dest_id, 0) + 1
 
+    task_counter = _plan_capacity_relief(
+        hubs,
+        cfg,
+        slot_id,
+        near_capacity_pct,
+        current_free_spaces,
+        current_assigned_vehicles,
+        hub_active_task_count,
+        proposed_tasks,
+        task_counter,
+    )
+
     # Return sorted by priority, then task_id (Step 4.2.5)
     proposed_tasks.sort(key=lambda t: (t.priority, t.task_id))
     return proposed_tasks
+
+
+def _plan_capacity_relief(
+    hubs: list[HubStateView],
+    cfg: AllocationConfig,
+    slot_id: str,
+    near_capacity_pct: float,
+    free: dict[str, int],
+    assigned: set[str],
+    task_count: dict[str, int],
+    proposed: list[DispatchTask],
+    task_counter: int,
+) -> int:
+    """Step 5: move vehicles out of Hubs at or above the near-capacity threshold.
+
+    The deficit matching above only moves vehicles towards a Hub that is short, so a Hub that
+    fills up stays full when no Hub is short. Here every such Hub (most crowded first) sends
+    fleet vehicles until it is ``parking_buffer`` spaces below the threshold. A destination is
+    the nearest Hub that accepts vehicles and stays below the threshold and above its buffer
+    after the move (BR-M4-04). The source keeps ``F_out + S`` vehicles of each type (BR-M4-05).
+    Returns the next task number.
+    """
+    vehicle_types = [VehicleType.E_BIKE, VehicleType.E_SCOOTER, VehicleType.E_MOTORCYCLE]
+
+    def occupied(h: HubStateView) -> int:
+        return h.capacity - free[h.hub_id]
+
+    def warn_level(h: HubStateView) -> int:
+        """The number of occupied spaces at which the Hub is near capacity."""
+        return ceil(h.capacity * near_capacity_pct / 100)
+
+    crowded = sorted(
+        (h for h in hubs if h.capacity > 0 and occupied(h) >= warn_level(h)),
+        key=lambda h: (-occupied(h) / h.capacity, h.hub_id),
+    )
+    for src in crowded:
+        to_move = occupied(src) - (warn_level(src) - 1 - cfg.parking_buffer)
+        keep = src.demand.expected_pickups + cfg.safety_stock
+        movable: dict[VehicleType, list[HubVehicleInfo]] = {}
+        for v_type in vehicle_types:
+            fit = sorted(
+                (
+                    v
+                    for v in src.vehicles
+                    if v.vehicle_type == v_type
+                    and v.ownership == Ownership.FLEET
+                    and v.state == VehicleState.AVAILABLE
+                    and v.battery_level >= cfg.min_dispatch_battery
+                    and not v.is_reserved_soon
+                    and v.vehicle_id not in assigned
+                ),
+                key=lambda v: (-v.battery_level, v.vehicle_id),
+            )
+            movable[v_type] = fit[: max(0, len(fit) - keep)]
+        destinations = sorted(
+            (d for d in hubs if d.hub_id != src.hub_id and d.accepts_vehicles and d.capacity > 0),
+            key=lambda d: (cfg.get_closeness(src.hub_id, d.hub_id), -free[d.hub_id], d.hub_id),
+        )
+        for dest in destinations:
+            if to_move <= 0 or task_count.get(src.hub_id, 0) >= cfg.max_tasks_per_hub:
+                break
+            if task_count.get(dest.hub_id, 0) >= cfg.max_tasks_per_hub:
+                continue
+            room = min(
+                free[dest.hub_id] - cfg.parking_buffer - dest.demand.expected_returns,
+                warn_level(dest) - 1 - occupied(dest),
+            )
+            if room <= 0:
+                continue
+            v_type = max(vehicle_types, key=lambda t: (len(movable[t]), -vehicle_types.index(t)))
+            chosen = movable[v_type][: min(to_move, room, cfg.max_vehicles_per_task)]
+            if not chosen:
+                break
+            q = len(chosen)
+            movable[v_type] = movable[v_type][q:]
+            assigned.update(v.vehicle_id for v in chosen)
+            proposed.append(
+                DispatchTask(
+                    task_id=f"TASK-{slot_id}-{task_counter:03d}",
+                    source_hub_id=src.hub_id,
+                    target_hub_id=dest.hub_id,
+                    vehicle_type=v_type,
+                    quantity=q,
+                    vehicle_ids=",".join(v.vehicle_id for v in chosen),
+                    status=DispatchTaskStatus.RECOMMENDED,
+                    priority=2,
+                    reason=(
+                        f"Relieve parking at {src.hub_id}: {free[src.hub_id]} free of "
+                        f"{src.capacity} (near capacity at {near_capacity_pct:g}%); "
+                        f"{dest.hub_id} has {free[dest.hub_id]} free"
+                    ),
+                )
+            )
+            task_counter += 1
+            to_move -= q
+            free[src.hub_id] += q
+            free[dest.hub_id] -= q
+            task_count[src.hub_id] = task_count.get(src.hub_id, 0) + 1
+            task_count[dest.hub_id] = task_count.get(dest.hub_id, 0) + 1
+    return task_counter

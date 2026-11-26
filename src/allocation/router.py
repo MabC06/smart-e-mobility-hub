@@ -55,6 +55,15 @@ class RecommendationTaskIn(BaseModel):
     reason: str = ""
 
 
+class OperatorTaskIn(BaseModel):
+    task_id: str = Field(..., pattern=r"^TASK-OPS-[A-Za-z0-9_-]{1,80}$")
+    source_hub_id: str
+    target_hub_id: str
+    quantity: int = Field(..., ge=1)
+    vehicle_type: VehicleType | None = None
+    reason: str = ""
+
+
 class DisplacedRequestIn(BaseModel):
     request_id: str
     details: str = ""
@@ -238,6 +247,36 @@ def create_allocation_router(
         reason = body.reason if body else ""
         t = _handle_result(service.reject_task(task_id, actor, reason))
         return {"task_id": t.task_id, "status": t.status.value, "reason": t.reason}
+
+    @router.post("/tasks/manual")
+    def task_by_operator(
+        body: OperatorTaskIn,
+        principal: Annotated[Principal, Depends(require_operator)],
+    ) -> dict[str, Any]:
+        """Make a RECOMMENDED task the operator chose in O4 (FR-10.4, UC-M4-02).
+
+        The task is checked again when it is approved, like any other task.
+        """
+        t = _handle_result(
+            service.task_from_recommendation(
+                body.task_id,
+                body.source_hub_id,
+                body.target_hub_id,
+                body.quantity,
+                body.reason,
+                body.vehicle_type,
+            )
+        )
+        return {
+            "task_id": t.task_id,
+            "source_hub_id": t.source_hub_id,
+            "target_hub_id": t.target_hub_id,
+            "vehicle_type": t.vehicle_type.value,
+            "quantity": t.quantity,
+            "assigned_vehicles": t.assigned_vehicles,
+            "status": t.status.value,
+            "reason": t.reason,
+        }
 
     @router.post("/tasks/from-recommendation")
     def task_from_recommendation(

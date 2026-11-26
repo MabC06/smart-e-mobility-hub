@@ -103,6 +103,17 @@ Closeness (lower is nearer): H05-H08 = 1, H03-H01 = 1, H05-H01 = 2, H03-H08 = 3.
 
 Checks: H05 keeps `26 - 7 = 19 >= 8 + 3 = 11` (BR-M4-05). H03 keeps `27 - 4 = 23 >= 20 + 3 = 23`, exactly at the boundary, which is a good boundary test. Destination spaces after the move stay at or above the buffer (BR-M4-04, BR-M1-02).
 
+### 4.3a Capacity relief (added 2026-11-26)
+
+Steps 1 to 5 move vehicles only towards a Hub that is short, so a Hub that fills up stayed full when no Hub was short, and a full (CRITICAL) Hub was left out of planning altogether. Two rules close this gap (FR-10.2, FR-10.7):
+
+- A CRITICAL Hub stays in the plan as a source, never as a destination. A Hub in maintenance stays out.
+- 6. After step 5, each Hub with `occupied >= ceil(capacity * T / 100)`, where `T` is core's near-capacity threshold (90 %, BR-M5-01), most crowded first, sends fleet vehicles until it is `B` spaces below the threshold. Destinations are the nearest Hubs that accept vehicles, ties broken by more free spaces, then Hub ID. A destination takes at most `min(P_free(d) - B - F_in(d), threshold - 1 - occupied(d))`, so it stays above its buffer and below the threshold. The source keeps `F_out + S` vehicles of each type (BR-M4-05), one type per task (the most numerous), at most the per-task maximum. These tasks have priority 2 and the reason `Relieve parking at <Hub>: <free> free of <capacity> …`.
+
+Example on DS-STD: H01 (70 spaces) with 6 free is at 91 %; the plan adds H01 → H02, 5 vehicles, which leaves H01 with 11 free. Tests: TC-M4-035, TC-M4-036.
+
+The operator can also create a task directly in O4 ("Move vehicles yourself", `POST /allocation/tasks/manual`, ID `TASK-OPS-…`). It is RECOMMENDED like a planned task, a new plan keeps it, and approval repeats every check of 4.4 (TC-M4-037).
+
 ### 4.4 Approval and commit
 
 The plan can be minutes old, so approval repeats the checks on current Hub and vehicle state and then places `HolderKind.DISPATCH_TASK` claims on the vehicles and destination spaces through Core in one atomic unit of work (NFR-09, BR-M4-04, BR-M1-01, D-017). If a competing claim was committed first, nothing is claimed and the task becomes `Failed` (NFR-06). Timeouts use the injectable clock (D-005).

@@ -362,3 +362,32 @@ def test_a_simulation_recommendation_becomes_a_task(client: TestClient) -> None:
         assert response.status_code in (400, 422)
     empty = {**body, "task_id": "TASK-SIM-X2", "source_hub_id": "H02", "target_hub_id": "H01"}
     assert client.post("/allocation/tasks/from-recommendation", json=empty).status_code == 503
+
+
+@pytest.mark.tc_m4_037
+def test_the_operator_creates_a_task(client: TestClient) -> None:
+    """TC-M4-037 · INT · Verifies: FR-10.4, UC-M4-02, BR-M4-08.
+
+    Expected: a TASK-OPS- task is RECOMMENDED with the best-battery vehicles and a default
+    reason, a new plan keeps it and Approve checks it like any task; a TASK-SIM- ID, equal Hubs
+    or a zero quantity are refused.
+    """
+    body = {"task_id": "TASK-OPS-1", "source_hub_id": "H01", "target_hub_id": "H02", "quantity": 2}
+    created = client.post("/allocation/tasks/manual", json=body)
+    assert created.status_code == 200
+    task = created.json()
+    assert task["status"] == "RECOMMENDED" and task["quantity"] == 2
+    assert task["reason"] == "Created by the operator"
+
+    client.post("/allocation/tasks/plan", json={"slot_id": "again"})
+    assert client.get("/allocation/tasks/TASK-OPS-1").json()["status"] == "RECOMMENDED"
+    approved = client.post("/allocation/tasks/TASK-OPS-1/approve", json={})
+    assert approved.status_code == 200 and approved.json()["status"] == "APPROVED"
+
+    for wrong in (
+        {"task_id": "TASK-SIM-1"},
+        {"task_id": "TASK-OPS-2", "target_hub_id": "H01"},
+        {"task_id": "TASK-OPS-3", "quantity": 0},
+    ):
+        response = client.post("/allocation/tasks/manual", json={**body, **wrong})
+        assert response.status_code in (400, 422), wrong

@@ -9,6 +9,7 @@ UX, INT), what it verifies and the expected result.
 import re
 from datetime import UTC, datetime, timedelta
 from html import unescape as html_unescape
+from html.parser import HTMLParser
 
 import pytest
 from fastapi.testclient import TestClient
@@ -1174,3 +1175,141 @@ def test_s3_says_one_rental_at_a_time(student, app):
     html = student.get("/ui/student/hubs/H01/vehicles").text
     assert "You already have a rental" in html and "/ui/student/bookings" in html
     assert 'type="submit" disabled>Reserve selected vehicle' in html
+
+
+class _HiddenFields(HTMLParser):
+    """The hidden fields of every form on a page, read the way a browser reads them."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.forms: list[dict[str, str]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "form":
+            self.forms.append({})
+        elif tag == "input" and values.get("type") == "hidden" and self.forms:
+            self.forms[-1][values.get("name") or ""] = values.get("value") or ""
+
+
+def test_both_recommendations_of_a_run_can_be_approved(operator, monkeypatch):
+    """TC-M7-048 · INT · O6 approves the second recommendation after the first.
+
+    Verifies: FR-12, UC-M7-10
+    Expected: after the first Approve the page still carries a readable decision list, so the
+    second Approve also reaches M4; both lines say "Sent to Dispatch as TASK-SIM-...".
+    """
+    rec = {
+        "recommendation_type": "VEHICLE_REDISTRIBUTION",
+        "source_hub_id": "H01",
+        "destination_hub_id": "H02",
+        "batch_size": 1,
+        "reason": "Demand surge shortage at H02",
+    }
+    report = {
+        "simulation_id": "SIM-TWO",
+        "scenario_id": "SCENARIO_01_DEMAND_SURGE",
+        "snapshot_id": "SNAP-1",
+        "executed_at": datetime.now(UTC).isoformat(),
+        "metric_name": "Vehicle shortage rate",
+        "baseline_shortage_rate_pct": 80.0,
+        "mitigated_shortage_rate_pct": 60.0,
+        "hub_metrics": [],
+        "mitigated_hub_metrics": [],
+        "recommendations": [rec, dict(rec)],
+    }
+    real_call = routes.call
+
+    def call(request, method, path, **options):
+        if path == "/simulation/runs":
+            return 200, dict(report)
+        return real_call(request, method, path, **options)
+
+    monkeypatch.setattr(routes, "call", call)
+    html = operator.post("/ui/operator/simulation", data={"scenario": "SC-01"}).text
+    for index in ("0", "1"):
+        page = _HiddenFields()
+        page.feed(html)
+        form = next(f for f in page.forms if f.get("index") == index and f["decision"] == "approve")
+        html = operator.post("/ui/operator/simulation/decide", data=form).text
+        assert 'class="error-block"' not in html, html_unescape(re.sub(r"<[^>]+>", " ", html))[:300]
+    assert len(re.findall(r"Sent to Dispatch as TASK-SIM-TWO-\d", html)) == 2
+
+
+def test_the_lab_form_shows_what_was_sent(operator, monkeypatch):
+    """TC-M7-049 · UX · O6 keeps the chosen scenario and ticked boxes after a run and a decision.
+
+    Verifies: FR-12, UC-M7-09, NFR-21
+    Expected: after running SC-05 with only H01 as source and H02 as destination, the form
+    shows SC-05 and exactly those boxes ticked; after Approve it still does.
+    """
+    report = {
+        "simulation_id": "SIM-FORM",
+        "scenario_id": "SCENARIO_05_VEHICLE_IMBALANCE",
+        "snapshot_id": "SNAP-1",
+        "executed_at": datetime.now(UTC).isoformat(),
+        "metric_name": "Vehicle shortage rate",
+        "baseline_shortage_rate_pct": 80.0,
+        "mitigated_shortage_rate_pct": 60.0,
+        "hub_metrics": [],
+        "mitigated_hub_metrics": [],
+        "recommendations": [
+            {
+                "recommendation_type": "VEHICLE_REDISTRIBUTION",
+                "source_hub_id": "H01",
+                "destination_hub_id": "H02",
+                "batch_size": 1,
+                "reason": "Imbalance",
+            }
+        ],
+    }
+    sent: dict[str, object] = {}
+    real_call = routes.call
+
+    def call(request, method, path, **options):
+        if path == "/simulation/runs":
+            sent.update(options["json"])
+            return 200, dict(report)
+        return real_call(request, method, path, **options)
+
+    def ticked(html: str, field: str) -> list[str]:
+        return re.findall(rf'name="{field}" value="(H\d\d)" checked', html)
+
+    monkeypatch.setattr(routes, "call", call)
+    form = {"scenario": "SC-05", "source_hub_ids": "H01", "destination_hub_ids": "H02"}
+    html = operator.post("/ui/operator/simulation", data=form).text
+    assert sent["source_hub_ids"] == ["H01"] and sent["destination_hub_ids"] == ["H02"]
+    assert '<option value="SC-05" selected>' in html
+    assert ticked(html, "source_hub_ids") == ["H01"]
+    assert ticked(html, "destination_hub_ids") == ["H02"]
+    assert ticked(html, "target_hub_ids") == []
+
+    fields = _HiddenFields()
+    fields.feed(html)
+    decide = next(f for f in fields.forms if f.get("decision") == "approve")
+    html = operator.post("/ui/operator/simulation/decide", data=decide).text
+    assert "Sent to Dispatch as TASK-SIM-FORM-1" in html
+    assert '<option value="SC-05" selected>' in html
+    assert ticked(html, "source_hub_ids") == ["H01"]
+    assert ticked(html, "destination_hub_ids") == ["H02"]
+
+
+def test_operator_moves_vehicles_with_a_task_of_their_own(operator, student):
+    """TC-M7-050 · INT · O4 "Move vehicles yourself" makes a RECOMMENDED task through M4.
+
+    Verifies: FR-10, UC-M4-02, UC-M7-06, NFR-16
+    Expected: O4 offers the form with every Hub; sending H01 to H02 with 1 vehicle lists a
+    TASK-OPS- task as RECOMMENDED with Approve; moving to the same Hub shows a refusal; a
+    student is refused (403).
+    """
+    html = operator.get("/ui/operator/dispatch").text
+    assert "Move vehicles yourself" in html and 'name="target_hub_id"' in html
+
+    form = {"source_hub_id": "H01", "target_hub_id": "H02", "quantity": "1", "reason": "test"}
+    html = operator.post("/ui/operator/dispatch/manual", data=form).text
+    task_id = re.search(r"(TASK-OPS-\w+) · H01 → H02 · RECOMMENDED", html).group(1)
+    assert f"/ui/operator/dispatch/{task_id}/approve" in html
+
+    same = operator.post("/ui/operator/dispatch/manual", data={**form, "target_hub_id": "H01"})
+    assert 'class="error-block"' in same.text
+    assert student.post("/ui/operator/dispatch/manual", data=form).status_code == 403
