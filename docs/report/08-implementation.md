@@ -39,7 +39,7 @@ Section 3.1 maps to code as one Python package per component under `src/`, wired
 | `iot_sim` | M8 | Sensor events and seed network (outside the system boundary, D-004) | 236 |
 | `main.py` | M1 | Composition root (D-013), settings, seeding | 316 |
 
-The sizes only show where the logic is; the tests (about 1,560) are in `tests/`, one folder per package.
+The sizes only show where the logic is; the tests (1,566) are in `tests/`, one folder per package.
 
 ### 4.2.2 Inside `core`
 

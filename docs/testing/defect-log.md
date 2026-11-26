@@ -1,6 +1,6 @@
 # Defect Log
 
-> **Status:** Final, 2026-11-26: 29 defects, 28 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
+> **Status:** Final, 2026-11-26: 35 defects, 34 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
 > Every member records the defects of their own module in their own block by 17/11 (`task-assignment-timeline.md`, Phase 4). M8 merges the summary into report section 5.6. A failed test is never changed to pass to close a defect (`test-plan-v1.md` section 8).
 
 ## 1. How to record a defect
@@ -25,13 +25,13 @@
 | Module | Found | Critical | High | Medium | Low | Closed | Open / Accepted |
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| M2 reservation | 3 | 0 | 2 | 1 | 0 | 3 | 0 |
-| M3 charging | 8 | 0 | 3 | 3 | 2 | 7 | 1 |
+| M2 reservation | 4 | 0 | 2 | 1 | 1 | 4 | 0 |
+| M3 charging | 10 | 0 | 3 | 4 | 3 | 9 | 1 |
 | M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
 | M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| M7 user interface | 3 | 0 | 0 | 1 | 2 | 3 | 0 |
-| **Total** | **29** | **0** | **7** | **9** | **13** | **28** | **1** |
+| M7 user interface | 6 | 0 | 0 | 2 | 4 | 6 | 0 |
+| **Total** | **35** | **0** | **7** | **11** | **17** | **34** | **1** |
 
 The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -53,6 +53,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M2-001 | Reopening SQLite could reuse persisted Core IDs and cause a valid pickup to fail | High | TC-M2-021 | D-022, FR-04, UC-M2-04, NFR-09 | Closed | The default Core generator resumes each prefix above the maximum persisted numeric suffix; injected generators retain their own behavior | PR #24, `e25578d`; D-022 released in PR #40 |
 | DEF-M2-002 | A booking nobody picked up never expired: `expire_due` had no caller, so the booking stayed Confirmed, kept its vehicle Reserved and blocked the student with LIMIT_REACHED | High | Demo on the seeded network, M1 (2026-11-25) | BR-M2-04, D-017, FR-03, UC-M2-03 | Closed | Every M2 route checks the student, then runs `RentalLifecycle.sweep()`, which expires due bookings first | PR #59, `0356fad`; TC-M2-028 |
 | DEF-M2-003 | No Trip was ever marked OVERDUE, so S5's late warning and BR-M2-15 never applied | Medium | Demo on the seeded network, M1 (2026-11-25) | BR-M2-15, FR-04, UC-M2-05 | Closed | The same sweep marks open Trips past due + 60 min as OVERDUE | PR #59, `0356fad`; TC-M2-029 |
+| DEF-M2-004 | Departing while the EV was charging showed only "Booking operation failed: INVALID_STATE." | Low | Demo review, M1 (2026-11-26) | FR-07, UC-M2-08, NFR-21 | Closed | The refusal says the EV is still charging and to finish charging first | branch `fix/demo-review`; TC-M2-033 |
 
 **DEF-M2-001** (High)
 - Steps: create and reserve V1 on a file-backed SQLite store; close it;
@@ -84,6 +85,8 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #51 |
 | DEF-M3-007 | `POST /charging/schedule/optimize` for one Hub takes more than 3 s when the queue holds 50 requests (NFR-04); within the limit at 15 queued per Hub (DS-STD load) | Medium | Integration, M8 (TC-M8-026, depth sweep) | NFR-04, FR-11.M3.2, UC-M3-07, TC-M8-026 | Accepted | See below | — |
 | DEF-M3-008 | A "charge now" request of a vehicle not standing in a bay stayed QUEUED while points were free; only the operator's Optimize or a point event bound it | Medium | Demo of S8, M1 (2026-11-25) | BR-M3-03, UC-M3-01, UC-M3-07 | Closed | The request routes bind the Hub's queue right after a request is queued, and after a cancel, finish or stop | PR #62, `d2f13ac`; TC-M3-039 |
+| DEF-M3-009 | A "charge now" request of an EV away from the Hub was accepted and bound to a bay, and Start then failed with core's text "event 'start_charging' is not allowed in state 'IN_USE'"; a session booked on another bay than the one the EV stood in could never start | Medium | Demo review, M1 (2026-11-26) | FR-06, FR-07, BR-M1-02, UC-M3-01, NFR-21 | Closed | "Now" is refused while the EV is not at the Hub, with what to do; Start says where the EV must be, and moves the session to the free bay the EV stands in | branch `fix/demo-review`; TC-M3-040 to TC-M3-042 |
+| DEF-M3-010 | A request for an EV already at or above its target showed "target_soc must exceed battery_pct." only | Low | Demo review, M1 (2026-11-26) | FR-06, NFR-21 | Closed | The message also gives the EV's battery level and says there is nothing to charge | branch `fix/demo-review` |
 
 **DEF-M3-002** (High)
 - Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
@@ -166,4 +169,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M7-001 | S3 listed fleet vehicles that M2 then refused (battery under 20 %), so a student could pick a vehicle that could not be rented | Medium | Demo on the seeded network, M1 (2026-11-25) | FR-02, BR-M2-02, UC-M2-01 | Closed | S3 shows M2's search (`GET /reservations/vehicles`), which applies the same eligibility rule as reserve | PR #59, PR #62; TC-M7-004, TC-M7-034 |
 | DEF-M7-002 | S6 and S8 showed bookings without their day, and the Start field could be typed in while "Now" was chosen | Low | Demo of S6 and S8, M1 (2026-11-26) | FR-05, FR-06, D-005 | Closed | Each booking shows its day, time and point; the Start field is disabled for "Now" | PR #62, `696fb0a`; TC-M7-037 |
 | DEF-M7-003 | Phone browsers kept an old stylesheet after an update, so the phone layout did not apply | Low | Phone check, M1 (2026-11-26) | D-027, NFR-21 | Closed | The page links `app.css?v=<file time>` | PR #63; TC-M7-045 |
+| DEF-M7-004 | S8 had no way for a student to end their own charging session, so the EV could not depart until an operator finished it | Medium | Demo review, M1 (2026-11-26) | FR-06, UC-M3-01, UC-M2-08 | Closed | S8 shows "Finish charging" for a running session (M3 already allows the owner) | branch `fix/demo-review`; TC-M7-046 |
+| DEF-M7-005 | S3 let a student with a live rental pick and reserve a vehicle, and only then refused it | Low | Demo review, M1 (2026-11-26) | BR-M2-03, NFR-21 | Closed | S3 shows the one-rental notice with a link to My bookings and disables the reserve button | branch `fix/demo-review`; TC-M7-047 |
+| DEF-M7-006 | O6's default inputs for SC-03 and SC-04 gave no impact and no recommendation, so the two scenarios showed nothing in a demo | Low | Demo review, M1 (2026-11-26) | FR-12, UC-M6-01 | Closed | Defaults: 30 extra drained vehicles for SC-03; every point of the first Hub fails for SC-04 | branch `fix/demo-review` |
 <!-- END M7: User Interface -->

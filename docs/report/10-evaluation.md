@@ -12,7 +12,7 @@
 | O-3 Efficient use of charging capacity | Met at the standard load | The queue ranks by emergency battery, a booking in the next hour, lowest battery, then request time (BR-M3-03); a queued request is bound as soon as a slot is free; a failed point moves its sessions (BR-M3-02); one Hub's schedule in ≤ 1.75 s (NFR-04) | No power limit per Hub (DEV-06); planning exceeds 3 s at 50 queued requests on one Hub (DEF-M3-007) |
 | O-4 Capacity warnings, incidents and redistribution | Met | Hubs at 90 % are flagged (BR-M5-01); incidents from sensor events, point failures, overdue Trips and heartbeat loss, with escalation after 5 min (BR-M5-04); M4 plans, the operator approves, the vehicles are picked up and returned (FR-10); network plan ≤ 358 ms (NFR-04) | Relocation is Hub to Hub, without routes or travel time (DEV-04) |
 | O-5 What-if on a copy, with recommendations | Met | SC-01 to SC-05 run on a snapshot; the operational state is unchanged after every run and the same seed gives the same report (NFR-12, NFR-13); each scenario ≤ 148 ms (NFR-05); a recommendation can be sent to M4 as a task | The scenarios count over the whole horizon per Hub instead of stepping through time (DEV-08) |
-| O-6 Consistent, traceable process | Mostly met | All 12 FRs, 28 of 34 BRs and 36 of 38 UCs have a test case; 1,560 tests, 94 % coverage, CI on every PR; 28 decisions and 29 defects recorded | Six BRs and two UCs have no test case (Section 5.5) |
+| O-6 Consistent, traceable process | Mostly met | All 12 FRs, 28 of 34 BRs and 36 of 38 UCs have a test case; 1,566 tests, 94 % coverage, CI on every PR; 28 decisions and 35 defects recorded | Six BRs and two UCs have no test case (Section 5.5) |
 
 ## 6.2 Strengths
 

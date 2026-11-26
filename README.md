@@ -14,8 +14,8 @@ The system manages Mobility Hubs consisting of parking spaces, charging points, 
 - [Repository Structure](#repository-structure)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-- [Running the Demo](#running-the-demo)
-- [Contributing](#contributing)
+- [Running the Demo on a Phone](#running-the-demo-on-a-phone)
+- [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
 - [Generative AI Usage Declaration](#generative-ai-usage-declaration)
 - [Demo](#demo)
@@ -127,48 +127,78 @@ Decided in D-002 (details and reasons: [`docs/design/architecture/tech-stack-pro
 
 ## Getting Started
 
-You need **Python 3.12 or newer** (`python --version`). Nothing else has to be installed. The commands below work in Git Bash (Windows), macOS and Linux; Windows PowerShell differs only in step 4.
+These steps take a fresh clone to the running demo in about 10 minutes. They use **Windows PowerShell**; the differences for macOS and Linux are listed after step 7.
 
-```bash
-# 1. Clone the repo
-git clone <repo-url>
+**You need:** Git, and **Python 3.12 or newer**. Check with `python --version`. Nothing else has to be installed.
+
+**1. Clone the repository**
+
+```powershell
+git clone https://github.com/MabC06/smart-e-mobility-hub.git
 cd smart-e-mobility-hub
+```
 
-# 2. Set your identity for THIS repo only (how to get your noreply email: see CONTRIBUTING.md, section 2)
-git config --local user.name  "<Student ID> <Full name>"
-git config --local user.email "<your GitHub noreply email>"
+**2. Create the virtual environment and activate it**
 
-# 3. Configure environment variables
-cp .env.example .env        # then fill in values (at least SECRET_KEY); never commit .env
-
-# 4. Create the virtual environment and install the pinned dependencies
+```powershell
 python -m venv .venv
-source .venv/Scripts/activate      # Git Bash on Windows. macOS/Linux: source .venv/bin/activate. PowerShell: .venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
+```
+
+The prompt now starts with `(.venv)`. If PowerShell says that running scripts is disabled, allow it for this window only and activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
+```
+
+**3. Install the pinned dependencies**
+
+```powershell
 pip install -r requirements-dev.txt
-
-# 5. Run the project locally
-python -m uvicorn --app-dir src main:create_app --factory --port 8000
-#    then open http://127.0.0.1:8000 for the screens (see Running the Demo)
-#    and http://127.0.0.1:8000/docs for the API  (hidden when APP_ENV=production-demo)
-
-# 6. Run the checks (the same commands CI runs)
-python -m pytest -q && ruff check . && ruff format --check . && mypy
 ```
 
-Activate the virtual environment again (step 4, second line) in every new terminal; without it Python cannot find the installed packages. `SECRET_KEY` is required and has no default: any text of at least 16 characters works locally. Set `SEED_ON_START=true` in `.env` to load the demo network from the simulator (`src/iot_sim`, M8) into an empty database. Also set `DEMO_PASSWORD` (at least 8 characters, chosen by you and never committed): every seeded account then logs in with it, students as `STU-0001` to `STU-1000` and operators as `OPS-01` to `OPS-05` (D-028). The password is set only when the demo network is loaded, so with a database file (`DATABASE_URL`) delete the file to load it again with a new password.
+**4. Create your `.env` from the template**
 
-## Running the Demo
+```powershell
+Copy-Item .env.example .env
+```
 
-**1. Settings in `.env`** (never commit it):
+The application reads only `.env`. `.env.example` is the committed template with names and no values: never put a value in it. `.env` is ignored by Git: never commit it (CONTRIBUTING 11.1).
 
-```bash
-SECRET_KEY=<any text of at least 16 characters>
+**5. Fill in four lines of `.env`**
+
+Make a secret key for your machine (a random text; it signs the login tokens):
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Open `.env` (`notepad .env`) and set these lines; leave every other line empty:
+
+```
+SECRET_KEY=<the text printed above>
 SEED_ON_START=true
-DEMO_PASSWORD=<at least 8 characters, chosen by you>
-DATABASE_URL=            # empty: in memory, a fresh demo network at every start
+DEMO_PASSWORD=<a password of at least 8 characters, chosen by you>
+DATABASE_URL=
 ```
 
-**2. On the laptop (browser).** Start the server as in step 5 of Getting Started and open http://127.0.0.1:8000. The login screen takes an account code and `DEMO_PASSWORD`:
+- `SECRET_KEY`: at least 16 characters, no default. Each member makes their own; do not share it.
+- `SEED_ON_START=true` loads the demo network from the simulator (`src/iot_sim`, M8): 10 Hubs, 350 vehicles, 1,005 accounts.
+- `DEMO_PASSWORD` is the password of every demo account (D-028). If your `.env` was made before 25 Nov 2026, the line is missing: add it.
+- `DATABASE_URL` empty keeps the data in memory, so every start begins with a fresh demo network. With a file (`sqlite:///data/hub.db`) the data stays, and the password is set only when the file is first filled: delete the file to change it.
+
+**6. Start the server**
+
+```powershell
+python -m uvicorn --app-dir src main:create_app --factory --port 8000
+```
+
+Wait for `Application startup complete`. A line `demo network loaded` shows that the demo data is in. Keep this window open; `Ctrl+C` stops the server. After changing `.env`, stop and start the server again.
+
+**7. Open the screens**
+
+Open http://127.0.0.1:8000 and log in with an account code and your `DEMO_PASSWORD`:
 
 | Account | Code | Screens |
 |---|---|---|
@@ -177,24 +207,42 @@ DATABASE_URL=            # empty: in memory, a fresh demo network at every start
 
 Operator screens are made for a desktop screen (from 1280 px wide).
 
-**3. On a phone (student screens).** The phone and the laptop must be on the same Wi-Fi.
+To charge a student's own EV: **Parking** → book a stay at a Hub → **Arrive**, then **Charging** → **Now**. Charging needs the EV parked in a charging bay of that Hub; the first spaces of each Hub are its bays. **Finish charging** ends the session, then **Depart** on the Parking page. The API documentation is at http://127.0.0.1:8000/docs (hidden when `APP_ENV=production-demo`).
 
-```bash
-# start the server on every network interface of the laptop, not only 127.0.0.1
-python -m uvicorn --app-dir src main:create_app --factory --host 0.0.0.0 --port 8000
-```
+**Next time** only two commands are needed, in the project folder: `.venv\Scripts\Activate.ps1`, then the command of step 6.
 
-- Find the laptop's address: `ipconfig` on Windows (IPv4 Address of the Wi-Fi adapter, for example `192.168.1.23`), `ipconfig getifaddr en0` on macOS, `hostname -I` on Linux.
-- On the phone open `http://<that address>:8000` and log in as a student.
+**macOS and Linux:** use `python3` instead of `python` in step 2, `source .venv/bin/activate` to activate, and `cp .env.example .env` in step 4. In Git Bash on Windows, activate with `source .venv/Scripts/activate`.
+
+## Running the Demo on a Phone
+
+The student screens also fit a phone (D-027). The phone and the laptop must be on the same Wi-Fi.
+
+1. Start the server on every network interface of the laptop, not only `127.0.0.1`:
+
+   ```powershell
+   python -m uvicorn --app-dir src main:create_app --factory --host 0.0.0.0 --port 8000
+   ```
+
+2. Find the laptop's address: `ipconfig` on Windows (IPv4 Address of the Wi-Fi adapter, for example `192.168.1.23`), `ipconfig getifaddr en0` on macOS, `hostname -I` on Linux.
+3. On the phone open `http://<that address>:8000` and log in as a student.
+
 - On Windows, the first start shows a firewall prompt for Python: allow it on **private** networks only. If the page does not open, check that the Wi-Fi is set as a private network.
 - Some campus or public Wi-Fi networks block devices from reaching each other. Then turn on the phone's hotspot, connect the laptop to it and use the laptop's address on that network.
-- `--host 0.0.0.0` lets anyone on the same network reach the server: use it only on a network you trust, and stop the server (Ctrl+C) after the demo.
+- `--host 0.0.0.0` lets anyone on the same network reach the server: use it only on a network you trust, choose a `DEMO_PASSWORD` that is not easy to guess, and stop the server after the demo.
 
-## Contributing
+## Troubleshooting
 
-All workflow rules — branching, commits, pull requests, review, code style, testing, security — live in **[CONTRIBUTING.md](CONTRIBUTING.md)**. Read it before opening your first PR; nothing below is a substitute for it.
-
-Progress is tracked on GitHub Projects (Kanban), mapped to the 8 modules and the project phases.
+| What you see | Cause and fix |
+|---|---|
+| `No module named uvicorn` (or `fastapi`) | The virtual environment is not active or the dependencies are not installed: step 2 (activate), then step 3. |
+| `Activate.ps1 cannot be loaded because running scripts is disabled` | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then activate again (step 2). |
+| `Configuration error: SECRET_KEY is not set` or `SECRET_KEY must be at least 16 characters` | Step 5: put a key of at least 16 characters in `.env`. |
+| `Configuration error: DEMO_PASSWORD must be at least 8 characters` | Choose a longer password in `.env`. |
+| Log line `DEMO_PASSWORD is not set: the seeded accounts cannot log in`, and the login page says "The code or the password is wrong" | `DEMO_PASSWORD` is missing from `.env` (a value in `.env.example` is not read). Add it to `.env` and restart the server. With a database file, delete the file first. |
+| Login fails although `DEMO_PASSWORD` is set | Restart the server after editing `.env`; check the code (`STU-0001`, `OPS-01`); with a database file, delete it so the new password is applied. |
+| No Hubs or vehicles on the screens | `SEED_ON_START=true` is missing, or the database file was created without it: set it and delete the file. |
+| `error while attempting to bind on address` | Port 8000 is used by another program or another server window. Stop it, or use `--port 8001` and open that port. |
+| A change to `.env` has no effect | `.env` is read only at start: stop the server (`Ctrl+C`) and start it again. |
 
 ## Testing
 
