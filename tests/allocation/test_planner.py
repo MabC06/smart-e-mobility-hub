@@ -167,3 +167,68 @@ def test_plan_is_deterministic():
     assert [(t.task_id, t.quantity, t.assigned_vehicles) for t in plan1] == [
         (t.task_id, t.quantity, t.assigned_vehicles) for t in plan2
     ]
+
+
+def _hub(
+    hub_id: str, capacity: int, free: int, vehicles: int, *, accepts: bool = True
+) -> HubStateView:
+    return HubStateView(
+        hub_id=hub_id,
+        free_spaces=free,
+        vehicles=[_make_vehicle(f"{hub_id}_V{i:02d}") for i in range(vehicles)],
+        capacity=capacity,
+        accepts_vehicles=accepts,
+    )
+
+
+@pytest.mark.tc_m4_035
+def test_a_near_full_hub_is_relieved_when_no_hub_is_short():
+    """TC-M4-035 · DT · Verifies: FR-10.2, FR-10.3, FR-10.7, BR-M4-04, BR-M4-05, BR-M5-01.
+
+    Expected: no Hub is short, so the deficit step plans nothing. H01 holds 19 of 20 spaces
+    (95 %, at or above 90 %): one relief task moves 5 vehicles to H02, bringing H01 to
+    parking_buffer spaces below the threshold, with priority 2 and a reason. At 85 % nothing
+    is planned.
+    """
+    cfg = AllocationConfig(safety_stock=3, parking_buffer=3, max_vehicles_per_task=10)
+    hubs = [_hub("H01", 20, 1, 15), _hub("H02", 20, 15, 5)]
+
+    tasks = plan_redistribution(hubs, [], cfg, "relief", near_capacity_pct=90.0)
+
+    assert [(t.source_hub_id, t.target_hub_id, t.quantity, t.priority) for t in tasks] == [
+        ("H01", "H02", 5, 2)
+    ]
+    assert tasks[0].reason.startswith("Relieve parking at H01: 1 free of 20")
+    assert len(set(tasks[0].assigned_vehicles)) == 5
+
+    calm = [_hub("H01", 20, 3, 15), _hub("H02", 20, 15, 5)]  # 17 of 20 = 85 %
+    assert plan_redistribution(calm, [], cfg, "calm", near_capacity_pct=90.0) == []
+
+
+@pytest.mark.tc_m4_036
+def test_a_full_hub_sends_vehicles_but_never_receives_them():
+    """TC-M4-036 · DT · Verifies: FR-10.2, FR-10.7, BR-M4-04, BR-M1-02.
+
+    Expected: H01 is full (CRITICAL, accepts no vehicle) and sends vehicles; H03 is also full
+    and short of vehicles, yet no task targets it; every destination keeps its buffer and
+    stays below the threshold.
+    """
+    cfg = AllocationConfig(safety_stock=3, parking_buffer=3, max_vehicles_per_task=10)
+    hubs = [
+        _hub("H01", 20, 0, 20, accepts=False),
+        _hub("H02", 20, 18, 1),
+        _hub("H03", 10, 0, 0, accepts=False),
+        _hub("H04", 30, 25, 5),
+    ]
+
+    tasks = plan_redistribution(hubs, [], cfg, "full", near_capacity_pct=90.0)
+
+    assert tasks and all(t.target_hub_id not in ("H01", "H03") for t in tasks)
+    assert any(t.source_hub_id == "H01" for t in tasks)
+    received = {"H02": 0, "H04": 0}
+    for t in tasks:
+        received[t.target_hub_id] += t.quantity
+    for hub in hubs[1::2]:
+        free_after = hub.free_spaces - received[hub.hub_id]
+        assert free_after >= cfg.parking_buffer
+        assert hub.capacity - free_after < hub.capacity * 0.9

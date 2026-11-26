@@ -983,6 +983,8 @@ def operator_dispatch(request: Request, status: str = "") -> Response:
         status=status,
         config=config,
         config_fields=CONFIG_FIELDS,
+        hubs=get_core(request).queries.list_hubs(),
+        vehicle_types=list(VehicleType),
     )
 
 
@@ -995,6 +997,28 @@ def dispatch_plan(request: Request) -> Response:
     status, data = call(request, "POST", "/allocation/tasks/plan", json={})
     if status != 200:
         return _refused(request, who, "update the tasks", status, data, "operator_dispatch", "Back")
+    return _go(request, "operator_dispatch")
+
+
+@router.post("/operator/dispatch/manual")
+def dispatch_manual(request: Request) -> Response:
+    """O4. The operator's own move: M4 makes a RECOMMENDED task, checked again on Approve."""
+    who = _check_login(request, Role.OPERATOR)
+    if isinstance(who, Response):
+        return who
+    form = read_form(request)
+    body: dict[str, Any] = {
+        "task_id": f"TASK-OPS-{uuid4().hex[:12]}",  # the screen makes the ID, one for each click
+        "source_hub_id": form.get("source_hub_id", ""),
+        "target_hub_id": form.get("target_hub_id", ""),
+        "quantity": _whole_number(form.get("quantity", "")),
+        "reason": form.get("reason", "").strip(),
+    }
+    if form.get("vehicle_type"):
+        body["vehicle_type"] = form["vehicle_type"]
+    status, data = call(request, "POST", "/allocation/tasks/manual", json=body)
+    if status != 200:
+        return _refused(request, who, "create this task", status, data, "operator_dispatch", "Back")
     return _go(request, "operator_dispatch")
 
 
@@ -1152,6 +1176,12 @@ SCENARIO_NAMES = {  # M6's long scenario IDs -> what O6 shows
     "SCENARIO_04_CHARGER_FAILURE": "SC-04 Charging-point failure",
     "SCENARIO_05_VEHICLE_IMBALANCE": "SC-05 Vehicle imbalance",
 }
+SIMULATION_LISTS = (  # O6 fields sent as ticked boxes
+    "target_hub_ids",
+    "source_hub_ids",
+    "destination_hub_ids",
+    "failed_charging_point_ids",
+)
 SIMULATION_NUMBERS = (  # O6 form fields sent to M6 as typed; M6 checks them
     "surge_multiplier",
     "duration_minutes",
@@ -1173,9 +1203,10 @@ def _simulation_page(
     request: Request,
     who: Principal,
     result: dict[str, Any] | None,
-    form: dict[str, str],
+    form: dict[str, Any],
     decisions: dict[str, str] | None = None,
 ) -> HTMLResponse:
+    """O6 with the form as last sent (lists for the ticked boxes) and the result, if any."""
     core = get_core(request)
     hubs = core.queries.list_hubs()
     points = [p for h in hubs for p in core.queries.list_charging_points(h.hub_id)]
@@ -1211,14 +1242,13 @@ def operator_run_simulation(request: Request) -> Response:
     who = _check_login(request, Role.OPERATOR)
     if isinstance(who, Response):
         return who
-    form = read_form(request)
+    form: dict[str, Any] = dict(read_form(request))
+    for name in SIMULATION_LISTS:  # the ticked boxes, kept so the form shows them after the run
+        form[name] = read_form_list(request, name)
     body: dict[str, Any] = {
         "simulation_id": f"SIM-{uuid4().hex[:12]}",  # the screen makes the ID, one for each run
         "scenario_id": form.get("scenario", ""),
-        "target_hub_ids": read_form_list(request, "target_hub_ids"),
-        "source_hub_ids": read_form_list(request, "source_hub_ids"),
-        "destination_hub_ids": read_form_list(request, "destination_hub_ids"),
-        "failed_charging_point_ids": read_form_list(request, "failed_charging_point_ids"),
+        **{name: form[name] for name in SIMULATION_LISTS},
     }
     for name in SIMULATION_NUMBERS:  # M6 reads the numbers from the typed text (422 if wrong)
         if form.get(name, "").strip():
@@ -1241,6 +1271,7 @@ def simulation_decide(request: Request) -> Response:
     try:
         result = json.loads(form.get("result_json", ""))
         decisions = json.loads(form.get("decisions_json", "") or "{}")
+        sent = json.loads(form.get("form_json", "") or "{}")  # the form of the run, shown again
         index = int(form.get("index", ""))
         rec = result["recommendations"][index]
     except (ValueError, KeyError, IndexError, TypeError):
@@ -1271,4 +1302,4 @@ def simulation_decide(request: Request) -> Response:
         )
     else:
         decisions[str(index)] = "Rejected: nothing was sent"
-    return _simulation_page(request, who, result, {}, decisions)
+    return _simulation_page(request, who, result, sent, decisions)

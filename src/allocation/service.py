@@ -34,6 +34,8 @@ from .models import DispatchTask, DispatchTaskStatus
 from .planner import HubDemandInfo, HubStateView, HubVehicleInfo, plan_redistribution
 
 SIMULATION_TASK_PREFIX = "TASK-SIM-"  # tasks made from an M6 recommendation; a new plan keeps them
+OPERATOR_TASK_PREFIX = "TASK-OPS-"  # tasks an operator creates in O4; a new plan keeps them
+KEPT_TASK_PREFIXES = (SIMULATION_TASK_PREFIX, OPERATOR_TASK_PREFIX)
 
 
 def _get_task(core: CoreFacade, task_id: str) -> DispatchTask | None:
@@ -103,7 +105,13 @@ class AllocationService:
             return hub_views_res
 
         active_tasks = _query_tasks(self._core, lambda t: not t.is_terminal())
-        proposed = plan_redistribution(hub_views_res.value, active_tasks, self._config, slot_id)
+        proposed = plan_redistribution(
+            hub_views_res.value,
+            active_tasks,
+            self._config,
+            slot_id,
+            near_capacity_pct=self._core.queries.get_config().near_capacity_threshold,
+        )
         save_res = self._save_planned_tasks(proposed, slot_id)
         if isinstance(save_res, Err):
             return save_res
@@ -183,8 +191,8 @@ class AllocationService:
         hub_views: list[HubStateView] = []
 
         for hub in self._core.queries.list_hubs():
-            if hub.status in {HubStatus.MAINTENANCE, HubStatus.CRITICAL}:
-                continue
+            if hub.status is HubStatus.MAINTENANCE:
+                continue  # a full (CRITICAL) Hub stays in: it is a source, never a destination
             spaces = self._core.queries.list_spaces(hub.hub_id)
             free_spaces = sum(
                 1
@@ -213,6 +221,8 @@ class AllocationService:
                     free_spaces=free_spaces,
                     vehicles=v_infos,
                     demand=demand_res.value,
+                    capacity=hub.parking_capacity,
+                    accepts_vehicles=hub.status is not HubStatus.CRITICAL,
                 )
             )
         return Ok(hub_views)
@@ -225,7 +235,7 @@ class AllocationService:
                 lambda t: (
                     t.status == DispatchTaskStatus.RECOMMENDED
                     and t.task_id not in proposed_ids
-                    and not t.task_id.startswith(SIMULATION_TASK_PREFIX)
+                    and not t.task_id.startswith(KEPT_TASK_PREFIXES)
                 ),
             )
             for old_t in old_recommended:
@@ -678,15 +688,19 @@ class AllocationService:
         reason: str,
         vehicle_type: VehicleType | None = None,
     ) -> Result[DispatchTask]:
-        """Turn an M6 recommendation into a RECOMMENDED task the operator approves in O4.
+        """Turn an M6 recommendation (``TASK-SIM-``) or an operator's own move (``TASK-OPS-``)
+        into a RECOMMENDED task the operator approves in O4.
 
         Picks AVAILABLE fleet vehicles of the source with at least ``min_dispatch_battery`` and
         no active claim, highest battery first, of one type (the most numerous when not given),
         at most ``max_vehicles_per_task``. Approval then checks and holds them (UC-M4-02).
         A repeated ``task_id`` returns the stored task.
         """
-        if not task_id.startswith(SIMULATION_TASK_PREFIX):
-            return Err(ErrorCode.INVALID_INPUT, f"task_id must start with {SIMULATION_TASK_PREFIX}")
+        if not task_id.startswith(KEPT_TASK_PREFIXES):
+            return Err(
+                ErrorCode.INVALID_INPUT,
+                f"task_id must start with {' or '.join(KEPT_TASK_PREFIXES)}",
+            )
         if quantity < 1 or source_hub_id == target_hub_id:
             return Err(ErrorCode.INVALID_INPUT, "quantity must be positive and the Hubs differ")
         existing = _get_task(self._core, task_id)
@@ -734,7 +748,12 @@ class AllocationService:
             vehicle_ids=",".join(v.vehicle_id for v in chosen),
             status=DispatchTaskStatus.RECOMMENDED,
             priority=1,
-            reason=reason or "From a simulation recommendation",
+            reason=reason
+            or (
+                "From a simulation recommendation"
+                if task_id.startswith(SIMULATION_TASK_PREFIX)
+                else "Created by the operator"
+            ),
         )
         with self._core.unit_of_work() as uow:
             _repo_add_task(uow.repository, task)
