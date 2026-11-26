@@ -72,3 +72,6 @@ Thumbs.db
 .agents/
 PROJECT.md
 task.md
+
+# Report page built locally for the PDF (submitted on the LMS, not in the repo)
+docs/report/report.html
