@@ -46,12 +46,12 @@
     <label>One charge takes <input name="charge_minutes" value="{{ value('charge_minutes', '60') }}" size="5"> min</label>
   </p>
   <p data-scenario="SC-03">
-    <label>Extra drained vehicles <input name="extra_drained_per_hub" value="{{ value('extra_drained_per_hub', '5') }}" size="5"> per Hub</label>
+    <label>Extra drained vehicles <input name="extra_drained_per_hub" value="{{ value('extra_drained_per_hub', '30') }}" size="5"> per Hub</label>
   </p>
   <fieldset data-scenario="SC-04">
-    <legend>Failed charging points (SC-04)</legend>
+    <legend>Failed charging points (SC-04; the defaults fail every point of {{ points[0].hub_id }})</legend>
     {% for point in points %}
-    <label><input type="checkbox" name="failed_charging_point_ids" value="{{ point.charging_point_id }}"{% if loop.index <= 2 %} checked{% endif %}> {{ point.charging_point_id }}</label>
+    <label><input type="checkbox" name="failed_charging_point_ids" value="{{ point.charging_point_id }}"{% if point.hub_id == points[0].hub_id %} checked{% endif %}> {{ point.charging_point_id }}</label>
     {% endfor %}
   </fieldset>
   <p data-scenario="SC-04">

@@ -29,6 +29,7 @@ from core.domain.enums import (
     Role,
     SpaceStatus,
     VehicleEvent,
+    VehicleState,
 )
 from core.facade import CoreFacade
 from core.repository.base import RepositoryError, VersionConflictError
@@ -385,6 +386,16 @@ class ParkingService:
                 return Ok(booking)
             if booking.status is not ParkingStatus.ACTIVE:
                 return _error(BookingErrorCode.INVALID_STATE, "The vehicle has not arrived.")
+            vehicle = uow.queries.get_vehicle(booking.vehicle_id)
+            if isinstance(vehicle, Err):
+                return from_core(vehicle)
+            if vehicle.value.state is VehicleState.CHARGING:
+                # Core refuses DEPART while charging; say why and what to do (NFR-21).
+                return _error(
+                    BookingErrorCode.INVALID_STATE,
+                    "The vehicle is still charging. Finish charging on the Charging page, "
+                    "then record your departure.",
+                )
             changed = uow.commands.transition_vehicle(
                 booking.vehicle_id, VehicleEvent.DEPART, expected_version, caller
             )

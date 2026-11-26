@@ -310,6 +310,12 @@ def student_vehicles(
     status, found = call(request, "GET", "/reservations/vehicles", params=params)
     if status != 200:
         return _refused(request, who, "search vehicles", status, found, "student_hubs", "Back")
+    # One live rental per student (BR-M2-03): say so here instead of refusing after the pick.
+    status, mine = call(request, "GET", "/reservations/mine")
+    has_rental = status == 200 and (
+        bool(mine["open_trips"])
+        or any(b["status"] in ("CONFIRMED", "ACTIVE") for b in mine["bookings"])
+    )
     return _page(
         request,
         "student/vehicles.html",
@@ -320,6 +326,7 @@ def student_vehicles(
         vehicle_types=list(VehicleType),
         chosen_type=type,
         min_battery=params["min_battery"],
+        has_rental=has_rental,
     )
 
 
@@ -645,7 +652,7 @@ def student_request_charging(request: Request) -> Response:
 
 @router.post("/student/charging/{request_id}/{action}")
 def charging_change(request: Request, request_id: str, action: str) -> Response:
-    """S8. Change the time of (M3 PATCH), cancel (M3 DELETE) or start one charging request."""
+    """S8. Change the time of (M3 PATCH), cancel (M3 DELETE), start or finish one request."""
     who = _check_login(request, Role.STUDENT)
     if isinstance(who, Response):
         return who
@@ -663,6 +670,9 @@ def charging_change(request: Request, request_id: str, action: str) -> Response:
     elif action == "start":
         status, data = call(request, "POST", f"/charging/sessions/{request_id}/start")
         what = "start charging"
+    elif action == "finish":
+        status, data = call(request, "POST", f"/charging/sessions/{request_id}/finish", json={})
+        what = "finish charging"
     else:
         status, data, what = 404, {"detail": "Unknown action."}, "do this"
     if status != 200:

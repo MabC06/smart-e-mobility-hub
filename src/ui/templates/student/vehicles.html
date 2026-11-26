@@ -10,6 +10,9 @@
 <p><a href="{{ url_for('student_hubs') }}">&lt; Hubs</a></p>
 <h1>Vehicles at {{ hub.hub_id }} {{ hub.name }}</h1>
 <p>{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }} you can reserve now, highest battery first.</p>
+{% if has_rental %}
+<p class="status status-WARNING">▲ You already have a rental. One rental at a time: finish or cancel it in <a href="{{ url_for('student_bookings') }}">My bookings</a> first.</p>
+{% endif %}
 
 <form class="filters" method="get" action="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">
   <p>
@@ -52,7 +55,7 @@
         {% endfor %}
       </select>
     </label>
-    <button class="button primary" type="submit">Reserve selected vehicle</button>
+    <button class="button primary" type="submit"{% if has_rental %} disabled{% endif %}>Reserve selected vehicle</button>
     <span class="note">The return space is not held; you can hold one during the ride.</span>
   </div>
 </form>

@@ -1136,3 +1136,41 @@ def test_student_screens_carry_the_phone_layout(student):
     assert "min-height: 44px" in phone and "font-size: 16px" in phone
     hubs = student.get("/ui/student/hubs").text
     assert '<table class="stack">' in hubs and 'data-label="Free spaces"' in hubs
+
+
+def test_student_charges_now_and_finishes_on_s8(student, app):
+    """TC-M7-046 · INT · S8 charges the parked EV now and finishes it; "now" is refused when away.
+
+    Verifies: FR-06, FR-07, UC-M3-01, NFR-21
+    Expected: with P1 parked in the bay of H01-CP02, "Now" starts charging and S8 offers
+    "Finish charging", which completes the session. A "now" request at H02, where P1 is not
+    parked, shows a refusal that says to book a space and record the arrival.
+    """
+    away = {"vehicle_id": "P1", "hub_id": "H02", "when": "now"}
+    html = student.post("/ui/student/charging", data=away).text
+    assert 'class="error-block"' in html and "record your arrival" in html
+
+    html = student.post("/ui/student/charging", data={**away, "hub_id": "H01"}).text
+    request_id = re.search(r"/ui/student/charging/(REQ-\w+)/finish", html).group(1)
+    assert "● Charging</span> at point <strong>H01-CP02" in html
+
+    html = student.post(f"/ui/student/charging/{request_id}/finish").text
+    assert 'class="error-block"' not in html and "COMPLETED" in html
+    assert app.state.core.queries.get_vehicle("P1").value.state.value == "AVAILABLE"
+
+
+def test_s3_says_one_rental_at_a_time(student, app):
+    """TC-M7-047 · UX · S3 tells a student with a live rental to finish it first.
+
+    Verifies: BR-M2-03, NFR-21
+    Expected: before a rental S3 offers "Reserve selected vehicle"; after reserving V1 it shows
+    the one-rental notice with a link to My bookings and the button is disabled.
+    """
+    html = student.get("/ui/student/hubs/H01/vehicles").text
+    assert "You already have a rental" not in html
+    assert 'type="submit">Reserve selected vehicle' in html
+
+    assert 'class="error-block"' not in reserve(student, app).text
+    html = student.get("/ui/student/hubs/H01/vehicles").text
+    assert "You already have a rental" in html and "/ui/student/bookings" in html
+    assert 'type="submit" disabled>Reserve selected vehicle' in html

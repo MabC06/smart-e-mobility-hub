@@ -34,7 +34,7 @@ from core.providers import (
 from core.repository.base import RepositoryError, VersionConflictError
 from core.result import Err, Ok, Result
 from core.services.transition_ctx import TransitionCtx
-from core.views import ChargingPointView
+from core.views import ChargingPointView, VehicleView
 
 logger = logging.getLogger(__name__)
 
@@ -397,7 +397,16 @@ class ChargingQueueService:
             if target_soc <= veh.battery_pct:
                 return _err(
                     ChargingErrorCode.INVALID_INPUT,
-                    "target_soc must exceed battery_pct.",
+                    f"target_soc must exceed battery_pct: vehicle {vehicle_id} is already at "
+                    f"{veh.battery_pct:.0f}%, so there is nothing to charge.",
+                )
+            if start_at is None and veh.hub_id != hub_id:
+                # Charging "now" needs the vehicle at the Hub (BR-M1-02); say what to do (NFR-21).
+                return _err(
+                    ChargingErrorCode.INVALID_STATE,
+                    f"Vehicle {vehicle_id} is not parked at Hub {hub_id}. To charge now, book a "
+                    f"parking space at {hub_id} and record your arrival first; or book charging "
+                    "for a later time.",
                 )
 
             config = uow.queries.get_config()
@@ -466,6 +475,60 @@ class ChargingQueueService:
 
         return self._run(_op, actor)
 
+    def _bay_for_start(
+        self, uow, req: ChargingRequest, vehicle: VehicleView, now: datetime, caller: Actor
+    ) -> ChargingPointView | ChargingError:
+        """The bay a session starts at: the booked one, or the free bay the EV is parked in.
+
+        Core starts charging only with the vehicle in the bay of the charging point (BR-M1-02).
+        If the EV stands in another bay of the same Hub whose point is free until the end of the
+        session, the session moves there; otherwise the refusal says what to do (NFR-21).
+        """
+        points = uow.queries.list_charging_points(req.station_id)
+        booked = next((p for p in points if p.charging_point_id == req.charger_id), None)
+        if booked is None:
+            return _err(ChargingErrorCode.NOT_FOUND, "Assigned charging point not found.")
+        if vehicle.hub_id != req.station_id or vehicle.parking_space_id is None:
+            return _err(
+                ChargingErrorCode.INVALID_STATE,
+                f"Vehicle {req.vehicle_id} is not parked at Hub {req.station_id}. Book a parking "
+                f"space at {req.station_id} and record your arrival, then start charging.",
+            )
+        if vehicle.parking_space_id == booked.parking_space_id:
+            return booked
+        here = next((p for p in points if p.parking_space_id == vehicle.parking_space_id), None)
+        end = req.end_time if req.end_time is not None and req.end_time > now else None
+        if (
+            here is None
+            or end is None
+            or here.status is not ChargingPointStatus.AVAILABLE
+            or uow.queries.get_claims(here.charging_point_id, now, end)
+        ):
+            return _err(
+                ChargingErrorCode.INVALID_STATE,
+                f"Vehicle {req.vehicle_id} is parked in space {vehicle.parking_space_id}, not in "
+                f"bay {booked.parking_space_id} of charging point {booked.charging_point_id}. "
+                "Park it in that bay, then start charging.",
+            )
+        if req.point_claim_id is not None:
+            released = uow.commands.release_claim(req.point_claim_id, caller)
+            if isinstance(released, Err):
+                return from_core_error(released)
+        claim = uow.commands.place_claim(
+            ResourceType.CHARGING_POINT,
+            here.charging_point_id,
+            HolderKind.CHARGING_SESSION,
+            req.request_id,
+            now,
+            end,
+            caller,
+        )
+        if isinstance(claim, Err):
+            return from_core_error(claim)
+        req.charger_id = here.charging_point_id
+        req.point_claim_id = claim.value.claim_id
+        return here
+
     def start_scheduled_session(
         self, request_id: str, actor: Actor
     ) -> ChargingResult[ChargingRequest]:
@@ -489,6 +552,9 @@ class ChargingQueueService:
             veh = uow.queries.get_vehicle(req.vehicle_id)
             if isinstance(veh, Err):
                 return from_core_error(veh)
+            bay = self._bay_for_start(uow, req, veh.value, now, caller)
+            if isinstance(bay, ChargingError):
+                return bay
             trans = uow.commands.transition_vehicle(
                 req.vehicle_id,
                 VehicleEvent.START_CHARGING,
@@ -501,17 +567,6 @@ class ChargingQueueService:
             )
             if isinstance(trans, Err):
                 return from_core_error(trans)
-
-            bay = next(
-                (
-                    p
-                    for p in uow.queries.list_charging_points(req.station_id)
-                    if p.charging_point_id == req.charger_id
-                ),
-                None,
-            )
-            if bay is None:
-                return _err(ChargingErrorCode.NOT_FOUND, "Assigned charging point not found.")
             pt_res = uow.commands.set_charging_point_status(
                 bay.charging_point_id, ChargingPointStatus.CHARGING, bay.version, caller
             )

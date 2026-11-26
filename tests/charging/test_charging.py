@@ -1180,3 +1180,101 @@ def test_a_request_waits_only_while_no_slot_is_free() -> None:
     assert [r["status"] for r in rows] == ["SCHEDULED", "SCHEDULED"]
     assert rows[0]["charger_id"] != rows[1]["charger_id"]
     assert all(r["start_time"] is not None for r in rows)
+
+
+def _add_away_vehicle(core: CoreFacade, vehicle_id: str = "V-AWAY") -> None:
+    """A vehicle that is away from every Hub (IN_USE, no Hub, no space)."""
+    with core.unit_of_work() as uow:
+        uow.repository.add(
+            Vehicle(
+                vehicle_id,
+                vehicle_id,
+                Ownership.FLEET,
+                VehicleType.E_BIKE,
+                40.0,
+                2.0,
+                state=VehicleState.IN_USE,
+            )
+        )
+        uow.commit()
+
+
+def test_charge_now_refused_while_the_vehicle_is_away() -> None:
+    """TC-M3-040 · Verifies: FR-06, BR-M1-02, NFR-21.
+
+    Expected: a "now" request for a vehicle that is not parked at the Hub is refused with a
+    message that says what to do, and nothing is stored; a request for later is still accepted.
+    """
+    core, _, service = _setup()
+    _add_away_vehicle(core)
+
+    now = service.submit_charging_request("R-NOW", "V-AWAY", "H1", STUDENT, target_soc=80.0)
+    assert isinstance(now, ChargingError)
+    assert now.code is ChargingErrorCode.INVALID_STATE
+    assert "not parked at Hub H1" in now.message and "record your arrival" in now.message
+    assert schema.read(core, "R-NOW") is None
+
+    later = service.submit_charging_request(
+        "R-LATER", "V-AWAY", "H1", STUDENT, target_soc=80.0, start_at=T0 + timedelta(hours=1)
+    )
+    assert isinstance(later, Ok)
+    assert later.value.status is ChargingSessionStatus.SCHEDULED
+
+
+def test_start_refused_with_a_clear_message_while_the_vehicle_is_away() -> None:
+    """TC-M3-041 · Verifies: FR-06, BR-M1-02, NFR-21.
+
+    Expected: starting a due session whose vehicle is not at the Hub is refused with the cause
+    and what to do; the session stays SCHEDULED and the vehicle stays IN_USE.
+    """
+    core, clock, service = _setup()
+    _add_away_vehicle(core)
+    booked = service.submit_charging_request(
+        "R-AWAY", "V-AWAY", "H1", STUDENT, target_soc=80.0, start_at=T0 + timedelta(minutes=30)
+    )
+    assert isinstance(booked, Ok)
+    clock.advance(timedelta(minutes=30))
+
+    res = service.start_scheduled_session("R-AWAY", STUDENT)
+    assert isinstance(res, ChargingError)
+    assert res.code is ChargingErrorCode.INVALID_STATE
+    assert "not parked at Hub H1" in res.message
+    assert schema.read(core, "R-AWAY").status is ChargingSessionStatus.SCHEDULED
+    assert core.queries.get_vehicle("V-AWAY").value.state is VehicleState.IN_USE
+
+
+def test_start_moves_the_session_to_the_free_bay_the_vehicle_is_in() -> None:
+    """TC-M3-042 · Verifies: FR-06, BR-M1-01, BR-M1-02, NFR-21.
+
+    Expected: the docked vehicle's session was booked on H1-CP02 while it stands in the bay of
+    H1-CP01. If CP01 is free, Start moves the session there and charges; if CP01 is held by
+    another session, Start is refused and names the bay to use.
+    """
+    core, clock, service = _setup()
+    first = service.submit_charging_request(
+        "R-FIRST", "V-400", "H1", STUDENT_2, target_soc=80.0, start_at=T0 + timedelta(minutes=30)
+    )
+    docked = service.submit_charging_request(
+        "R-DOCKED", "V-DOCKED", "H1", STUDENT, target_soc=80.0, start_at=T0 + timedelta(minutes=30)
+    )
+    assert isinstance(first, Ok) and first.value.charger_id == "H1-CP01"
+    assert isinstance(docked, Ok) and docked.value.charger_id == "H1-CP02"
+    clock.advance(timedelta(minutes=30))
+
+    held = service.start_scheduled_session("R-DOCKED", STUDENT)
+    assert isinstance(held, ChargingError)
+    assert held.code is ChargingErrorCode.INVALID_STATE
+    assert "not in bay H1-S002 of charging point H1-CP02" in held.message
+    assert schema.read(core, "R-DOCKED").charger_id == "H1-CP02"
+
+    assert isinstance(service.cancel_charging_schedule("R-FIRST", STUDENT_2), Ok)
+    started = service.start_scheduled_session("R-DOCKED", STUDENT)
+    assert isinstance(started, Ok)
+    assert started.value.status is ChargingSessionStatus.CHARGING
+    assert started.value.charger_id == "H1-CP01"
+    assert _core_state(core, "V-DOCKED", "H1-CP01") == (
+        VehicleState.CHARGING,
+        ChargingPointStatus.CHARGING,
+    )
+    end = T0 + timedelta(hours=2)
+    assert core.queries.get_claims("H1-CP02", T0, end) == []

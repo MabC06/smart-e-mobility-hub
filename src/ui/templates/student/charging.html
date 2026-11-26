@@ -1,6 +1,6 @@
 {# S8. Request or schedule charging (wireframes-student.md), UC-M3-01 to UC-M3-03. Private EV only
    (a returned rental vehicle is charged by operators). The form, the list, "Change time" (PATCH),
-   "Cancel" (DELETE) and "Start" use M3's routes; times are typed and shown in ICT with the day.
+   "Cancel" (DELETE), "Start" and "Finish charging" use M3's routes; times are typed and shown in ICT with the day.
    M3 gives a waiting request the earliest free point at once (BR-M3-03), so a request is shown
    with the slot it got, or as waiting when no point is free within 2 hours. #}
 {% extends "base.html" %}
@@ -57,7 +57,7 @@
       </p>
       <p class="note">Requested {{ s.requested_at | ict_day }}</p>
       {% if s.status == "SCHEDULED" %}
-      <p class="note">Park your EV in the bay of point {{ s.charger_id }} and press Start from {{ s.start_time | ict_hm }}.</p>
+      <p class="note">Park your EV at {{ s.hub_id }} (Parking: book and press Arrive) and press Start from {{ s.start_time | ict_hm }}. If it stands in another free charging bay, the session moves there.</p>
       {% endif %}
       <div class="action-row">
         {% if s.status == "SCHEDULED" %}
@@ -68,6 +68,11 @@
           <label>New start <input type="datetime-local" name="start_at" required></label>
           <label>Min <input type="number" name="duration_minutes" min="1" value="60" size="4"></label>
           <button class="button" type="submit">Change time</button>
+        </form>
+        {% endif %}
+        {% if s.status == "CHARGING" %}
+        <form class="actions" action="{{ url_for('charging_change', request_id=s.request_id, action='finish') }}" method="post">
+          <button class="button primary" type="submit">Finish charging</button>
         </form>
         {% endif %}
         {% if s.status in ("QUEUED", "SCHEDULED") %}
