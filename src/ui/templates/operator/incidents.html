@@ -1,0 +1,115 @@
+{#
+  O5. Incident management (wireframes-operator.md), UC-M7-07, UC-M7-08. Tickets of M5, most
+  severe first, then oldest, with filters. Actions follow the status: Acknowledge on OPEN or
+  ESCALATED, Escalate on OPEN, Resolve (notes required) on IN_PROGRESS or ESCALATED, Close on
+  RESOLVED. "History" shows the ticket's audit log (NFR-25). Each button calls M5's route.
+#}
+{% extends "base.html" %}
+{% block title %}Incidents · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set badge = {"CRITICAL": "CRITICAL", "HIGH": "WARNING", "MEDIUM": "MAINTENANCE", "LOW": "MAINTENANCE"} %}
+<h1>Incidents</h1>
+
+<form class="filters" method="get" action="{{ url_for('operator_incidents') }}">
+  <p>
+    <label>Severity
+      <select name="severity">
+        <option value="">all</option>
+        {% for s in severities %}<option value="{{ s }}"{% if s == filters.severity %} selected{% endif %}>{{ s | capitalize }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        <option value="">all</option>
+        {% for s in statuses %}<option value="{{ s }}"{% if s == filters.status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Hub
+      <select name="hub">
+        <option value="">all</option>
+        {% for h in hubs %}<option value="{{ h }}"{% if h == filters.hub %} selected{% endif %}>{{ h }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Type
+      <select name="type">
+        <option value="">all</option>
+        {% for code, name in type_names.items() %}<option value="{{ code }}"{% if code == filters.type %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </p>
+</form>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Hub</th><th>Severity</th><th>Status</th><th>Age</th><th>Assigned to</th></tr>
+    </thead>
+    <tbody>
+      {% for incident in incidents %}
+      <tr>
+        <td><a href="#{{ incident.incident_id }}">{{ type_names.get(incident.incident_type, incident.incident_type) }}</a></td>
+        <td><a href="{{ url_for('operator_hub', hub_id=incident.hub_id) }}">{{ incident.hub_id }}</a></td>
+        <td><span class="status status-{{ badge[incident.severity] }}">{{ incident.severity | capitalize }}</span></td>
+        <td>{{ incident.status }}</td>
+        <td>{{ ((as_of - incident.created_at).total_seconds() // 60) | int }} min</td>
+        <td>{{ incident.assigned_operator_id or "–" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No incident matches.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% for incident in incidents %}
+<section class="card" id="{{ incident.incident_id }}">
+  <h2>
+    {{ type_names.get(incident.incident_type, incident.incident_type) }} at {{ incident.hub_id }} ·
+    <span class="status status-{{ badge[incident.severity] }}">{{ incident.severity | capitalize }}</span> · {{ incident.status }}
+  </h2>
+  <p>{{ incident.description }}</p>
+  <p class="note">
+    Ticket {{ incident.incident_id }} ({{ incident.incident_type }}) · reported by {{ incident.reported_by }} ·
+    created {{ incident.created_at | ict }} · assigned to {{ incident.assigned_operator_id or "nobody yet" }}
+  </p>
+  {% if incident.resolution_notes %}<p>Resolution notes: {{ incident.resolution_notes }}</p>{% endif %}
+  <div class="action-row">
+  {% if incident.status in ("OPEN", "ESCALATED") %}
+  <form class="actions" action="{{ url_for('incident_action', incident_id=incident.incident_id, action='acknowledge') }}" method="post">
+    <button class="button primary" type="submit">Acknowledge</button>
+  </form>
+  {% endif %}
+  {% if incident.status == "OPEN" %}
+  <form class="actions" action="{{ url_for('incident_action', incident_id=incident.incident_id, action='escalate') }}" method="post">
+    <label>Reason <input name="reason" size="30" placeholder="optional"></label>
+    <button class="button" type="submit">Escalate</button>
+  </form>
+  {% endif %}
+  {% if incident.status in ("IN_PROGRESS", "ESCALATED") %}
+  <form class="actions" action="{{ url_for('incident_action', incident_id=incident.incident_id, action='resolve') }}" method="post">
+    <label>Notes (required) <textarea name="notes" rows="2" cols="50" required></textarea></label>
+    <button class="button primary" type="submit">Resolve</button>
+  </form>
+  {% endif %}
+  {% if incident.status == "RESOLVED" %}
+  <form class="actions" action="{{ url_for('incident_action', incident_id=incident.incident_id, action='close') }}" method="post">
+    <button class="button" type="submit">Close</button>
+  </form>
+  {% endif %}
+  </div>
+  {% if ticket == incident.incident_id %}
+  <h3>History</h3>
+  <ul>
+    {% for log in history %}
+    <li>{{ log.timestamp | ict }} · {{ log.previous_status }} → {{ log.new_status }} · {{ log.action }} by {{ log.changed_by }}{% if log.reason %} · {{ log.reason }}{% endif %}</li>
+    {% else %}
+    <li>No change recorded yet.</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p><a href="{{ url_for('operator_incidents') }}?ticket={{ incident.incident_id }}#{{ incident.incident_id }}">Show history</a></p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

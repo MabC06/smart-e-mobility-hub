@@ -1,0 +1,171 @@
+{#
+  O6. What-if Simulation Lab (wireframes-operator.md), UC-M7-09, UC-M7-10. The five standard
+  scenarios of M6 (POST /simulation/runs) run on a copy of the state. The result compares the
+  baseline (do nothing) with the mitigated plan (every recommendation applied, FR-12.6).
+  "Approve" sends a vehicle redistribution to M4 as a RECOMMENDED task (Dispatch); "Reject" sends
+  nothing. Only the fields of the chosen scenario are shown when JavaScript runs; M6 checks every
+  value and the error block says what is wrong.
+#}
+{% extends "base.html" %}
+{% block title %}Simulation Lab · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set chosen = form.get("scenario", "SC-01") %}
+{% macro value(name, default) %}{{ form.get(name, default) }}{% endmacro %}
+{# A list field shows what was sent with the last run; its defaults only before the first run. #}
+{% macro hub_boxes(field, defaults) %}
+  {% set checked = form[field] if field in form else defaults %}
+  {% for hub in hubs %}
+  <label><input type="checkbox" name="{{ field }}" value="{{ hub.hub_id }}"{% if hub.hub_id in checked %} checked{% endif %}> {{ hub.hub_id }}</label>
+  {% endfor %}
+{% endmacro %}
+<h1>Simulation Lab</h1>
+<p class="simulation-banner">SIMULATION: a copy of the state, nothing real changes</p>
+
+<form action="{{ url_for('operator_run_simulation') }}" method="post" id="sim-form">
+  <p>
+    <label>Scenario
+      <select name="scenario" id="scenario">
+        {% for code, label in scenarios %}
+        <option value="{{ code }}"{% if code == chosen %} selected{% endif %}>{{ code }} {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </p>
+
+  <fieldset data-scenario="SC-01 SC-02 SC-03">
+    <legend>Target Hubs (SC-01, SC-02; SC-03: none ticked means every Hub)</legend>
+    {{ hub_boxes("target_hub_ids", ("H01", "H02")) }}
+  </fieldset>
+  <p data-scenario="SC-01">
+    <label>Surge multiplier <input name="surge_multiplier" value="{{ value('surge_multiplier', '1.5') }}" size="5"> × (1 to 5)</label>
+    <label>Surge duration <input name="duration_minutes" value="{{ value('duration_minutes', '60') }}" size="5"> min</label>
+  </p>
+  <p data-scenario="SC-02">
+    <label>Returns arriving <input name="incoming_return_rate" value="{{ value('incoming_return_rate', '6') }}" size="5"> per 10 min</label>
+  </p>
+  <p data-scenario="SC-03 SC-04">
+    <label>Charge below <input name="soc_threshold" value="{{ value('soc_threshold', '20') }}" size="5"> %</label>
+    <label>One charge takes <input name="charge_minutes" value="{{ value('charge_minutes', '60') }}" size="5"> min</label>
+  </p>
+  <p data-scenario="SC-03">
+    <label>Extra drained vehicles <input name="extra_drained_per_hub" value="{{ value('extra_drained_per_hub', '30') }}" size="5"> per Hub</label>
+  </p>
+  <fieldset data-scenario="SC-04">
+    <legend>Failed charging points (SC-04; the defaults fail every point of {{ points[0].hub_id }})</legend>
+    {% set failed = form.get("failed_charging_point_ids") %}
+    {% for point in points %}
+    <label><input type="checkbox" name="failed_charging_point_ids" value="{{ point.charging_point_id }}"{% if (failed is none and point.hub_id == points[0].hub_id) or (failed is not none and point.charging_point_id in failed) %} checked{% endif %}> {{ point.charging_point_id }}</label>
+    {% endfor %}
+  </fieldset>
+  <p data-scenario="SC-04">
+    <label>Failure starts after <input name="failure_offset_minutes" value="{{ value('failure_offset_minutes', '0') }}" size="5"> min</label>
+    <label>Repair takes <input name="mttr_minutes" value="{{ value('mttr_minutes', '120') }}" size="5"> min</label>
+  </p>
+  <fieldset data-scenario="SC-05">
+    <legend>Hubs with idle vehicles (SC-05)</legend>
+    {{ hub_boxes("source_hub_ids", ("H02",)) }}
+  </fieldset>
+  <fieldset data-scenario="SC-05">
+    <legend>Hubs short of vehicles (SC-05)</legend>
+    {{ hub_boxes("destination_hub_ids", ("H01",)) }}
+  </fieldset>
+  <p data-scenario="SC-05">
+    <label>Batch size <input name="batch_size" value="{{ value('batch_size', '10') }}" size="5"> vehicles (5 to 20)</label>
+    <label>Transit delay <input name="transit_delay_minutes" value="{{ value('transit_delay_minutes', '15') }}" size="5"> min</label>
+  </p>
+  <p>
+    <label>Time horizon <input name="time_horizon_minutes" value="{{ value('time_horizon_minutes', '120') }}" size="5"> min</label>
+    <label>Random seed <input name="random_seed" value="{{ value('random_seed', '42') }}" size="5"></label>
+    <button class="button primary" type="submit">Run</button>
+  </p>
+</form>
+<script>
+  // Show only the fields of the chosen scenario; without JavaScript every field stays visible.
+  (function () {
+    var select = document.getElementById("scenario");
+    function show() {
+      document.querySelectorAll("#sim-form [data-scenario]").forEach(function (block) {
+        block.hidden = block.dataset.scenario.split(" ").indexOf(select.value) < 0;
+      });
+    }
+    select.addEventListener("change", show);
+    show();
+  })();
+</script>
+
+{% if result %}
+<section class="card">
+  <h2>Result · {{ scenario_names.get(result.scenario_id, result.scenario_id) }}</h2>
+  <p class="note">
+    Snapshot {{ result.snapshot_id }} taken {{ result.executed_at | ict }} · simulation {{ result.simulation_id }}
+  </p>
+  <div class="compare">
+    <p>{{ result.metric_name }}, do nothing<strong>{{ result.baseline_shortage_rate_pct }}%</strong></p>
+    <p>With every recommendation<strong>{{ result.mitigated_shortage_rate_pct }}%</strong></p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Hub</th><th>Requests</th><th>Unmet (do nothing)</th><th>Unmet (with plan)</th><th>Rate (do nothing → plan)</th></tr>
+      </thead>
+      <tbody>
+        {% for row in result.hub_metrics %}
+        {% set after = result.mitigated_hub_metrics[loop.index0] %}
+        <tr>
+          <td>{{ row.hub_id }}</td>
+          <td>{{ row.total_requests }}</td>
+          <td>{{ row.unmet_requests }}</td>
+          <td>{{ after.unmet_requests }}</td>
+          <td>{{ row.shortage_rate_pct }}% → {{ after.shortage_rate_pct }}%</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No Hub in this scenario.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Recommendations</h3>
+  {% set words = {
+    "VEHICLE_REDISTRIBUTION": "Move vehicles",
+    "ALTERNATIVE_RETURN_HUB": "Send returns",
+    "CHARGING_SHIFT": "Charge at",
+  } %}
+  {% for rec in result.recommendations %}
+  {% set i = loop.index0 | string %}
+  <div class="row-item">
+    <p>
+      <strong>{{ loop.index }}. {{ words.get(rec.recommendation_type, rec.recommendation_type) }}: {{ rec.batch_size }} from {{ rec.source_hub_id }} to {{ rec.destination_hub_id }}</strong><br>
+      {{ rec.reason }}
+    </p>
+    {% if i in decisions %}
+    <p class="status status-ACTIVE">● {{ decisions[i] }}</p>
+    {% elif rec.recommendation_type == "VEHICLE_REDISTRIBUTION" %}
+    {% for decision, label, style in (("approve", "Approve: send to Dispatch", "button primary"), ("reject", "Reject", "button")) %}
+    <form class="inline" action="{{ url_for('simulation_decide') }}" method="post">
+      <input type="hidden" name="result_json" value="{{ result_json }}">
+      {# tojson leaves double quotes as they are, so the attribute is single-quoted (Jinja docs) #}
+      <input type="hidden" name="decisions_json" value='{{ decisions | tojson }}'>
+      <input type="hidden" name="form_json" value='{{ form | tojson }}'>
+      <input type="hidden" name="index" value="{{ i }}">
+      <input type="hidden" name="decision" value="{{ decision }}">
+      <button class="{{ style }}" type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+    {% elif rec.recommendation_type == "CHARGING_SHIFT" %}
+    <p><a href="{{ url_for('operator_charging') }}?hub_id={{ rec.destination_hub_id }}">Open Charging at {{ rec.destination_hub_id }}</a> to send the vehicles there.</p>
+    {% else %}
+    <p><a href="{{ url_for('operator_hub', hub_id=rec.destination_hub_id) }}">Open {{ rec.destination_hub_id }}</a> to check its free spaces before directing returns there.</p>
+    {% endif %}
+  </div>
+  {% else %}
+  <p>No recommendation: nothing needs to change.</p>
+  {% endfor %}
+
+  <p>
+    <a class="button" download="{{ result.simulation_id }}.json" href="data:application/json;charset=utf-8,{{ result_json | urlencode }}">Export report (JSON)</a>
+    <a class="button" href="{{ url_for('operator_simulation') }}">Discard and reset</a>
+  </p>
+</section>
+{% endif %}
+{% endblock %}

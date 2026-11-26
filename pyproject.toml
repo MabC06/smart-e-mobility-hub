@@ -1,0 +1,106 @@
+[project]
+name = "smart-e-mobility-hub"
+version = "0.1.0"
+description = "Smart E-Mobility Hub (HK261): coordination of shared electric mobility resources"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+markers = [
+    "tc_m2_001: TC-M2-001 (docs/testing/reservation-phase2.md)",
+    "tc_m2_002: TC-M2-002 (docs/testing/reservation-phase2.md)",
+    "tc_m2_003: TC-M2-003 (docs/testing/reservation-phase2.md)",
+    "tc_m2_004: TC-M2-004 (docs/testing/reservation-phase2.md)",
+    "tc_m2_005: TC-M2-005 (docs/testing/reservation-phase2.md)",
+    "tc_m2_006: TC-M2-006 (docs/testing/reservation-phase2.md)",
+    "tc_m2_007: TC-M2-007 (docs/testing/reservation-phase2.md)",
+    "tc_m2_008: TC-M2-008 (docs/testing/reservation-phase2.md)",
+    "tc_m2_009: TC-M2-009 (docs/testing/reservation-phase2.md)",
+    "tc_m2_010: TC-M2-010 (docs/testing/reservation-phase2.md)",
+    "tc_m2_011: TC-M2-011 (docs/testing/reservation-phase2.md)",
+    "tc_m2_012: TC-M2-012 (docs/testing/reservation-phase2.md)",
+    "tc_m2_013: TC-M2-013 (docs/testing/reservation-phase2.md)",
+    "tc_m2_014: TC-M2-014 (docs/testing/reservation-phase2.md)",
+    "tc_m2_015: TC-M2-015 (docs/testing/reservation-phase2.md)",
+    "tc_m2_016: TC-M2-016 (docs/testing/reservation-phase2.md)",
+    "tc_m2_017: TC-M2-017 (docs/testing/reservation-phase2.md)",
+    "tc_m2_018: TC-M2-018 (docs/testing/reservation-phase2.md)",
+    "tc_m2_019: TC-M2-019 (docs/testing/reservation-phase2.md)",
+    "tc_m2_020: TC-M2-020 (docs/testing/reservation-phase2.md)",
+    "tc_m2_021: TC-M2-021 (docs/testing/reservation-phase2.md)",
+    "tc_m2_022: TC-M2-022 (docs/testing/reservation-phase2.md)",
+    "tc_m2_023: TC-M2-023 (docs/testing/reservation-phase2.md)",
+    "tc_m2_024: TC-M2-024 reservation API journeys (FR-03, FR-04)",
+    "tc_m2_025: TC-M2-025 reservation API authorization and errors (NFR-16, NFR-18)",
+    "tc_m2_026: TC-M2-026 ReservationDemand through Core (D-020, D-021)",
+    "tc_m2_027: TC-M2-027 vehicle search (FR-02, BR-M2-02)",
+    "tc_m2_028: TC-M2-028 expiry on the next request (BR-M2-04, D-017)",
+    "tc_m2_029: TC-M2-029 overdue Trips (BR-M2-15)",
+    "tc_m2_030: TC-M2-030 return-space hold (FR-05, BR-M2-10)",
+    "tc_m2_031: TC-M2-031 private parking arrival and departure (FR-05, FR-07)",
+    "tc_m2_032: TC-M2-032 private parking limits, cancel and expiry (BR-M2-03, BR-M2-05)",
+    "tc_m2_033: TC-M2-033 departure refused while the EV is charging (FR-07, NFR-21)",
+    "tc_m6_001: TC-M6-001 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_002: TC-M6-002 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_003: TC-M6-003 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_004: TC-M6-004 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_005: TC-M6-005 (docs/testing/test-cases/simulation.md)",
+    "tc_m6_006: TC-M6-006 hub at capacity (SC-02)",
+    "tc_m6_007: TC-M6-007 charging surge (SC-03)",
+    "tc_m6_008: TC-M6-008 charging-point failure (SC-04)",
+    "tc_m6_009: TC-M6-009 vehicle imbalance (SC-05)",
+    "tc_m6_010: TC-M6-010 every scenario through the route (FR-12)",
+    "tc_m4_001: TC-M4-001 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_002: TC-M4-002 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_003: TC-M4-003 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_004: TC-M4-004 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_005: TC-M4-005 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_006: TC-M4-006 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_007: TC-M4-007 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_008: TC-M4-008 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_009: TC-M4-009 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_010: TC-M4-010 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_011: TC-M4-011 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_012: TC-M4-012 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_013: TC-M4-013 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_014: TC-M4-014 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_015: TC-M4-015 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_016: TC-M4-016 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_017: TC-M4-017 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_018: TC-M4-018 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_019: TC-M4-019 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_020: TC-M4-020 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_021: TC-M4-021 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_022: TC-M4-022 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_023: TC-M4-023 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_024: TC-M4-024 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_025: TC-M4-025 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_026: TC-M4-026 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_027: TC-M4-027 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_028: TC-M4-028 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_029: TC-M4-029 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_030: TC-M4-030 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_031: TC-M4-031 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_032: TC-M4-032 (docs/testing/test-cases/allocation.md)",
+    "tc_m4_033: TC-M4-033 reject a recommended task (UC-M4-02)",
+    "tc_m4_034: TC-M4-034 task from a simulation recommendation (FR-12, UC-M7-10)",
+    "tc_m4_035: TC-M4-035 capacity relief of a near-full Hub (FR-10.2, FR-10.7)",
+    "tc_m4_036: TC-M4-036 a full Hub is a source, never a destination (FR-10, BR-M4-04)",
+    "tc_m4_037: TC-M4-037 task created by the operator (FR-10.4, UC-M4-02)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+files = ["src/core", "src/main.py", "src/reservation"]
+strict = true

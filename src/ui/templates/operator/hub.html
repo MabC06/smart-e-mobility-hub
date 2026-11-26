@@ -1,0 +1,156 @@
+{#
+  O2. Hub detail and resource control (wireframes-operator.md), UC-M7-01, UC-M7-02. The lists
+  come from core; each action calls core.commands with the operator's Actor (operator rule 10):
+  report a fault (T11), record a repair (T12), make available (T6), set a charging point's
+  status and close or open the Hub. Core checks every change and its version.
+#}
+{% extends "base.html" %}
+{% block title %}{{ hub.hub_id }} {{ hub.name }} · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set use = (hub.occupied * 100 / hub.parking_capacity) | round | int if hub.parking_capacity else 0 %}
+<p><a href="{{ url_for('operator_overview') }}">&lt; Overview</a></p>
+<h1>
+  {{ hub.hub_id }} {{ hub.name }}
+  <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ hub.status }} {{ use }}%</span>
+  <small>zone {{ hub.zone_code }}</small>
+</h1>
+<div class="page-bar">
+  <p>Parking {{ hub.occupied }}/{{ hub.parking_capacity }} · vehicles available {{ hub.available_vehicles }} · charging {{ hub.charging_in_use }}/{{ hub.charging_points }}</p>
+  <nav class="tabs">
+    <a href="#vehicles">Vehicles</a>
+    <a href="#spaces">Parking spaces</a>
+    <a href="#points">Charging points</a>
+  </nav>
+  <form class="actions bare" action="{{ url_for('hub_status', hub_id=hub.hub_id) }}" method="post"
+        title="WARNING and CRITICAL are set by monitoring from the occupancy.">
+    <input type="hidden" name="version" value="{{ hub.version }}">
+    {% if hub.status == "MAINTENANCE" %}
+    <input type="hidden" name="status" value="ACTIVE">
+    <button class="button" type="submit">Open the Hub again</button>
+    {% else %}
+    <input type="hidden" name="status" value="MAINTENANCE">
+    <button class="button" type="submit">Close the Hub for maintenance</button>
+    {% endif %}
+  </form>
+</div>
+
+<section id="vehicles">
+  <h2>Vehicles</h2>
+  <form class="filters" method="get" action="{{ url_for('operator_hub', hub_id=hub.hub_id) }}">
+    <label>Type
+      <select name="type">
+        <option value="">all</option>
+        {% for t in vehicle_types %}<option value="{{ t }}"{% if t == filters.type %} selected{% endif %}>{{ t | type_label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>State
+      <select name="state">
+        <option value="">all</option>
+        {% for s in vehicle_states %}<option value="{{ s }}"{% if s == filters.state %} selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Owner
+      <select name="owner">
+        <option value="">all</option>
+        <option value="FLEET"{% if filters.owner == "FLEET" %} selected{% endif %}>fleet</option>
+        <option value="PRIVATE"{% if filters.owner == "PRIVATE" %} selected{% endif %}>private</option>
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+    <span class="note">{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }}</span>
+  </form>
+  <div class="table-wrap scroll">
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Type</th><th>Owner</th><th>State</th><th>Battery</th><th>Fault</th><th>Space</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+        <tr>
+          <td>{{ vehicle.plate_or_code }}</td>
+          <td>{{ vehicle.vehicle_type | type_label }}</td>
+          <td>{{ "fleet" if vehicle.ownership == "FLEET" else "private" }}</td>
+          <td>{{ vehicle.state }}</td>
+          <td>{{ vehicle.battery_pct | round | int }}%</td>
+          <td>{{ "✖ yes" if vehicle.fault_flag else "–" }}</td>
+          <td>{{ vehicle.parking_space_id or "–" }}</td>
+          <td>
+            {% set actions = [] %}
+            {% if vehicle.state in ("AVAILABLE", "RESERVED", "RETURNED", "CHARGING") %}{% set actions = [("report_fault", "Report fault")] %}{% endif %}
+            {% if vehicle.state == "MAINTENANCE" %}{% set actions = [("repair", "Repaired")] %}{% endif %}
+            {% if vehicle.state == "RETURNED" %}{% set actions = actions + [("mark_ready", "Make available")] %}{% endif %}
+            {% for action, label in actions %}
+            <form class="inline" action="{{ url_for('vehicle_action', hub_id=hub.hub_id, vehicle_id=vehicle.vehicle_id, action=action) }}" method="post">
+              <input type="hidden" name="version" value="{{ vehicle.version }}">
+              <button class="button" type="submit">{{ label }}</button>
+            </form>
+            {% endfor %}
+            <a href="{{ url_for('operator_hub', hub_id=hub.hub_id) }}?vehicle={{ vehicle.vehicle_id }}#history">History</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">No vehicle matches.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if shown_vehicle %}
+  <h3 id="history">Last changes of {{ shown_vehicle }}</h3>
+  <ul>
+    {% for change in history %}
+    <li>{{ change.at | ict }} · {{ change.previous_state }} → {{ change.new_state }} · {{ change.trigger }} by {{ change.actor }}</li>
+    {% else %}
+    <li>No change recorded.</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<section id="spaces">
+  <h2>Parking spaces <small class="note">{{ spaces | selectattr("status", "equalto", "AVAILABLE") | list | length }} free of {{ spaces | length }}</small></h2>
+  <ul class="tiles">
+    {% for space in spaces %}
+    <li class="{{ space.status }}"><strong>{{ space.label }}</strong>{{ space.status | lower | replace("_", " ") }}{% if space.occupant_vehicle_id %} · {{ plates.get(space.occupant_vehicle_id, space.occupant_vehicle_id) }}{% endif %}</li>
+    {% else %}
+    <li>No parking space to show.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section id="points">
+  <h2>Charging points</h2>
+  <div class="table-wrap fit">
+    <table>
+      <thead><tr><th>Point</th><th>Space</th><th>Power</th><th>Status</th><th>Change status</th></tr></thead>
+      <tbody>
+        {% for point in charging_points %}
+        <tr>
+          <td>{{ point.charging_point_id }}</td>
+          <td>{{ point.parking_space_id }}</td>
+          <td>{{ point.power_rate_kw }} kW</td>
+          <td>{{ point.status }}</td>
+          <td>
+            <form class="inline" action="{{ url_for('point_status', hub_id=hub.hub_id, point_id=point.charging_point_id) }}" method="post">
+              <input type="hidden" name="version" value="{{ point.version }}">
+              <select name="status" aria-label="New status of {{ point.charging_point_id }}">
+                {% for s in point_statuses %}<option value="{{ s }}"{% if s == point.status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+              </select>
+              <button class="button" type="submit">Set</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No charging point to show.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="note">A point set OUT_OF_SERVICE or MAINTENANCE stops its session; charging moves the vehicle to another point (see Charging).</p>
+</section>
+
+<p>
+  <a class="button" href="{{ url_for('operator_charging') }}?hub_id={{ hub.hub_id }}">Charging at this Hub</a>
+  <a class="button" href="{{ url_for('operator_dispatch') }}">Dispatch</a>
+  <a class="button" href="{{ url_for('operator_simulation') }}">Simulate</a>
+</p>
+{% endblock %}

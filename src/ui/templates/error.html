@@ -1,0 +1,21 @@
+{#
+  S9. Error block (wireframes-student.md, operator rule 8, NFR-21): what failed, the cause in
+  plain words, up to two alternatives, and the code under "Details". Never a stack trace.
+  `error` is a routes.ErrorInfo; the HTTP status (400, 404) is set by the route.
+#}
+{% extends "base.html" %}
+{% block title %}{{ error.title }} · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<section class="error-block" role="alert">
+  <h2>⚠ {{ error.title }}</h2>
+  <p>{{ error.cause }}</p>
+  {% if error.alternatives %}
+  <p>
+    {% for label, url in error.alternatives[:2] %}
+    <a class="button" href="{{ url }}">{{ label }}</a>
+    {% endfor %}
+  </p>
+  {% endif %}
+  <p class="details">Details: {{ error.code }}</p>
+</section>
+{% endblock %}

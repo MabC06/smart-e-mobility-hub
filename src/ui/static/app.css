@@ -1,0 +1,734 @@
+/*
+  Styles of the UI (D-002: plain CSS, no build step).
+
+  Layout rules (Universal Design, principles 3 and 4; D-027):
+  - Every bar (header, tabs, alert strip, footer) and the page content share one
+    column (1200 px for students, 1440 px for operators), so all text starts on the same
+    left edge.
+  - Body text is 16 px; nothing is smaller than 14 px (0.875rem).
+  - Each block of content is a panel: white, bordered, with its heading inside. The page
+    background is only the gap between panels.
+  - A status is always one badge shape: symbol + word, border and tinted background, never
+    colour alone.
+  - The main action of a block is `.button.primary`; a disabled control looks disabled.
+
+  Hooks the templates must keep: .site-header, .tabs, .alert-strip, .site-footer, .card,
+  .cards, .table-wrap, .status + .status-<STATUS>, .button (+ .primary), .simulation-banner,
+  .error-block, .login, and <section>/<form>/<details> directly inside <main>.
+*/
+
+:root {
+  --text: #1f2933;
+  --muted: #5b6876;
+  --line: #d9dee4;          /* rows inside a table */
+  --panel-line: #b8c2cc;    /* edge of a panel: visible against the page */
+  --surface: #ffffff;
+  --page: #eef1f5;
+  --head: #f4f6f8;          /* table header and toolbar background */
+  --link: #1f5fbf;
+  --link-dark: #174a96;
+  --link-tint: #eaf1fb;
+  --ok: #1e7b45;
+  --ok-bg: #e6f4ea;
+  --ok-line: #9fd3b0;
+  --warning: #8a5100;
+  --warning-bg: #fff4dc;
+  --warning-line: #e9b95c;
+  --critical: #b3261e;
+  --critical-bg: #fde7e6;
+  --critical-line: #ec9c96;
+  --neutral: #4b5563;
+  --neutral-bg: #eef1f4;
+  --column: 1200px;
+  --gutter: 16px;
+  /* Left and right padding that lines a full-width bar up with the content column. */
+  --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
+}
+
+* { box-sizing: border-box; }
+
+/* ------------------------------------------------------------------ page frame */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--page);
+  line-height: 1.5;
+}
+
+a { color: var(--link); }
+a:hover { color: var(--link-dark); }
+
+main {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: 24px var(--gutter) 32px;
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px var(--bar-pad);
+  background: var(--surface);
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.site-header .brand { font-weight: 700; color: var(--text); text-decoration: none; }
+.site-header .user {
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.site-header nav { margin-left: auto; color: var(--muted); }
+.site-header nav a { padding: 4px 6px; font-weight: 600; text-decoration: none; }
+.site-header nav a:hover { text-decoration: underline; }
+
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--panel-line);
+  border-bottom: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Operator tab bar: the active tab is marked by weight and an underline, not colour alone. */
+body > .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 var(--bar-pad);
+  background: var(--surface);
+  border-bottom: 1px solid var(--panel-line);
+}
+
+body > .tabs a {
+  padding: 10px 14px 8px;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+body > .tabs a:hover { color: var(--link); }
+
+body > .tabs a[aria-current="page"] {
+  border-bottom-color: var(--link);
+  color: var(--text);
+}
+
+.alert-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0;
+  padding: 8px var(--bar-pad);
+  background: var(--head);
+  border-bottom: 1px solid var(--panel-line);
+  font-size: 0.9375rem;
+}
+
+.alert-strip a.status { text-decoration: none; }
+
+/* ------------------------------------------------------------------ headings */
+
+main > h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 4px;
+  font-size: 1.625rem;
+  line-height: 1.3;
+}
+
+main > h1 small { color: var(--muted); font-size: 0.9375rem; font-weight: 400; }
+main > h1 + p { margin-top: 0; color: var(--muted); }
+
+/* ------------------------------------------------------------------ panels */
+
+main > section:not(.login):not(.error-block),
+main > form,
+main > details,
+main > .table-wrap,
+.card,
+.login {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+
+main > .table-wrap { padding: 0; overflow-x: auto; }
+
+main > section > h2,
+.card > h2,
+main > section > h3,
+.card > h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+
+.card > h3, main > section > h3 { font-size: 1rem; margin-top: 16px; }
+.card > :last-child, main > section > :last-child { margin-bottom: 0; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cards .card { display: flex; flex-direction: column; margin: 0; }
+/* The badge always sits on its own line under the Hub name, whatever the name's length. */
+.cards .card > h2 { flex-direction: column; align-items: flex-start; }
+.cards .card > :last-child { margin-top: auto; }
+
+main > details > summary { cursor: pointer; font-weight: 600; }
+main > details[open] > summary { margin-bottom: 12px; }
+
+/* A row of filters: one toolbar line above the panel it filters. */
+main > p:has(select),
+main > section > p:has(select) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+/* Inside O2 the "tabs" jump to sections of the same page: a small link row, not a second tab bar. */
+main .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+main .tabs a {
+  padding: 4px 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+main .tabs a:hover { background: var(--link-tint); }
+
+/* ------------------------------------------------------------------ status badge */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 10px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.status-ACTIVE { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-line); }
+.status-WARNING { color: var(--warning); background: var(--warning-bg); border-color: var(--warning-line); }
+.status-CRITICAL { color: var(--critical); background: var(--critical-bg); border-color: var(--critical-line); }
+.status-MAINTENANCE { color: var(--neutral); background: var(--neutral-bg); border-color: var(--panel-line); }
+
+.status-note { display: block; margin-top: 2px; color: var(--muted); font-size: 0.875rem; }
+
+/* ------------------------------------------------------------------ tables */
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th {
+  background: var(--head);
+  border-bottom: 1px solid var(--panel-line);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #f8fafc; }
+main > .table-wrap th:first-child, main > .table-wrap td:first-child,
+main > form > .table-wrap th:first-child, main > form > .table-wrap td:first-child { padding-left: 20px; }
+main > .table-wrap th:last-child, main > .table-wrap td:last-child { padding-right: 20px; }
+
+.table-wrap { overflow-x: auto; }
+section > .table-wrap, form > .table-wrap { border: 1px solid var(--line); border-radius: 6px; }
+
+/* ------------------------------------------------------------------ buttons and form controls */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  margin: 0 6px 6px 0;
+  padding: 6px 14px;
+  border: 1px solid var(--link);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--link);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover { background: var(--link-tint); }
+
+.button.primary { background: var(--link); color: #ffffff; }
+.button.primary:hover { background: var(--link-dark); border-color: var(--link-dark); color: #ffffff; }
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  border-style: dashed;
+  border-color: var(--panel-line);
+  background: var(--neutral-bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):disabled, select:disabled, textarea:disabled {
+  background: var(--neutral-bg);
+  border-style: dashed;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+:focus-visible { outline: 3px solid #7aa7e8; outline-offset: 2px; }
+
+/* Forms directly in a panel: labelled fields side by side, wrapping on a narrow screen. */
+main > form > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+main > form > p > label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.9375rem; }
+main > form > p > label input { font-weight: 400; }
+
+main > form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+main > form fieldset legend { margin-bottom: 4px; padding: 0; font-weight: 600; font-size: 0.9375rem; }
+main > form fieldset label { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ------------------------------------------------------------------ parking meter */
+
+meter { width: 100%; height: 10px; }
+meter::-webkit-meter-bar { background: var(--neutral-bg); border: 1px solid var(--panel-line); border-radius: 999px; }
+meter::-webkit-meter-optimum-value { background: var(--ok); border-radius: 999px; }
+meter::-webkit-meter-suboptimum-value { background: #c98a00; border-radius: 999px; }
+meter::-webkit-meter-even-less-good-value { background: var(--critical); border-radius: 999px; }
+meter:-moz-meter-optimum::-moz-meter-bar { background: var(--ok); }
+meter:-moz-meter-sub-optimum::-moz-meter-bar { background: #c98a00; }
+meter:-moz-meter-sub-sub-optimum::-moz-meter-bar { background: var(--critical); }
+
+/* ------------------------------------------------------------------ special blocks */
+
+.note { color: var(--muted); font-size: 0.875rem; }
+
+.simulation-banner {
+  margin: 0 0 16px;
+  padding: 8px 14px;
+  border: 2px dashed var(--warning);
+  border-radius: 8px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+/* A simulated result is never mistaken for real state (NFR-12). */
+main > p.simulation-banner ~ section.card { border: 2px dashed var(--warning-line); }
+
+.login { max-width: 380px; margin: 48px auto; }
+.login h1 { margin-top: 0; font-size: 1.375rem; }
+.login label { display: block; margin-bottom: 4px; font-weight: 600; }
+.login input { width: 100%; }
+
+.error-block {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  border: 1px solid var(--critical-line);
+  border-left: 6px solid var(--critical);
+  border-radius: 8px;
+  background: var(--critical-bg);
+}
+
+.error-block h2 { margin: 0 0 4px; font-size: 1.125rem; color: var(--critical); }
+.error-block .details { color: var(--muted); font-size: 0.875rem; }
+
+/* ------------------------------------------------------------------ actions and filters (PR 4) */
+
+[hidden] { display: none !important; }
+
+.site-header nav a[aria-current="page"] { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+
+/* A filter bar: one toolbar line above the list it filters, not a panel. */
+main > form.filters { padding: 12px 20px; background: var(--head); }
+main > form.filters > p { margin: 0; }
+main > form.filters > p.note { margin-top: 6px; }
+section > form.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+}
+
+/* One action of a card or panel: label(s) and a button on one line. */
+form.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 8px;
+}
+main > form.actions { padding: 12px 20px; }
+form.actions label, section > form.filters label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+form.actions .button, form.inline .button { margin: 0; }
+
+/* A button inside a table cell or next to another one. */
+form.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 4px 0; }
+
+/* One item of a list that has its own actions (charging requests, recommendations). */
+.row-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.row-item:last-child { border-bottom: 0; }
+.row-item > p { margin: 0 0 8px; }
+
+/* O6: the two headline numbers side by side. */
+.compare { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; }
+.compare p {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 220px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+}
+.compare strong { color: var(--text); font-size: 1.5rem; }
+
+/* O4 settings: label above its field, in columns. */
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 20px; margin-bottom: 12px; }
+.settings label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.settings label span { font-weight: 400; color: var(--muted); }
+
+p.status { white-space: normal; border-radius: 8px; padding: 6px 12px; }
+
+/* ------------------------------------------------------------------ layout review (PR 4, D-027) */
+
+/* S3: vehicles as small cards to pick, several per row, instead of a wide four-column table. */
+main > form.pick { padding: 16px 20px 0; }
+.choice-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.choice-grid legend { grid-column: 1 / -1; }
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.choice:hover { background: var(--link-tint); }
+.choice:has(input:checked) { border-color: var(--link); box-shadow: inset 0 0 0 1px var(--link); background: var(--link-tint); }
+.choice input { grid-row: span 2; width: 18px; height: 18px; }
+.choice-title { font-weight: 700; }
+.choice-meta { color: var(--muted); font-size: 0.9375rem; }
+.choice-meta strong { color: var(--text); }
+
+/* The main action of a long list stays at the bottom of the screen. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 -20px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--panel-line);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 -4px 10px rgba(31, 41, 51, 0.06);
+}
+.action-bar label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.action-bar .button { margin: 0; }
+
+/* Two or three actions of one card on one row. */
+.action-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; }
+.action-row > form.actions { margin: 0; }
+
+/* A short table keeps its columns together instead of spreading over the whole panel. */
+.table-wrap.fit table { width: auto; min-width: min(100%, 560px); }
+.table-wrap.fit th, .table-wrap.fit td { padding-right: 32px; }
+
+/* A long list scrolls inside its panel; its header stays visible. */
+.table-wrap.scroll { max-height: 26rem; overflow-y: auto; }
+.table-wrap.scroll thead th { position: sticky; top: 0; z-index: 1; }
+
+/* O2: parking spaces as a grid of small tiles, coloured by status with a word. */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tiles li { padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; font-size: 0.875rem; }
+.tiles li strong { display: block; font-size: 0.9375rem; }
+.tiles .AVAILABLE { border-left-color: var(--ok); }
+.tiles .OCCUPIED { border-left-color: var(--link); }
+.tiles .RESERVED { border-left-color: var(--warning); }
+.tiles .OUT_OF_SERVICE, .tiles .MAINTENANCE { border-left-color: var(--critical); }
+
+/* A short form that needs focus (S4 confirm) stays narrow, like a dialog. */
+main > form.narrow { max-width: 720px; }
+
+/* Two panels side by side on a wide screen (S7); one under the other when narrow. */
+.split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; margin-bottom: 24px; }
+.split > form, .split > section {
+  margin: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.split > form > h2, .split > section > h2 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 1.125rem; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+/* Fields with the label above, in columns. */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 20px; margin-bottom: 16px; }
+.form-grid label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.form-grid input, .form-grid select { width: 100%; font-weight: 400; }
+
+ul.plain { margin: 0 0 12px; padding: 0; list-style: none; }
+ul.plain li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+ul.plain li:last-child { border-bottom: 0; }
+
+/* Two radio buttons side by side inside a field grid. */
+.form-grid fieldset.choice-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0; padding: 0; border: 0; }
+.form-grid fieldset.choice-inline legend { width: 100%; margin-bottom: 4px; padding: 0; font-weight: 600; }
+.form-grid fieldset.choice-inline label { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.split h3 { margin: 16px 0 8px; font-size: 1rem; }
+.single > section {
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.single > section > h2 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 1.125rem; }
+.single h3 { margin: 16px 0 8px; font-size: 1rem; }
+
+/* O1: compact Hub cards, five per row on a 1200 px column, all ten Hubs on one screen. */
+.cards { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.cards .card { padding: 12px 14px; }
+.cards .card > h2 { margin-bottom: 8px; padding-bottom: 6px; font-size: 1.0625rem; }
+.cards .card p { margin: 4px 0; }
+.cards .card label { display: block; font-size: 0.9375rem; }
+.cards .card .button { min-height: 32px; padding: 4px 10px; }
+
+/* A summary line under a page title with its links and one page action on the right (O2). */
+.page-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 16px; }
+.page-bar > p, .page-bar > .tabs { margin: 0; color: var(--muted); }
+main > .page-bar > form.bare { margin: 0 0 0 auto; padding: 0; background: none; border: 0; }
+
+/* One toolbar above a list: a filter on the left, the page action on the right (O4). */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  padding: 12px 20px;
+  background: var(--head);
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+}
+.toolbar form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; }
+.toolbar form:last-child { margin-left: auto; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.toolbar .button { margin: 0; }
+
+/* Cards of a list two per row on a wide screen (O4 tasks). */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card-grid > .card { margin: 0; }
+.card-grid > p { grid-column: 1 / -1; margin: 0; }
+
+/* Operator screens are desktop only and dense: a wider column on large screens (D-027). */
+body.operator {
+  --column: 1440px;
+  --bar-pad: max(var(--gutter), calc((100% - var(--column)) / 2 + var(--gutter)));
+}
+
+/* ================================================================== phones (D-027, part 3)
+   The student screens (login, S1 to S9) from 360 px wide, checked at 390 x 844. One column,
+   no sideways scrolling, 16 px text in fields (no zoom on focus), tap targets at least 44 px
+   high with at least 8 px between them, nothing shown only on hover. Operator screens are
+   desktop only. */
+@media (max-width: 640px) {
+  :root { --gutter: 12px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  main { padding: 16px var(--gutter) 24px; }
+  main > h1 { font-size: 1.375rem; }
+  main > h1 + p { font-size: 0.9375rem; }
+
+  /* Header: brand and code on one line, the menu as a row of large links that wraps. */
+  .site-header { gap: 6px 10px; padding: 8px var(--gutter); }
+  .site-header nav { margin-left: 0; width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+  .site-header nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+  .site-header nav a[aria-current="page"] { border-color: var(--link); background: var(--link-tint); color: var(--text); text-decoration: none; }
+
+  /* Panels use the whole width. */
+  main > section:not(.login):not(.error-block), main > form, main > details, .card,
+  .split > form, .split > section, .single > section { padding: 12px; }
+
+  /* Every field: label above, full width, 16 px. */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  input[type="radio"], input[type="checkbox"] { width: 22px; height: 22px; }
+  main > form > p, form.actions, .action-bar, main > form.filters > p, .toolbar form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  main > form > p > label, form.actions label, .action-bar label, main > form.filters label,
+  .form-grid label, .toolbar label {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid fieldset.choice-inline label, main > form fieldset label { flex-direction: row; align-items: center; min-height: 44px; }
+
+  /* Buttons: at least 44 px high, full width when they are a block's action. */
+  .button { min-height: 44px; margin: 0; }
+  form.actions .button, .action-bar .button, main > form > p > .button, .split > form > p > .button,
+  .error-block .button, .login .button { width: 100%; }
+  .action-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .action-row > form.actions { width: 100%; }
+
+  /* S2: each Hub as a stacked card, the name first, then status and the numbers. */
+  table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
+  table.stack thead { display: none; }
+  main > .table-wrap:has(table.stack) { border: 0; background: none; overflow: visible; }
+  table.stack { background: none; }
+  table.stack tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    margin: 0 0 12px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+  }
+  table.stack td { padding: 0 !important; border: 0; }
+  table.stack td.stack-title { grid-column: 1 / -1; font-size: 1.0625rem; font-weight: 700; }
+  table.stack td.stack-status, table.stack td.stack-action { grid-column: 1 / -1; }
+  table.stack td { order: 2; }
+  table.stack td.stack-title { order: 0; }
+  table.stack td.stack-status { order: 1; margin-bottom: 4px; }
+  table.stack td.stack-action { order: 3; }
+  table.stack td.stack-action .button { width: 100%; margin-top: 8px; }
+  table.stack td[data-label]::before { content: attr(data-label) " "; display: block; color: var(--muted); font-size: 0.875rem; }
+  tbody tr:hover td { background: none; }
+
+  /* S4: label and value pairs one under the other. */
+  table.pairs, table.pairs tbody, table.pairs tr, table.pairs th, table.pairs td { display: block; width: 100%; }
+  table.pairs th { padding: 8px 0 0; border: 0; background: none; }
+  table.pairs td { padding: 2px 0 8px; }
+
+  /* S3: two vehicle cards per row; the action bar stays at the bottom. */
+  main > form.pick { padding: 12px 12px 0; }
+  .choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .choice { min-height: 64px; padding: 8px 10px; }
+  .action-bar { margin: 0 -12px; padding: 10px 12px; }
+  .action-bar .note { display: none; }
+  .action-bar { gap: 6px; }
+  .action-bar label { flex-direction: row; align-items: center; gap: 8px; }
+  .action-bar label select { flex: 1; }
+  /* S3 filters: the two fields side by side, the button under them. */
+  main > form.filters > p:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  main > form.filters > p:first-child > .button, main > form.filters > p:first-child > .note { grid-column: 1 / -1; }
+  main > form.filters > p:first-child > .note { display: none; }
+  .choice-meta { font-size: 0.875rem; }
+  .choice-meta strong { font-size: 1rem; }
+
+  /* Lists with actions: more room between items. */
+  .row-item { padding: 14px 0; }
+  ul.plain li { padding: 10px 0; }
+
+  /* S9 and the login fit the width. */
+  .error-block { padding: 14px; }
+  .login { margin: 16px auto; }
+}
+
+@media (max-width: 380px) {
+  .choice-grid { grid-template-columns: 1fr; }
+}

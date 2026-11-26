@@ -14,7 +14,8 @@ The system manages Mobility Hubs consisting of parking spaces, charging points, 
 - [Repository Structure](#repository-structure)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-- [Contributing](#contributing)
+- [Running the Demo on a Phone](#running-the-demo-on-a-phone)
+- [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
 - [Generative AI Usage Declaration](#generative-ai-usage-declaration)
 - [Demo](#demo)
@@ -102,8 +103,9 @@ smart-e-mobility-hub/
 │   └── ui/                     # M7 — student & operator interfaces
 ├── tests/
 │   ├── <module>/               # unit tests, written by each module's owner
-│   └── integration/            # integration tests, owned by M8
-├── .github/                    # pull_request_template.md, CODEOWNERS, CI workflow (if any)
+│   ├── integration/            # integration tests, owned by M8
+│   └── performance/            # NFR measurement scripts (M8), results in docs/testing/
+├── .github/                    # pull_request_template.md, CODEOWNERS, workflows/ci.yml (CI)
 ├── .env.example                 # required environment variables (names only)
 ├── .gitignore
 ├── CONTRIBUTING.md              # workflow & coding rules — read before your first PR
@@ -114,43 +116,133 @@ No hardware is used, so vehicle, parking and charging-point state comes from sim
 
 ## Tech Stack
 
-> *TBD — to be filled in once the team finalizes the stack during the Design phase (proposal: `docs/design/architecture/tech-stack-proposal.md`). Record the final decision in `docs/DECISIONS.md`.*
+Decided in D-002 (details and reasons: [`docs/design/architecture/tech-stack-proposal.md`](docs/design/architecture/tech-stack-proposal.md)).
 
-- Backend language/framework: *TBD*
-- Frontend: *TBD*
-- Database: *TBD*
-- UML/wireframing tools: *TBD*
-- Test framework / test-case management: *TBD*
+- Backend language/framework: Python 3.12, FastAPI with Pydantic
+- Frontend: server-rendered pages with Jinja2 + HTMX, served by the same application; the pages call the module routes in-process with `httpx` (D-026); student pages also fit phone screens (D-027)
+- Database: SQLite through SQLAlchemy 2.x
+- UML/wireframing tools: Mermaid in the Markdown files; draw.io or PlantUML where Mermaid is not enough
+- Test framework / test-case management: pytest with pytest-cov; test cases as Markdown tables in `docs/testing/`, linked to pytest by `TC-M<n>-###` markers
+- Quality checks: ruff (lint and format), mypy (strict on `core`, `reservation` and `main.py`), coverage per module (D-025), run by CI on every PR
 
 ## Getting Started
 
-```bash
-# 1. Clone the repo
-git clone <repo-url>
+These steps take a fresh clone to the running demo in about 10 minutes. They use **Windows PowerShell**; the differences for macOS and Linux are listed after step 7.
+
+**You need:** Git, and **Python 3.12 or newer**. Check with `python --version`. Nothing else has to be installed.
+
+**1. Clone the repository**
+
+```powershell
+git clone https://github.com/MabC06/smart-e-mobility-hub.git
 cd smart-e-mobility-hub
-
-# 2. Set your identity for THIS repo only (how to get your noreply email: see CONTRIBUTING.md, section 2)
-git config --local user.name  "<Student ID> <Full name>"
-git config --local user.email "<your GitHub noreply email>"
-
-# 3. Configure environment variables
-cp .env.example .env        # then fill in values; never commit .env
-
-# 4. Install dependencies   (update once the tech stack is set)
-# ...
-
-# 5. Run the project locally (update once the tech stack is set)
-# ...
-
-# 6. Run tests              (update once the tech stack is set)
-# ...
 ```
 
-## Contributing
+**2. Create the virtual environment and activate it**
 
-All workflow rules — branching, commits, pull requests, review, code style, testing, security — live in **[CONTRIBUTING.md](CONTRIBUTING.md)**. Read it before opening your first PR; nothing below is a substitute for it.
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
 
-Progress is tracked on GitHub Projects (Kanban), mapped to the 8 modules and the project phases.
+The prompt now starts with `(.venv)`. If PowerShell says that running scripts is disabled, allow it for this window only and activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
+```
+
+**3. Install the pinned dependencies**
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+**4. Create your `.env` from the template**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+The application reads only `.env`. `.env.example` is the committed template with names and no values: never put a value in it. `.env` is ignored by Git: never commit it (CONTRIBUTING 11.1).
+
+**5. Fill in four lines of `.env`**
+
+Make a secret key for your machine (a random text; it signs the login tokens):
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Open `.env` (`notepad .env`) and set these lines; leave every other line empty:
+
+```
+SECRET_KEY=<the text printed above>
+SEED_ON_START=true
+DEMO_PASSWORD=<a password of at least 8 characters, chosen by you>
+DATABASE_URL=
+```
+
+- `SECRET_KEY`: at least 16 characters, no default. Each member makes their own; do not share it.
+- `SEED_ON_START=true` loads the demo network from the simulator (`src/iot_sim`, M8): 10 Hubs, 350 vehicles, 1,005 accounts.
+- `DEMO_PASSWORD` is the password of every demo account (D-028). If your `.env` was made before 25 Nov 2026, the line is missing: add it.
+- `DATABASE_URL` empty keeps the data in memory, so every start begins with a fresh demo network. With a file (`sqlite:///data/hub.db`) the data stays, and the password is set only when the file is first filled: delete the file to change it.
+
+**6. Start the server**
+
+```powershell
+python -m uvicorn --app-dir src main:create_app --factory --port 8000
+```
+
+Wait for `Application startup complete`. A line `demo network loaded` shows that the demo data is in. Keep this window open; `Ctrl+C` stops the server. After changing `.env`, stop and start the server again.
+
+**7. Open the screens**
+
+Open http://127.0.0.1:8000 and log in with an account code and your `DEMO_PASSWORD`:
+
+| Account | Code | Screens |
+|---|---|---|
+| Student | `STU-0001` to `STU-1000` | Hubs, vehicle search and rental, my bookings, parking, charging (S1 to S9) |
+| Operator | `OPS-01` to `OPS-05` | Network overview, Hub detail, charging queues, dispatch, incidents, What-if Simulation (O1 to O6) |
+
+Operator screens are made for a desktop screen (from 1280 px wide).
+
+To charge a student's own EV: **Parking** → book a stay at a Hub → **Arrive**, then **Charging** → **Now**. Charging needs the EV parked in a charging bay of that Hub; the first spaces of each Hub are its bays. **Finish charging** ends the session, then **Depart** on the Parking page. The API documentation is at http://127.0.0.1:8000/docs (hidden when `APP_ENV=production-demo`).
+
+**Next time** only two commands are needed, in the project folder: `.venv\Scripts\Activate.ps1`, then the command of step 6.
+
+**macOS and Linux:** use `python3` instead of `python` in step 2, `source .venv/bin/activate` to activate, and `cp .env.example .env` in step 4. In Git Bash on Windows, activate with `source .venv/Scripts/activate`.
+
+## Running the Demo on a Phone
+
+The student screens also fit a phone (D-027). The phone and the laptop must be on the same Wi-Fi.
+
+1. Start the server on every network interface of the laptop, not only `127.0.0.1`:
+
+   ```powershell
+   python -m uvicorn --app-dir src main:create_app --factory --host 0.0.0.0 --port 8000
+   ```
+
+2. Find the laptop's address: `ipconfig` on Windows (IPv4 Address of the Wi-Fi adapter, for example `192.168.1.23`), `ipconfig getifaddr en0` on macOS, `hostname -I` on Linux.
+3. On the phone open `http://<that address>:8000` and log in as a student.
+
+- On Windows, the first start shows a firewall prompt for Python: allow it on **private** networks only. If the page does not open, check that the Wi-Fi is set as a private network.
+- Some campus or public Wi-Fi networks block devices from reaching each other. Then turn on the phone's hotspot, connect the laptop to it and use the laptop's address on that network.
+- `--host 0.0.0.0` lets anyone on the same network reach the server: use it only on a network you trust, choose a `DEMO_PASSWORD` that is not easy to guess, and stop the server after the demo.
+
+## Troubleshooting
+
+| What you see | Cause and fix |
+|---|---|
+| `No module named uvicorn` (or `fastapi`) | The virtual environment is not active or the dependencies are not installed: step 2 (activate), then step 3. |
+| `Activate.ps1 cannot be loaded because running scripts is disabled` | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then activate again (step 2). |
+| `Configuration error: SECRET_KEY is not set` or `SECRET_KEY must be at least 16 characters` | Step 5: put a key of at least 16 characters in `.env`. |
+| `Configuration error: DEMO_PASSWORD must be at least 8 characters` | Choose a longer password in `.env`. |
+| Log line `DEMO_PASSWORD is not set: the seeded accounts cannot log in`, and the login page says "The code or the password is wrong" | `DEMO_PASSWORD` is missing from `.env` (a value in `.env.example` is not read). Add it to `.env` and restart the server. With a database file, delete the file first. |
+| Login fails although `DEMO_PASSWORD` is set | Restart the server after editing `.env`; check the code (`STU-0001`, `OPS-01`); with a database file, delete it so the new password is applied. |
+| No Hubs or vehicles on the screens | `SEED_ON_START=true` is missing, or the database file was created without it: set it and delete the file. |
+| `error while attempting to bind on address` | Port 8000 is used by another program or another server window. Stop it, or use `--port 8001` and open that port. |
+| A change to `.env` has no effect | `.env` is read only at start: stop the server (`Ctrl+C`) and start it again. |
 
 ## Testing
 
@@ -168,4 +260,4 @@ Each member records their own usage in `docs/ai-usage/<student-id>.md` **at the 
 
 A pre-recorded demo (≈3 minutes within the ≈20-minute presentation; live demos are not permitted). The video file is **not** committed to the repo — linked here instead.
 
-*Link to the recorded demo video: TBD.*
+**[Watch the demo video (3 min)](https://drive.google.com/file/d/1U3SI5GsNhtepRAzS3Hv1koZy3C_U6NjJ/view)**: the student screens on a phone first, then the student and operator screens in a laptop browser.

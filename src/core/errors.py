@@ -1,0 +1,18 @@
+"""Error codes returned by core commands (docs/design/architecture/core-api-spec.md, section 3)."""
+
+from enum import StrEnum
+
+
+class ErrorCode(StrEnum):
+    UNAUTHENTICATED = "UNAUTHENTICATED"
+    INVALID_INPUT = "INVALID_INPUT"
+    NOT_FOUND = "NOT_FOUND"
+    FORBIDDEN = "FORBIDDEN"
+    VERSION_CONFLICT = "VERSION_CONFLICT"
+    INVALID_TRANSITION = "INVALID_TRANSITION"
+    CLAIM_CONFLICT = "CLAIM_CONFLICT"
+    HUB_FULL = "HUB_FULL"
+    SPACE_NOT_FREE = "SPACE_NOT_FREE"
+    RESOURCE_UNAVAILABLE = "RESOURCE_UNAVAILABLE"
+    BATTERY_TOO_LOW = "BATTERY_TOO_LOW"
+    INTERNAL_ERROR = "INTERNAL_ERROR"

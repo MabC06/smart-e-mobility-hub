@@ -1,0 +1,55 @@
+{# S2. Find a Hub (wireframes-student.md), FR-01. The student's home screen. #}
+{% extends "base.html" %}
+{% block title %}Find a Hub · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+{% set status_words = {
+  "ACTIVE": "Open",
+  "WARNING": "Nearly full",
+  "CRITICAL": "Full",
+  "MAINTENANCE": "Closed",
+} %}
+<h1>Find a Hub</h1>
+<p>Choose a Hub to see the vehicles you can rent there.</p>
+
+<div class="table-wrap">
+  <table class="stack">
+    <thead>
+      <tr>
+        <th>Hub</th>
+        <th>Zone</th>
+        <th>Vehicles</th>
+        <th>Free spaces</th>
+        <th>Charging in use</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hub in hubs %}
+      <tr>
+        <td class="stack-title">{{ hub.hub_id }} {{ hub.name }}</td>
+        <td data-label="Zone">{{ hub.zone_code }}</td>
+        <td data-label="Vehicles">{{ hub.available_vehicles }}</td>
+        <td data-label="Free spaces">{{ hub.free_spaces }} of {{ hub.parking_capacity }}</td>
+        <td data-label="Charging in use">{{ hub.charging_in_use }} of {{ hub.charging_points }}</td>
+        <td class="stack-status">
+          <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ status_words[hub.status] }}</span>
+          {% if hub.status == "CRITICAL" %}<span class="status-note">No new parking bookings</span>{% endif %}
+        </td>
+        <td class="stack-action">
+          {% if hub.status == "MAINTENANCE" or hub.available_vehicles == 0 %}
+          <span class="button" aria-disabled="true">Find a vehicle</span>
+          <span class="status-note">{{ "Hub closed" if hub.status == "MAINTENANCE" else "No vehicle here now" }}</span>
+          {% else %}
+          <a class="button primary" href="{{ url_for('student_vehicles', hub_id=hub.hub_id) }}">Find a vehicle</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No Hub to show. Refresh the page in a moment.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

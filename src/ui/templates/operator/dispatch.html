@@ -1,0 +1,117 @@
+{#
+  O4. Dispatch (wireframes-operator.md), UC-M7-05, UC-M7-06. Tasks of M4 with the actions their
+  status allows: Approve (the quantity can only be lowered) or Reject on RECOMMENDED, pick-up on
+  APPROVED, delivery on IN_PROGRESS, Cancel on APPROVED and IN_PROGRESS. Open tasks come first.
+  Tasks named TASK-SIM-... came from a Simulation Lab recommendation, TASK-OPS-... from the form
+  "Move vehicles yourself" (POST /allocation/tasks/manual). The settings are M4's
+  (GET/PUT /allocation/config, UC-M4-09).
+#}
+{% extends "base.html" %}
+{% block title %}Dispatch · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Dispatch</h1>
+
+<div class="toolbar">
+  <form method="get" action="{{ url_for('operator_dispatch') }}">
+    <label>Status
+      <select name="status">
+        <option value="">all</option>
+        {% for s in statuses %}<option value="{{ s }}"{% if s == status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </form>
+  <form action="{{ url_for('dispatch_plan') }}" method="post" title="M4 plans new tasks from the current demand; open tasks are kept.">
+    <button class="button primary" type="submit">Update recommendations</button>
+  </form>
+</div>
+
+<details>
+  <summary>Move vehicles yourself</summary>
+  <form action="{{ url_for('dispatch_manual') }}" method="post">
+    <div class="settings">
+      <label>From
+        <select name="source_hub_id" required>
+          {% for hub in hubs %}
+          <option value="{{ hub.hub_id }}"{% if loop.first %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }} · {{ hub.status.value }} · {{ hub.available_vehicles }} vehicles, {{ hub.free_spaces }} free</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>To
+        <select name="target_hub_id" required>
+          {% for hub in hubs %}
+          <option value="{{ hub.hub_id }}"{% if loop.index == 2 %} selected{% endif %}>{{ hub.hub_id }} {{ hub.name }} · {{ hub.status.value }} · {{ hub.free_spaces }} free</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Vehicles
+        <span><input type="number" name="quantity" value="5" min="1" max="{{ config.max_vehicles_per_task }}" size="4"> at most {{ config.max_vehicles_per_task }}</span>
+      </label>
+      <label>Type
+        <select name="vehicle_type">
+          <option value="">the most numerous</option>
+          {% for t in vehicle_types %}<option value="{{ t.value }}">{{ t | type_label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Reason <input name="reason" placeholder="e.g. H01 nearly full" size="24"></label>
+    </div>
+    <p><button class="button primary" type="submit">Create task</button>
+    <span class="note">The task is RECOMMENDED; Approve checks the vehicles and the destination's free spaces again.</span></p>
+  </form>
+</details>
+
+<div class="card-grid">
+{% for task in tasks %}
+<section class="card">
+  <h2>{{ task.task_id }} · {{ task.source_hub_id }} → {{ task.target_hub_id }} · {{ task.status }}</h2>
+  <p>{{ task.vehicle_type | type_label }} · {{ task.quantity }} vehicle{{ "s" if task.quantity != 1 }} · priority {{ task.priority }}</p>
+  <p>Reason: {{ task.reason }}</p>
+  <p class="note">Vehicles: {{ task.vehicle_ids | join(", ") or "–" }}</p>
+  <div class="action-row">
+  {% if task.status == "RECOMMENDED" %}
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='approve') }}" method="post">
+    <label>Quantity
+      <input type="number" name="quantity" min="1" max="{{ task.quantity }}" value="{{ task.quantity }}" size="4">
+    </label>
+    <button class="button primary" type="submit">Approve</button>
+  </form>
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='reject') }}" method="post">
+    <label>Reason <input name="reason" size="16" placeholder="optional"></label>
+    <button class="button" type="submit">Reject</button>
+  </form>
+  {% elif task.status == "APPROVED" %}
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='pickup') }}" method="post">
+    <button class="button primary" type="submit">Confirm pick-up</button>
+  </form>
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
+    <button class="button" type="submit">Cancel</button>
+  </form>
+  {% elif task.status == "IN_PROGRESS" %}
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='return') }}" method="post">
+    <button class="button primary" type="submit">Confirm delivery</button>
+  </form>
+  <form class="actions" action="{{ url_for('dispatch_action', task_id=task.task_id, action='cancel') }}" method="post">
+    <button class="button" type="submit">Cancel</button>
+  </form>
+  {% endif %}
+  </div>
+</section>
+{% else %}
+<p>No task{% if status %} with status {{ status }}{% endif %}. "Update recommendations" asks M4 to plan, "Move vehicles yourself" makes one, and the Simulation Lab can send one.</p>
+{% endfor %}
+</div>
+
+<details>
+  <summary>Allocation settings</summary>
+  <form action="{{ url_for('dispatch_settings') }}" method="post">
+    <div class="settings">
+      {% for name, label, unit in config_fields %}
+      <label>{{ label }}
+        <span><input name="{{ name }}" value="{{ config[name] }}" size="6" inputmode="decimal"> {{ unit }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <p><button class="button primary" type="submit">Save settings</button></p>
+  </form>
+</details>
+{% endblock %}

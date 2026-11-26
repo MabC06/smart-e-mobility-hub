@@ -1,0 +1,61 @@
+{#
+  O1. Network overview (wireframes-operator.md), UC-M7-01, UC-M7-07, NFR-20. The operator's
+  home screen. Cards come ordered by severity, then by occupancy (routes._by_severity).
+#}
+{% extends "base.html" %}
+{% block title %}Overview · Smart E-Mobility Hub{% endblock %}
+{% block content %}
+<h1>Network overview</h1>
+
+<form class="filters" method="get" action="{{ url_for('operator_overview') }}">
+  <p>
+    <label>Zone
+      <select name="zone">
+        <option value="">all</option>
+        {% for z in zones %}<option value="{{ z }}"{% if z == zone %} selected{% endif %}>{{ z }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        <option value="">all</option>
+        {% for s in statuses %}<option value="{{ s }}"{% if s == status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+    {% if zone or status %}<a href="{{ url_for('operator_overview') }}">Show all</a>{% endif %}
+  </p>
+</form>
+
+<div class="cards"
+  hx-get="{{ request.url }}"
+  hx-trigger="every 3s"
+  hx-select=".cards"
+  hx-select-oob="#as-of"
+  hx-swap="outerHTML">
+  {% for hub in hubs %}
+  <section class="card">
+    <h2>
+      {{ hub.hub_id }} {{ hub.name }}
+      <span class="status status-{{ hub.status }}">{{ hub.status | status_symbol }} {{ hub.status }}</span>
+    </h2>
+    <p>
+      <label>Parking {{ hub.occupied }}/{{ hub.parking_capacity }} ({{ (hub.occupied * 100 / hub.parking_capacity) | round | int if hub.parking_capacity else 0 }}%)
+        {# Colours follow BR-M5-01: from 90 % amber, at 100 % red. #}
+        <meter min="0" max="{{ hub.parking_capacity }}" value="{{ hub.occupied }}"
+          low="{{ hub.parking_capacity * 0.9 }}" high="{{ hub.parking_capacity - 0.5 }}" optimum="0"></meter>
+      </label>
+    </p>
+    <p>Vehicles {{ hub.available_vehicles }} · Charging {{ hub.charging_in_use }}/{{ hub.charging_points }}</p>
+    <p>
+      <a class="button" href="{{ url_for('operator_hub', hub_id=hub.hub_id) }}">Open Hub</a>
+      {% if hub.status in ("WARNING", "CRITICAL") %}
+      <a class="button" href="{{ url_for('operator_dispatch') }}">Dispatch</a>
+      <a class="button" href="{{ url_for('operator_simulation') }}">Simulate</a>
+      {% endif %}
+    </p>
+  </section>
+  {% else %}
+  <p>No Hub matches. <a href="{{ url_for('operator_overview') }}">Show all</a>.</p>
+  {% endfor %}
+</div>
+{% endblock %}
