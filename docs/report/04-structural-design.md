@@ -437,7 +437,6 @@ erDiagram
 
 The eight entities of the class diagram (`Hub`, `ParkingSpace`, `ChargingPoint`, `Vehicle`, `ResourceClaim`, `StateChangeRecord`, `DomainEvent`, `UserAccount`) have the same attributes in the code. Seven are tables in Figure 3.4, and `DomainEvent` is a class only. The module tables were compared with their code.
 
-*Figure numbers are provisional and are renumbered when the report is assembled.*
 
 ### 3.2.3 Consistency with the other designs
 

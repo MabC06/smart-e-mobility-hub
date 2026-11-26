@@ -1,6 +1,6 @@
 # M2 - Reservation state machines
 
-> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Proposed for team review**. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
+> Owner: M2 - 2452620 Đặng Tuấn Kiệt. Date: 2026-11-04. **Reviewed and merged**; what the code does and the deviations are in report section 4.4. Core interactions follow the released Core API v1.1 and D-015 through D-020; M2 policy values remain subject to team review.
 
 Canonical guards and parameter values: [requirements §§3-5](../../requirements/fr-02-05-07-reservation.md). UC-M2/BR-M2 IDs are stable under CONTRIBUTING section 5. Vehicle transitions follow M1's released [Vehicle state machine](vehicle-state-machine.md), including `reserve`, `pickup`, `return` and `return_faulty`. Title case here maps to M7 uppercase values (Active = ACTIVE, InUse = IN_USE), not different states.
 

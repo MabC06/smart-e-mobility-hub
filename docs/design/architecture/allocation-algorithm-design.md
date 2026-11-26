@@ -1,6 +1,6 @@
 # M4 - Allocation algorithm design
 
-> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Reviewed and merged**; what the code does and the deviations are in report section 4.4.
 > Requirements: [`fr-10-11-allocation.md`](../../requirements/fr-10-11-allocation.md). Interaction and flow: [sequence](../behavioral/allocation-sequence-diagram.md), [activity](../behavioral/allocation-activity-diagram.md), [task state machine](../behavioral/allocation-state-machine.md).
 
 ## 1. What the algorithms must do

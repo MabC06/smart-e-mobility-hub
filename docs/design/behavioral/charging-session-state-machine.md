@@ -2,7 +2,7 @@
 
 > **Owner:** M3 - Võ Thanh An  
 > **Date:** 2026-11-06  
-> **Status:** Proposed for Team Review
+> **Status:** Final. **Reviewed and merged**; what the code does and the deviations are in report section 4.4.
 
 This document defines the lifecycle and state transitions specific to an M3 charging session at a Mobility Hub. The state machine ensures correct session management, strict queue handling, and real-time synchronization with core services.
 

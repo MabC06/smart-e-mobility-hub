@@ -1,6 +1,6 @@
 # Initial Data-Entity List for the ERD (Draft v1.1)
 
-> **Status:** Draft v1.1 · **Owner:** M7 (Nguyễn Trung Kiên) · **Date:** 2026-10-15 · **Reviewer:** M5 (Đỗ Hoàng Việt)
+> **Status:** Superseded by `erd.md` (2026-11-09); kept as the Phase 0 record · Draft v1.1 · **Owner:** M7 (Nguyễn Trung Kiên) · **Date:** 2026-10-15 · **Reviewer:** M5 (Đỗ Hoàng Việt)
 > This document defines the initial catalog of persistent data entities, key attributes, state enumerations, and relationships for the **Smart E-Mobility Hub** relational database schema (SQLAlchemy 2.x on SQLite/PostgreSQL per `D-002`).
 > It serves as the Phase 0 structural baseline to be synchronized with M1's Core Class Diagram (`docs/design/structural/class-diagram-core.md`) by 2026-10-16 and finalized into `docs/design/structural/erd.md` by 2026-10-24.
 > v1.1 aligns the baseline with the latest Phase 0 files of M2, M3, M4, M5, M6 and with `D-007`; section 6 lists the changes and section 7 lists what is left for Phase 1.

@@ -16,7 +16,7 @@
 
 **Document Version:** 1.0  
 
-**Status:** Proposed Design — Pending Team Review
+**Status:** Final. **Reviewed and merged**; what the code does and the deviations are in report section 4.4. The proposed ranges below are the values the code validates.
 
 > **Traceability note:** The trace identifiers in this specification are FR-12, NFR-05, NFR-12, NFR-13, and BR-M6-03 (D-011), as applicable to the corresponding use case, acceptance criteria, and design decisions.
 

@@ -1,5 +1,6 @@
 # Design Review Checklist — M8
 
+> **Status:** used for the Phase 1 review and the code freeze; the final sign-off is in `test-plan-final.md` section 14.
 > Use this checklist during Phase 1 design review and again before code freeze.  
 > Reviewers: M4 for M8 test deliverables; M7 for IoT simulator output/ERD alignment.
 

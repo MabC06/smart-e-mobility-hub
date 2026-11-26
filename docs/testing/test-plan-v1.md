@@ -2,7 +2,7 @@
 
 > **Owner:** M8 — Testing, QA & Report Integration Lead  
 > **Baseline:** `develop` snapshot `6777736` (2026-11-05)  
-> **Status:** Phase 1/2 working version; update as module requirements and interfaces are finalized  
+> **Status:** Phase 1/2 working version · superseded by `test-plan-final.md`; kept as history  
 > **Related:** `docs/requirements/nfr.md`, `docs/requirements/reference-dataset.md`, `docs/design/architecture/core-api-spec.md`, `docs/design/simulation/iot-sim-design.md`, `CONTRIBUTING.md`
 
 ## 1. Purpose and objectives

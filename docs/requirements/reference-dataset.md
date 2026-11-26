@@ -1,6 +1,6 @@
 # Reference Dataset (DS-STD) — v1
 
-> **Status:** Draft v1 · **Owner:** M1 · **Date:** 2026-10-06
+> **Status:** Final v1.1 · **Owner:** M1 · **Date:** 2026-11-12 (v1 2026-10-06; D-024)
 > Defined by assumption **A-11** in `docs/DECISIONS.md`. Any change to a number here needs a new entry in `docs/DECISIONS.md`.
 
 ## 1. Purpose and users

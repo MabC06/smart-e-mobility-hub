@@ -6,7 +6,7 @@
 
 > **Author:** Võ Thanh An (M3)  
 > **Date:** 2026-11-06  
-> **Status:** Phase 1 Draft for Integration Review
+> **Status:** Final. **Reviewed and merged**; what the code does and the deviations are in report section 4.4.
 
 ---
 

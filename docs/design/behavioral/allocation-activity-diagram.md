@@ -1,6 +1,6 @@
 # M4 - Allocation activity design
 
-> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> Owner: M4 - 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Reviewed and merged**; what the code does and the deviations are in report section 4.4.
 
 The diagrams use UML activity notation. Each has an editable `.puml` source and a generated `.svg`. The algorithm behind A1 is explained, with its alternatives, in [`allocation-algorithm-design.md`](../architecture/allocation-algorithm-design.md).
 

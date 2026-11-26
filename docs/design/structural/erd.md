@@ -169,7 +169,7 @@ erDiagram
 - A reservation holds exactly one claim (`claim_id`, not null, unique). M2 places the claim and creates the reservation in one unit of work, and releases the claim at pick-up. `claim_id` keeps pointing to the released claim.
 - `destination_hub_id` is null if the student chose no destination. `returned_at`, `return_hub_id` and `return_space_id` are all null until the vehicle is returned.
 - `PENDING` is not stored. M2's state machine treats it as a short state of the request with no record. The code stores five statuses.
-- Parking reservations (FR-05, FR-07 parking side) are planned and not in the tables yet.
+- Parking bookings (`parking_bookings`, M2, FR-05 and FR-07 parking side) and charging requests (`charging_requests`, M3) were added during implementation; their tables are in report section 3.2.2 (Figures 3.5 and 3.6).
 
 ### 4.2 M4: dispatch task
 

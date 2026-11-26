@@ -2,7 +2,7 @@
 
 > **Owner:** M8 — Testing, QA & Report Integration Lead  
 > **Baseline:** `develop` at `0056f23` (2026-11-26, every PR up to #63 merged; rerun by M1). First round: testing branch `01d68e7` (2026-11-23).  
-> **Status:** Final plan · execution evidence updated 2026-11-23; sign-off conditional (section 14)  
+> **Status:** Final plan · execution evidence updated 2026-11-26 (rerun on `develop`); signed off (section 14)  
 > **Related:** `docs/requirements/nfr.md`, `docs/requirements/reference-dataset.md`, `docs/design/architecture/core-api-spec.md`, `docs/design/simulation/iot-sim-design.md`, `CONTRIBUTING.md`
 
 ## 1. Purpose and objectives

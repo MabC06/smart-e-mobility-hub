@@ -1,7 +1,7 @@
 # Defect Log
 
-> **Status:** template with the first entries · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
-> Every member records the defects of their own module in their own block by 17/11 (`task-assignment-timeline.md`, Phase 4). M8 merges the summary into report section 5.4. A failed test is never changed to pass to close a defect (`test-plan-v1.md` section 8).
+> **Status:** Final, 2026-11-26: 29 defects, 28 Closed, 1 Accepted · **Consolidated by:** M8 (`test-plan-v1.md` section 8) · **Started by:** M1, 2026-11-16
+> Every member records the defects of their own module in their own block by 17/11 (`task-assignment-timeline.md`, Phase 4). M8 merges the summary into report section 5.6. A failed test is never changed to pass to close a defect (`test-plan-v1.md` section 8).
 
 ## 1. How to record a defect
 
@@ -20,7 +20,7 @@
 | Medium | A feature works but part of it is wrong or missing, with a workaround | A filter ignores one parameter |
 | Low | Documentation, naming, typing or duplicated code; behaviour is right | A formula in the report does not render |
 
-## 2. Summary (for report section 5.4)
+## 2. Summary (for report section 5.6)
 
 | Module | Found | Critical | High | Medium | Low | Closed | Open / Accepted |
 |---|---|---|---|---|---|---|---|

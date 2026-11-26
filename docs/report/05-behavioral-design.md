@@ -103,7 +103,7 @@ Limitations: the Core contract has not been exercised, browser-specific SVG disp
 
 ### 3.3.2 M3 — Charging and Smart Scheduling
 
-> Author: Võ Thanh An. Date: 2026-11-06, revised 2026-11-17 for the Phase 3 implementation. **Proposed for team review**.
+> Author: Võ Thanh An. Date: 2026-11-06, revised 2026-11-17 for the Phase 3 implementation. **Reviewed and merged**.
 
 #### Design overview
 
@@ -147,7 +147,7 @@ All behavioral diagrams for M3 are maintained as editable `.puml` PlantUML sourc
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
 ### 3.3.3 M4 — Resource Allocation and Dispatching
 
-> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Proposed for team review**.
+> Author: 2412466 Huỳnh Minh Nhật. Date: 2026-10-22. **Reviewed and merged**.
 
 #### Design overview
 
@@ -217,7 +217,7 @@ Allocation never writes state directly and never calls another module directly; 
 <!-- BEGIN M5: Monitoring & Incident Handling -->
 ### 3.3.4 M5 — Monitoring and Incident Handling
 
-> Author: 2453413 Đỗ Hoàng Việt. Date: 2026-11-06. **Proposed for team review**.
+> Author: 2453413 Đỗ Hoàng Việt. Date: 2026-11-06. **Reviewed and merged**.
 
 #### Activity Diagrams
 
