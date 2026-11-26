@@ -158,7 +158,8 @@ class HubImpactMetrics:
 @dataclass
 class SimulationReport:
     """Result of one run. ``baseline_*`` is doing nothing; ``mitigated_*`` applies every
-    recommendation (FR-12.6). ``metric_name`` says what a request and an unmet request are."""
+    recommendation (FR-12.6). ``metric_name`` says what a request and an unmet request are.
+    ``random_seed`` is the seed of the run, so a saved report can be run again (NFR-13)."""
 
     simulation_id: str
     scenario_id: str
@@ -170,3 +171,4 @@ class SimulationReport:
     metric_name: str = "Vehicle shortage rate"
     mitigated_shortage_rate_pct: float = 0.0
     mitigated_hub_metrics: list[HubImpactMetrics] = field(default_factory=list)
+    random_seed: int = 42

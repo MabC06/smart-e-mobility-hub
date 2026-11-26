@@ -638,6 +638,8 @@ body.operator {
     border-radius: 999px;
     background: var(--surface);
   }
+  /* D-027: the brand and the "< Back" links are tap targets too. */
+  .site-header .brand, a.back { display: inline-flex; align-items: center; min-height: 44px; }
   .site-header nav a[aria-current="page"] { border-color: var(--link); background: var(--link-tint); color: var(--text); text-decoration: none; }
 
   /* Panels use the whole width. */

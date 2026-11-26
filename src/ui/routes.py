@@ -27,8 +27,9 @@ from core.domain.enums import (
     VehicleState,
     VehicleType,
 )
+from core.errors import ErrorCode
 from core.facade import CoreFacade
-from core.result import Err
+from core.result import Err, Ok
 from core.views import HubView, VehicleFilter, VehicleView
 from ui.api import call, explain, read_form, read_form_list
 from ui.auth import TOKEN_COOKIE, current_user, get_auth, get_core
@@ -176,6 +177,13 @@ def _hub_not_found(request: Request, who: Principal, back: str, label: str) -> H
         ((label, str(request.url_for(back))),),
     )
     return _page(request, "error.html", who, 404, error=error)
+
+
+def _actor_name(core: CoreFacade, label: str) -> str:
+    """An actor label ``module/user_id`` as O2 shows it: the login code, then the module."""
+    module, _, user_id = label.partition("/")
+    account = core.get_entity(UserAccount, user_id) if user_id else None
+    return f"{account.code} ({module})" if account is not None else label
 
 
 def _find_hub(core: CoreFacade, hub_id: str | None) -> HubView | None:
@@ -738,6 +746,8 @@ def operator_hub(
         and (not owner or v.ownership == owner)
     ]
     history = core.queries.get_state_log(vehicle, limit=10) if vehicle else []
+    shown = core.queries.get_vehicle(vehicle) if vehicle else None
+    shown_plate = shown.value.plate_or_code if isinstance(shown, Ok) else vehicle
     return _page(
         request,
         "operator/hub.html",
@@ -751,13 +761,20 @@ def operator_hub(
         vehicle_states=list(VehicleState),
         filters={"type": type, "state": state, "owner": owner},
         shown_vehicle=vehicle,
+        shown_plate=shown_plate,  # also for a vehicle that has left this Hub
         history=history,
-        point_statuses=(
-            ChargingPointStatus.AVAILABLE,
-            ChargingPointStatus.OUT_OF_SERVICE,
-            ChargingPointStatus.MAINTENANCE,
-        ),
+        actor_names={change.actor: _actor_name(core, change.actor) for change in history},
+        point_statuses=POINT_STATUSES,
     )
+
+
+# What O2 may set on a charging point. CHARGING is M3's: a point in use can only be stopped
+# (OUT_OF_SERVICE or MAINTENANCE), and M3 moves its session (DEF-M7-009).
+POINT_STATUSES = (
+    ChargingPointStatus.AVAILABLE,
+    ChargingPointStatus.OUT_OF_SERVICE,
+    ChargingPointStatus.MAINTENANCE,
+)
 
 
 VEHICLE_EVENTS = {  # O2 action -> core event and what the error block says
@@ -810,7 +827,12 @@ def point_status(request: Request, hub_id: str, point_id: str) -> Response:
     try:
         new_status = ChargingPointStatus(form.get("status", ""))
     except ValueError:
-        new_status = ChargingPointStatus.AVAILABLE
+        new_status = None
+    if new_status not in POINT_STATUSES:
+        # An unknown value is refused, never read as AVAILABLE (DEF-M7-009).
+        choices = ", ".join(s.value for s in POINT_STATUSES)
+        refused = Err(ErrorCode.INVALID_INPUT, f"Choose one of {choices}.")
+        return _core_refused(request, who, "change the charging point", refused, hub_id)
     version = _whole_number(form.get("version", ""))
     result = get_core(request).commands.set_charging_point_status(
         point_id, new_status, version if isinstance(version, int) else -1, _operator_actor(who)
@@ -1194,9 +1216,8 @@ SIMULATION_NUMBERS = (  # O6 form fields sent to M6 as typed; M6 checks them
     "batch_size",
     "transit_delay_minutes",
     "time_horizon_minutes",
-    "time_step_minutes",
     "random_seed",
-)
+)  # no time step: M6 counts over the whole horizon and does not use it (DEV-08)
 
 
 def _simulation_page(

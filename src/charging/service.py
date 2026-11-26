@@ -397,16 +397,17 @@ class ChargingQueueService:
             if target_soc <= veh.battery_pct:
                 return _err(
                     ChargingErrorCode.INVALID_INPUT,
-                    f"target_soc must exceed battery_pct: vehicle {vehicle_id} is already at "
-                    f"{veh.battery_pct:.0f}%, so there is nothing to charge.",
+                    "target_soc must exceed battery_pct: vehicle "
+                    f"{veh.plate_or_code} is already at {veh.battery_pct:.0f}%, "
+                    "so there is nothing to charge.",
                 )
             if start_at is None and veh.hub_id != hub_id:
                 # Charging "now" needs the vehicle at the Hub (BR-M1-02); say what to do (NFR-21).
                 return _err(
                     ChargingErrorCode.INVALID_STATE,
-                    f"Vehicle {vehicle_id} is not parked at Hub {hub_id}. To charge now, book a "
-                    f"parking space at {hub_id} and record your arrival first; or book charging "
-                    "for a later time.",
+                    f"Vehicle {veh.plate_or_code} is not parked at Hub {hub_id}. To charge now, "
+                    f"book a parking space at {hub_id} and record your arrival first; or book "
+                    "charging for a later time.",
                 )
 
             config = uow.queries.get_config()
@@ -491,8 +492,9 @@ class ChargingQueueService:
         if vehicle.hub_id != req.station_id or vehicle.parking_space_id is None:
             return _err(
                 ChargingErrorCode.INVALID_STATE,
-                f"Vehicle {req.vehicle_id} is not parked at Hub {req.station_id}. Book a parking "
-                f"space at {req.station_id} and record your arrival, then start charging.",
+                f"Vehicle {vehicle.plate_or_code} is not parked at Hub {req.station_id}. "
+                f"Book a parking space at {req.station_id} and record your arrival, then start "
+                "charging.",
             )
         if vehicle.parking_space_id == booked.parking_space_id:
             return booked

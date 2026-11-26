@@ -72,7 +72,7 @@
           <td>{{ "fleet" if vehicle.ownership == "FLEET" else "private" }}</td>
           <td>{{ vehicle.state }}</td>
           <td>{{ vehicle.battery_pct | round | int }}%</td>
-          <td>{{ "✖ yes" if vehicle.fault_flag else "–" }}</td>
+          <td>{{ "✖ yes" if vehicle.fault_flag or vehicle.state == "MAINTENANCE" else "–" }}</td>
           <td>{{ vehicle.parking_space_id or "–" }}</td>
           <td>
             {% set actions = [] %}
@@ -95,10 +95,10 @@
     </table>
   </div>
   {% if shown_vehicle %}
-  <h3 id="history">Last changes of {{ shown_vehicle }}</h3>
+  <h3 id="history">Last changes of {{ shown_plate }}</h3>
   <ul>
     {% for change in history %}
-    <li>{{ change.at | ict }} · {{ change.previous_state }} → {{ change.new_state }} · {{ change.trigger }} by {{ change.actor }}</li>
+    <li>{{ change.at | ict }} · {{ change.previous_state }} → {{ change.new_state }} · {{ change.trigger }} by {{ actor_names.get(change.actor, change.actor) }}</li>
     {% else %}
     <li>No change recorded.</li>
     {% endfor %}
@@ -132,8 +132,9 @@
           <td>
             <form class="inline" action="{{ url_for('point_status', hub_id=hub.hub_id, point_id=point.charging_point_id) }}" method="post">
               <input type="hidden" name="version" value="{{ point.version }}">
-              <select name="status" aria-label="New status of {{ point.charging_point_id }}">
-                {% for s in point_statuses %}<option value="{{ s }}"{% if s == point.status %} selected{% endif %}>{{ s }}</option>{% endfor %}
+              <select name="status" aria-label="New status of {{ point.charging_point_id }}" required>
+                {% if point.status not in point_statuses %}<option value="" selected disabled>{{ point.status }}: choose a status to stop it</option>{% endif %}
+                {% for s in point_statuses %}{% if not (point.status == "CHARGING" and s == "AVAILABLE") %}<option value="{{ s }}"{% if s == point.status %} selected{% endif %}>{{ s }}</option>{% endif %}{% endfor %}
               </select>
               <button class="button" type="submit">Set</button>
             </form>
@@ -145,7 +146,7 @@
       </tbody>
     </table>
   </div>
-  <p class="note">A point set OUT_OF_SERVICE or MAINTENANCE stops its session; charging moves the vehicle to another point (see Charging).</p>
+  <p class="note">A point set OUT_OF_SERVICE or MAINTENANCE stops its session; charging moves the vehicle to another point (see Charging). A point that is CHARGING becomes AVAILABLE only when its session ends.</p>
 </section>
 
 <p>

@@ -404,6 +404,41 @@ def test_set_charging_point_status(world):
     assert world.events[0].payload["hub_id"] == "H01"
 
 
+def test_only_charging_sets_a_point_to_or_from_charging(world):
+    """A point in use is M3's: the operator may stop it but not free it (DEF-M7-009)."""
+    commands = world.core.commands
+
+    def point() -> ChargingPoint:
+        return world.repo.get(ChargingPoint, "CP01")  # type: ignore[return-value]
+
+    to_charging = commands.set_charging_point_status(
+        "CP01", ChargingPointStatus.CHARGING, 1, world.operator
+    )
+    assert to_charging.code is ErrorCode.FORBIDDEN  # type: ignore[union-attr]
+    assert isinstance(
+        commands.set_charging_point_status("CP01", ChargingPointStatus.CHARGING, 1, world.charging),
+        Ok,
+    )
+
+    freed = commands.set_charging_point_status(
+        "CP01", ChargingPointStatus.AVAILABLE, point().version, world.operator
+    )
+    assert freed.code is ErrorCode.FORBIDDEN  # type: ignore[union-attr]
+    assert "OUT_OF_SERVICE or MAINTENANCE" in freed.message  # type: ignore[union-attr]
+    assert point().status is ChargingPointStatus.CHARGING
+
+    stopped = commands.set_charging_point_status(
+        "CP01", ChargingPointStatus.OUT_OF_SERVICE, point().version, world.operator
+    )
+    assert isinstance(stopped, Ok)
+    assert isinstance(
+        commands.set_charging_point_status(
+            "CP01", ChargingPointStatus.AVAILABLE, point().version, world.operator
+        ),
+        Ok,
+    )
+
+
 def test_charging_point_status_rules(world):
     commands = world.core.commands
     student = commands.set_charging_point_status(

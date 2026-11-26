@@ -7,9 +7,9 @@
 {% extends "base.html" %}
 {% block title %}Vehicles at {{ hub.name }} · Smart E-Mobility Hub{% endblock %}
 {% block content %}
-<p><a href="{{ url_for('student_hubs') }}">&lt; Hubs</a></p>
+<p><a class="back" href="{{ url_for('student_hubs') }}">&lt; Hubs</a></p>
 <h1>Vehicles at {{ hub.hub_id }} {{ hub.name }}</h1>
-<p>{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }} you can reserve now, highest battery first.</p>
+<p>{{ vehicles | length }} vehicle{{ "s" if vehicles | length != 1 }} with at least {{ min_battery }}% battery you can reserve now, highest battery first.</p>
 {% if has_rental %}
 <p class="status status-WARNING">▲ You already have a rental. One rental at a time: finish or cancel it in <a href="{{ url_for('student_bookings') }}">My bookings</a> first.</p>
 {% endif %}

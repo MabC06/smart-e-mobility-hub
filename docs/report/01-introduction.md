@@ -137,7 +137,7 @@ Eight students built the system. Each owns one module and its part of the report
 
 The team worked in five phases from 3 October to 26 November 2026: requirements, design, two implementation sprints with integration, and testing. Every change went through a pull request with at least one review and a CI run (lint, format, types, tests and coverage per module) before it was merged; decisions that affect more than one module were recorded in the decision log (D-001 to D-028).
 
-The system is one Python application (FastAPI, Jinja2 and HTMX pages, SQLite). At the end it has about 6,800 statements of application code and 1,572 automated tests (94 % line coverage), and all twelve capabilities are available on both the student and the operator screens (Sections 4 and 5).
+The system is one Python application (FastAPI, Jinja2 and HTMX pages, SQLite). At the end it has about 6,800 statements of application code and 1,578 automated tests (94 % line coverage), and all twelve capabilities are available on both the student and the operator screens (Sections 4 and 5).
 
 ## 1.9 Organization of the report
 

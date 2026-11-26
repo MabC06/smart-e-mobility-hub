@@ -90,7 +90,7 @@
     <h3>Earlier charging</h3>
     <ul class="plain">
       {% for s in earlier %}
-      <li>{{ s.plate }} · {{ s.hub_id }} · {{ s.status }} · requested {{ s.requested_at | ict_day }}{% if s.start_time %} · {{ s.start_time | ict_day }} to {{ s.end_time | ict_until(s.start_time) }}{% endif %}</li>
+      <li>{{ s.plate }} · {{ s.hub_id }} · {{ s.status | capitalize }} · requested {{ s.requested_at | ict_day }}{% if s.start_time %} · {{ s.start_time | ict_day }} to {{ s.end_time | ict_until(s.start_time) }}{% endif %}</li>
       {% endfor %}
     </ul>
     {% endif %}

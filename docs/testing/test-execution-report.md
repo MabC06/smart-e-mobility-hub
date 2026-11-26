@@ -67,7 +67,7 @@ Summary (details and raw files: `nfr-measurements.md`): NFR-01 Pass (API); NFR-0
 
 ## 5. Defects
 
-38 recorded defects: 37 Closed and 1 Accepted (0 Critical, 7 High, 14 Medium, 17 Low; `defect-log.md`). Nine were added by the last demo review on 2026-11-26 (DEF-M2-004, DEF-M3-009, DEF-M3-010, DEF-M4-006, DEF-M7-004 to 008), fixed with twelve new test cases; the suite then has 1,572 tests, all passing. Six were found on 2026-11-25 and 26 by running the demo on the seeded network (DEF-M2-002, DEF-M2-003, DEF-M3-008, DEF-M7-001 to 003) and fixed in PRs #59, #62 and #63 with new tests. The Accepted one is DEF-M3-007 (Medium, NFR-04 at depth 50). No test failed in the runs above.
+42 recorded defects: 41 Closed and 1 Accepted (0 Critical, 8 High, 14 Medium, 20 Low; `defect-log.md`). Nine were added by the last demo review on 2026-11-26 (DEF-M2-004, DEF-M3-009, DEF-M3-010, DEF-M4-006, DEF-M7-004 to 008), fixed with twelve new test cases; the suite then has 1,572 tests, all passing. M7's review of `main` added four (DEF-M3-011, DEF-M7-009 to 011), fixed with TC-M3-043 and TC-M7-051 to 053; the suite has 1,578 tests, all passing. Six were found on 2026-11-25 and 26 by running the demo on the seeded network (DEF-M2-002, DEF-M2-003, DEF-M3-008, DEF-M7-001 to 003) and fixed in PRs #59, #62 and #63 with new tests. The Accepted one is DEF-M3-007 (Medium, NFR-04 at depth 50). No test failed in the runs above.
 
 ## 6. Limitations and open items
 

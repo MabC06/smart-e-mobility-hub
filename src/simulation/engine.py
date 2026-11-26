@@ -131,6 +131,7 @@ class SimulationEngine:
             metric_name=metric_name,
             mitigated_shortage_rate_pct=_rate(mitigated),
             mitigated_hub_metrics=mitigated,
+            random_seed=self.config.random_seed,
         )
 
     @staticmethod

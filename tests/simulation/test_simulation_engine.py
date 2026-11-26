@@ -204,6 +204,8 @@ class TestSimulationEngineIntegration(unittest.TestCase):
 
         # Verify complete report reproducibility.
         self.assertEqual(report_1, report_2)
+        # The report carries its seed, so a saved report can be run again.
+        self.assertEqual(report_1.random_seed, config.random_seed)
 
         self.assertEqual(
             report_1.baseline_shortage_rate_pct,

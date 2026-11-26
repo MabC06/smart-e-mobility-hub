@@ -87,7 +87,7 @@
     <h3>Earlier parking</h3>
     <ul class="plain">
       {% for stay in earlier %}
-      <li>{{ stay.plate }} · {{ stay.hub_id }} · {{ stay.status }} · {{ stay.start_at | ict_day }}{% if stay.departed_at %} to {{ stay.departed_at | ict_day }}{% endif %}</li>
+      <li>{{ stay.plate }} · {{ stay.hub_id }} · {{ stay.status | capitalize }} · {{ stay.start_at | ict_day }}{% if stay.departed_at %} to {{ stay.departed_at | ict_day }}{% endif %}</li>
       {% endfor %}
     </ul>
     {% endif %}

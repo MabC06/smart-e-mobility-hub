@@ -79,7 +79,7 @@
   <h2>Earlier bookings</h2>
   <ul>
     {% for booking in earlier %}
-    <li>{{ booking.plate }} · {{ booking.status }} · booked {{ booking.confirmed_at | ict }} · {{ booking.reservation_id }}</li>
+    <li>{{ booking.plate }} · {{ booking.status | capitalize }} · from {{ booking.origin_hub_id }} · booked {{ booking.confirmed_at | ict_day }} · {{ booking.reservation_id }}</li>
     {% endfor %}
   </ul>
 </section>

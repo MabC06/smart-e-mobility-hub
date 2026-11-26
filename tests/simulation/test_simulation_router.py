@@ -61,12 +61,14 @@ def test_run_simulation_sc01_success(client):
             "target_hub_ids": ["H01"],
             "surge_multiplier": 2.0,
             "duration_minutes": 60,
+            "random_seed": 7,
         },
         headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response.status_code == 200, response.text
     assert response.json()["simulation_id"] == "SIM_TEST_01"
+    assert response.json()["random_seed"] == 7
 
 
 def test_unsupported_scenario_sc02_returns_400(client):
