@@ -1,7 +1,7 @@
 ## 3.4 User-interface Design
 
-> Revised for Phase 3 · Owner: M7 · Date: 2026-11-25
-> Full wireframes: `docs/design/ui/wireframes-student.md` and `wireframes-operator.md`. Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`. "Planned" means the screen follows a requirement for which there is no code yet. Figure numbers are provisional.
+> **Status:** Final · **Owner:** M7 (completed by M1) · **Date:** 2026-11-26
+> Full wireframes: `docs/design/ui/wireframes-student.md` and `wireframes-operator.md`. Flows: `ui-flow-diagrams.md`. Checks against the data: `ui-consistency-review.md`.
 
 ### 3.4.1 Approach and principles
 
@@ -13,7 +13,7 @@ Principles:
 2. **Critical status is visible without navigation (NFR-20).** The operator's alert strip is on every screen.
 3. **Every refusal explains itself (NFR-21).** It gives the cause, an alternative when there is one, and the error code under "Details". No stack trace is shown.
 4. **Data shows its age.** Screens show the time of the data (`as_of`).
-5. **A slow answer is not reported as a failure (Planned).** For rental commands the screen reads the booking again before saying "failed", and a retry uses the same reservation ID.
+5. **A retry is safe.** The pages call the modules inside the same process (D-026), so a command does not time out on a network. If a student repeats a rental command, M2 recognises it from its own records and returns the stored result instead of acting twice (D-015).
 
 ### 3.4.2 Major user flows and navigation
 
@@ -35,7 +35,7 @@ flowchart TD
 
 ```
 
-*Figure 3.8 — Student flows.*
+*Figure 3.28 — Student flows.*
 
 **Operator.** After login the operator lands on the overview (O1). A tab bar and the alert strip are on every screen, so each tab screen is one click from the others, and a Hub in `WARNING` or `CRITICAL` is always one click away. The Hub detail (O2) opens from a Hub card. The What-if screen changes nothing: a recommendation goes to the owning module only after the operator approves it, and that module may refuse it.
 
@@ -55,7 +55,7 @@ flowchart TD
 
 ```
 
-*Figure 3.9 — Operator flows.*
+*Figure 3.29 — Operator flows.*
 
 ### 3.4.3 Information shown to each actor
 
@@ -94,7 +94,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.10 — S2, the Hub list.*
+*Figure 3.30 — S2, the Hub list.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -115,7 +115,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.11 — S3, vehicle search.*
+*Figure 3.31 — S3, vehicle search.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -126,7 +126,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.12 — S5, a reserved rental.*
+*Figure 3.32 — S5, a reserved rental.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -150,7 +150,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.13 — O1, network overview with the alert strip.*
+*Figure 3.33 — O1, network overview with the alert strip.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -172,7 +172,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.14 — O4, dispatch tasks.*
+*Figure 3.34 — O4, dispatch tasks.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -192,7 +192,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.15 — O5, incident tickets with the selected ticket.*
+*Figure 3.35 — O5, incident tickets with the selected ticket.*
 
 ```
 +--------------------------------------------------------------------------+
@@ -219,7 +219,7 @@ flowchart TD
 +--------------------------------------------------------------------------+
 ```
 
-*Figure 3.16 — O6, What-if Simulation Lab with baseline and mitigated results.*
+*Figure 3.36 — O6, What-if Simulation Lab with baseline and mitigated results.*
 
 ### 3.4.4 User actions and system feedback
 

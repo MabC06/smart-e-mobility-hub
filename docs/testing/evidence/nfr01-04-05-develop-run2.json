@@ -1,0 +1,352 @@
+{
+  "run_at_utc": "2026-11-25T18:01:50.996079+00:00",
+  "commit": "267919e6691c646c0786f3ad2f9d5472ac514347",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "environment": "FastAPI TestClient + in-memory SQLite; sequential; no concurrency",
+  "isolation": "every measurement below runs on its own freshly loaded DS-STD (seed 2026)",
+  "dataset": {
+    "seed": 2026,
+    "hubs": 10,
+    "vehicles": 350
+  },
+  "reservation_demand_provider": "registered",
+  "nfr05": {
+    "name": "POST /simulation/runs (SC-01 to SC-05)",
+    "samples": 25,
+    "success_count": 25,
+    "status_codes": {
+      "200": 25
+    },
+    "p50_ms": 68.341,
+    "p95_ms": 117.008,
+    "max_ms": 138.548,
+    "raw_ms": [
+      138.548,
+      67.479,
+      66.631,
+      66.183,
+      65.328,
+      43.498,
+      49.996,
+      42.287,
+      42.391,
+      44.324,
+      89.174,
+      90.229,
+      109.292,
+      105.859,
+      92.746,
+      103.881,
+      117.008,
+      110.867,
+      114.784,
+      115.348,
+      67.558,
+      69.025,
+      68.341,
+      66.173,
+      67.084
+    ],
+    "scenarios": {
+      "SC-01": {
+        "runs_ok": 5,
+        "max_ms": 138.548,
+        "same_output": true
+      },
+      "SC-02": {
+        "runs_ok": 5,
+        "max_ms": 49.996,
+        "same_output": true
+      },
+      "SC-03": {
+        "runs_ok": 5,
+        "max_ms": 109.292,
+        "same_output": true
+      },
+      "SC-04": {
+        "runs_ok": 5,
+        "max_ms": 117.008,
+        "same_output": true
+      },
+      "SC-05": {
+        "runs_ok": 5,
+        "max_ms": 69.025,
+        "same_output": true
+      }
+    },
+    "target_ms_per_scenario": 30000.0,
+    "ignored_wall_clock_keys": [
+      "as_of",
+      "executed_at",
+      "taken_at"
+    ],
+    "nfr12_operational_state_unchanged": true,
+    "nfr13_same_seed_same_output": true,
+    "verdict": "PASS"
+  },
+  "nfr01": {
+    "name": "write then GET /charging/sessions",
+    "samples": 100,
+    "success_count": 100,
+    "status_codes": {
+      "200": 100
+    },
+    "p50_ms": 6.264,
+    "p95_ms": 8.064,
+    "max_ms": 10.368,
+    "raw_ms": [
+      5.951,
+      5.757,
+      5.991,
+      4.902,
+      3.872,
+      5.025,
+      5.443,
+      5.615,
+      5.003,
+      5.334,
+      5.528,
+      5.392,
+      5.533,
+      5.52,
+      6.261,
+      4.819,
+      5.651,
+      5.615,
+      6.973,
+      6.603,
+      6.097,
+      5.769,
+      5.116,
+      5.399,
+      5.087,
+      6.686,
+      6.302,
+      6.296,
+      5.333,
+      6.036,
+      5.312,
+      5.647,
+      5.612,
+      5.397,
+      6.438,
+      7.186,
+      6.749,
+      6.04,
+      6.393,
+      5.876,
+      6.285,
+      6.877,
+      5.502,
+      10.368,
+      5.501,
+      6.877,
+      5.667,
+      5.8,
+      6.364,
+      6.106,
+      6.235,
+      6.803,
+      6.469,
+      5.731,
+      6.073,
+      7.235,
+      6.251,
+      6.777,
+      6.209,
+      5.762,
+      6.339,
+      7.007,
+      6.715,
+      5.581,
+      5.761,
+      5.554,
+      6.855,
+      6.859,
+      6.283,
+      6.436,
+      4.977,
+      5.02,
+      6.337,
+      7.487,
+      7.446,
+      5.478,
+      7.141,
+      8.064,
+      6.988,
+      6.352,
+      7.295,
+      8.381,
+      8.812,
+      7.211,
+      6.484,
+      7.878,
+      7.17,
+      8.116,
+      8.717,
+      7.733,
+      6.264,
+      7.21,
+      7.546,
+      6.906,
+      7.778,
+      7.836,
+      7.558,
+      6.042,
+      7.527,
+      8.018
+    ],
+    "writes_attempted": 100,
+    "new_state_visible_in_next_read": 100,
+    "write_errors": [],
+    "target_p95_ms": 1000.0,
+    "verdict": "PASS"
+  },
+  "nfr04_charging": {
+    "operation": "POST /charging/schedule/optimize?hub_id=<each Hub>",
+    "queue_depth_per_hub": 15,
+    "target_ms_per_hub": 3000.0,
+    "hubs": {
+      "H01": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 224.772,
+        "verdict": "PASS"
+      },
+      "H02": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 367.977,
+        "verdict": "PASS"
+      },
+      "H03": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 516.31,
+        "verdict": "PASS"
+      },
+      "H04": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 691.813,
+        "verdict": "PASS"
+      },
+      "H05": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 762.535,
+        "verdict": "PASS"
+      },
+      "H06": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 971.061,
+        "verdict": "PASS"
+      },
+      "H07": {
+        "queued_before": 15,
+        "bound_by_optimize": 15,
+        "status": 200,
+        "elapsed_ms": 1230.09,
+        "verdict": "PASS"
+      },
+      "H08": {
+        "queued_before": 14,
+        "bound_by_optimize": 14,
+        "status": 200,
+        "elapsed_ms": 1754.447,
+        "verdict": "PASS"
+      },
+      "H09": {
+        "queued_before": 12,
+        "bound_by_optimize": 6,
+        "status": 200,
+        "elapsed_ms": 1359.476,
+        "verdict": "PASS"
+      },
+      "H10": {
+        "queued_before": 9,
+        "bound_by_optimize": 4,
+        "status": 200,
+        "elapsed_ms": 856.016,
+        "verdict": "PASS"
+      }
+    },
+    "worst_ms": 1754.447,
+    "verdict": "PASS"
+  },
+  "nfr04_charging_depth_sweep_H01": [
+    {
+      "requested_depth": 5,
+      "available_vehicles": 5,
+      "queued_before": 5,
+      "status": 200,
+      "elapsed_ms": 52.248,
+      "ms_per_queued_request": 10.4,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 10,
+      "available_vehicles": 10,
+      "queued_before": 10,
+      "status": 200,
+      "elapsed_ms": 90.062,
+      "ms_per_queued_request": 9.0,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 15,
+      "available_vehicles": 15,
+      "queued_before": 15,
+      "status": 200,
+      "elapsed_ms": 226.43,
+      "ms_per_queued_request": 15.1,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 30,
+      "available_vehicles": 30,
+      "queued_before": 30,
+      "status": 200,
+      "elapsed_ms": 1120.794,
+      "ms_per_queued_request": 37.4,
+      "within_3s": true
+    },
+    {
+      "requested_depth": 50,
+      "available_vehicles": 50,
+      "queued_before": 50,
+      "status": 200,
+      "elapsed_ms": 4260.382,
+      "ms_per_queued_request": 85.2,
+      "within_3s": false
+    }
+  ],
+  "nfr04_allocation": {
+    "name": "POST /allocation/tasks/plan",
+    "samples": 5,
+    "success_count": 5,
+    "status_codes": {
+      "200": 5
+    },
+    "p50_ms": 253.547,
+    "p95_ms": 358.066,
+    "max_ms": 358.066,
+    "raw_ms": [
+      326.629,
+      252.454,
+      253.547,
+      358.066,
+      248.352
+    ],
+    "reservation_demand_provider": "registered",
+    "target_ms": 5000.0,
+    "verdict": "PASS"
+  }
+}

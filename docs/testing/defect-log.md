@@ -25,12 +25,13 @@
 | Module | Found | Critical | High | Medium | Low | Closed | Open / Accepted |
 |---|---|---|---|---|---|---|---|
 | M1 core | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| M2 reservation | 1 | 0 | 1 | 0 | 0 | 1 | 0 |
-| M3 charging | 7 | 0 | 3 | 2 | 2 | 6 | 1 |
+| M2 reservation | 3 | 0 | 2 | 1 | 0 | 3 | 0 |
+| M3 charging | 8 | 0 | 3 | 3 | 2 | 7 | 1 |
 | M4 allocation | 5 | 0 | 0 | 3 | 2 | 5 | 0 |
 | M5 monitoring | 2 | 0 | 0 | 1 | 1 | 2 | 0 |
 | M6 simulation | 8 | 0 | 2 | 0 | 6 | 8 | 0 |
-| **Total** | **23** | **0** | **6** | **6** | **11** | **22** | **1** |
+| M7 user interface | 3 | 0 | 0 | 1 | 2 | 3 | 0 |
+| **Total** | **29** | **0** | **7** | **9** | **13** | **28** | **1** |
 
 The initial seven entries were found by reviewing PRs before or at merge (inspection) and fixed by M1 in PR #39, which merged into `develop` on 2026-11-15 (`686b4b0`). Retest for all of them: `python -m pytest -q` on `686b4b0`, 1393 passed, 1 skipped; ruff, format and mypy clean.
 
@@ -50,6 +51,8 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
 |---|---|---|---|---|---|---|---|
 | DEF-M2-001 | Reopening SQLite could reuse persisted Core IDs and cause a valid pickup to fail | High | TC-M2-021 | D-022, FR-04, UC-M2-04, NFR-09 | Closed | The default Core generator resumes each prefix above the maximum persisted numeric suffix; injected generators retain their own behavior | PR #24, `e25578d`; D-022 released in PR #40 |
+| DEF-M2-002 | A booking nobody picked up never expired: `expire_due` had no caller, so the booking stayed Confirmed, kept its vehicle Reserved and blocked the student with LIMIT_REACHED | High | Demo on the seeded network, M1 (2026-11-25) | BR-M2-04, D-017, FR-03, UC-M2-03 | Closed | Every M2 route checks the student, then runs `RentalLifecycle.sweep()`, which expires due bookings first | PR #59, `0356fad`; TC-M2-028 |
+| DEF-M2-003 | No Trip was ever marked OVERDUE, so S5's late warning and BR-M2-15 never applied | Medium | Demo on the seeded network, M1 (2026-11-25) | BR-M2-15, FR-04, UC-M2-05 | Closed | The same sweep marks open Trips past due + 60 min as OVERDUE | PR #59, `0356fad`; TC-M2-029 |
 
 **DEF-M2-001** (High)
 - Steps: create and reserve V1 on a file-backed SQLite store; close it;
@@ -60,6 +63,10 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 - Resolution: seed the default generator from stored Core IDs. Retest with
   TC-M2-021 and `tests/core/test_id_recovery.py`: 6 passed on `bb5c622`
   on 2026-11-23. See [execution evidence](evidence/m2-validation-2026-11-23.json).
+**DEF-M2-002** (High)
+- Steps: on the seeded network reserve a vehicle as STU-0001 and do not pick it up for 10 minutes; then try to reserve another vehicle.
+- Expected: at the deadline the booking is EXPIRED and its vehicle is free again (BR-M2-04, D-017). Actual: it stayed CONFIRMED with the vehicle RESERVED, and the second booking was refused with LIMIT_REACHED until the student cancelled by hand. `RentalLifecycle.expire_due()` existed but nothing called it.
+- Resolution: the application has no scheduler, so every M2 route runs the sweep after the student check (`src/reservation/router.py`). Retest: TC-M2-028 (`test_a_due_booking_expires_on_the_next_request`) passes.
 <!-- END M2: Reservation & Trip -->
 
 <!-- BEGIN M3: Charging & Smart Scheduling -->
@@ -76,6 +83,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 | DEF-M3-005 | Claims column of the charging state-machine document did not match the code for `SCHEDULED` transitions | Low | Review of PR #28 (M3-12) | UC-M3-02, UC-M3-03 | Closed | Claims column and section 3 wording corrected | PR #28, `2925a23` |
 | DEF-M3-006 | `from_core_error` named `ErrorCode.INVALID_STATE`, which core does not have, so every refused core command raised `AttributeError` and the charging route answered 500 instead of 400/409 | High | Integration, M7 (TC-M7-024) | FR-07.M3.1, UC-M3-04 | Closed | See below | PR #51 |
 | DEF-M3-007 | `POST /charging/schedule/optimize` for one Hub takes more than 3 s when the queue holds 50 requests (NFR-04); within the limit at 15 queued per Hub (DS-STD load) | Medium | Integration, M8 (TC-M8-026, depth sweep) | NFR-04, FR-11.M3.2, UC-M3-07, TC-M8-026 | Accepted | See below | — |
+| DEF-M3-008 | A "charge now" request of a vehicle not standing in a bay stayed QUEUED while points were free; only the operator's Optimize or a point event bound it | Medium | Demo of S8, M1 (2026-11-25) | BR-M3-03, UC-M3-01, UC-M3-07 | Closed | The request routes bind the Hub's queue right after a request is queued, and after a cancel, finish or stop | PR #62, `d2f13ac`; TC-M3-039 |
 
 **DEF-M3-002** (High)
 - Steps: three `QUEUED` requests in a Hub with two bays, then `optimize_queue("H1")` or `POST /charging/schedule/optimize?hub_id=H1`.
@@ -96,6 +104,7 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 - Steps: load DS-STD, queue 50 requests on one Hub (H01), then `POST /charging/schedule/optimize?hub_id=H01` (`tests/performance/measure_nfr01_04_05.py`, depth sweep).
 - Expected: ≤ 3 s (NFR-04). Actual: 2.64, 2.67, 3.56 and 3.83 s in four recorded runs (2 of 4 over the limit; two earlier console runs 3.04 s and 3.10 s). At depth 5, 10, 15 and 30 the call takes 0.02 s, 0.04–0.07 s, 0.12–0.17 s and 0.67–0.94 s. Time per queued request grows from about 4 ms to 53–77 ms, so the growth is faster than linear. Measured on a local merge; to be repeated on `develop` (`nfr-measurements.md` section 2).
 - Resolution: not fixed. Lead decision (2026-11-24): accepted as a known limitation because NFR-04 passes at the DS-STD load (15 queued per Hub, worst 1.50 s). M3 adds the limitation to report section 4.4 with its own part.
+- Rerun on `develop` (2026-11-26, `267919e`, M2's real provider registered): 4.19, 4.26 and 4.22 s at depth 50 (all over the limit); worst Hub at 15 queued 1.75 s (within). Still Accepted; `nfr-measurements.md` section 2.
 <!-- END M3: Charging & Smart Scheduling -->
 
 <!-- BEGIN M4: Resource Allocation & Dispatching -->
@@ -148,3 +157,13 @@ The initial seven entries were found by reviewing PRs before or at merge (inspec
 - Actual: passing raw `dict` configs into `SimulationEngine` caused `AttributeError: 'dict' object has no attribute 'random_seed'`.
 - Resolution: refactored NFR test cases to instantiate and pass valid `SimulationConfig` objects into `self.service.run_simulation`. Retest: all 5 tests passed in 0.68s.
 <!-- END M6: What-if Simulation -->
+
+<!-- BEGIN M7: User Interface -->
+### M7 User Interface
+
+| ID | Title | Severity | Found by | Related IDs | Status | Resolution | Fix |
+|---|---|---|---|---|---|---|---|
+| DEF-M7-001 | S3 listed fleet vehicles that M2 then refused (battery under 20 %), so a student could pick a vehicle that could not be rented | Medium | Demo on the seeded network, M1 (2026-11-25) | FR-02, BR-M2-02, UC-M2-01 | Closed | S3 shows M2's search (`GET /reservations/vehicles`), which applies the same eligibility rule as reserve | PR #59, PR #62; TC-M7-004, TC-M7-034 |
+| DEF-M7-002 | S6 and S8 showed bookings without their day, and the Start field could be typed in while "Now" was chosen | Low | Demo of S6 and S8, M1 (2026-11-26) | FR-05, FR-06, D-005 | Closed | Each booking shows its day, time and point; the Start field is disabled for "Now" | PR #62, `696fb0a`; TC-M7-037 |
+| DEF-M7-003 | Phone browsers kept an old stylesheet after an update, so the phone layout did not apply | Low | Phone check, M1 (2026-11-26) | D-027, NFR-21 | Closed | The page links `app.css?v=<file time>` | PR #63; TC-M7-045 |
+<!-- END M7: User Interface -->

@@ -2,7 +2,7 @@
 
 ## 3.1 Software Architecture
 
-> **Status:** v1.0 · **Owner:** M1 · **Date:** 2026-11-04
+> **Status:** Final v1.1 · **Owner:** M1 · **Date:** 2026-11-26 (v1.0 2026-11-04; 3.1.8 lists what changed during implementation)
 > The full tables and runtime flows are in `docs/design/architecture/architecture-diagram.md`. Decision IDs (`D-xxx`), assumptions (`A-xx`) and requirement IDs refer to `docs/DECISIONS.md` and `docs/requirements/`.
 
 ### 3.1.1 Overview
@@ -11,8 +11,9 @@ The system is a **modular monolith**: one process in which each capability is a 
 
 ```mermaid
 flowchart TB
-    UIS["Student UI"]
-    UIO["Operator UI"]
+    UIS["Student browser<br/>(laptop or phone)"]
+    UIO["Operator browser<br/>(desktop)"]
+    UI["ui (M7)<br/>page routes, Jinja2 + HTMX"]
     API["API layer (FastAPI)<br/>routers owned by each module,<br/>authentication, input validation"]
 
     subgraph APP["Application modules (one package each)"]
@@ -32,8 +33,10 @@ flowchart TB
     end
     DB[("SQLite database")]
 
-    UIS -->|"HTTP + JSON, polling"| API
-    UIO -->|"HTTP + JSON, polling"| API
+    UIS -->|"HTTP pages, HTMX polling"| UI
+    UIO -->|"HTTP pages, HTMX polling"| UI
+    UI -->|"REST in-process,<br/>user's token (D-026)"| API
+    UI -->|"reads"| FAC
     API --> APP
     API -->|"read endpoints"| FAC
     API -->|"scenario runs"| SIM
@@ -54,7 +57,7 @@ flowchart TB
 
 | Component | Responsibility |
 |---|---|
-| `ui` (M7) | Student and operator screens. Shows what the API returns and sends user actions; holds no business rule. |
+| `ui` (M7) | Student and operator screens (server-rendered pages). Reads shared state from `core` and calls the other modules through their REST routes; holds no business rule. Student screens also work on a phone (D-027). |
 | API layer | HTTP endpoints, authentication and roles (NFR-16), input validation (NFR-18). |
 | `core` (M1) | State of Hubs, vehicles, parking spaces and charging points; interval claims on them; the Vehicle state machine; capacity, uniqueness and valid-transition rules (`BR-M1-01` to `BR-M1-03`); atomic multi-entity operations; the state-change log; events; the snapshot for the What-if Simulation. |
 | `reservation` (M2) | Rental and parking reservations, trips, hold and expiry, student limits. |
@@ -70,7 +73,7 @@ flowchart TB
 - **Domain events.** After a change is committed, `core` publishes an event (for example `SpaceOccupancyChanged`). Charging, allocation, monitoring and reservation subscribe and react, so they do not need to import one another.
 - **Provider ports.** A few calls go the other way (demand data, alternative Hubs, consuming a reservation hold). `core` defines the interface, the module registers its implementation at start-up, so the import still points into `core`.
 - **Sensor events.** `iot_sim` calls the state-update interface of `core` (`apply_sensor_event`); a malformed event is rejected and logged (NFR-10).
-- **Interface to the UI.** HTTP and JSON with polling. The OpenAPI schema generated from the Pydantic models is the interface document for the UI.
+- **Interface to the UI.** The browser receives HTML pages and refreshes parts of them by polling (HTMX). The `ui` module reads shared state from `core` in-process and reaches M2 to M6 only through their REST routes, with the signed-in user's own token, inside the same process (`httpx` over `ASGITransport`, D-026). So the pages use exactly the routes another client would use, and the role checks of each route also protect the pages. The OpenAPI schema generated from the Pydantic models is the interface document.
 
 ### 3.1.4 Where the business logic is
 
@@ -87,7 +90,7 @@ Rules that every module relies on sit in one place, so there is one implementati
 
 ### 3.1.5 Data storage and access
 
-All persistent data is in one SQLite database accessed through SQLAlchemy (D-002). Each module owns its tables: `core` owns Hub, ParkingSpace, ChargingPoint, Vehicle, UserAccount, ResourceClaim and StateChangeRecord; M2 owns Reservation and Trip; M3 ChargingSession; M4 RedistributionTask; M5 Incident; M6 SimulationRun and CoordinationRecommendation. A module writes only its own tables directly and reaches other data through the owner's interface.
+All persistent data is in one SQLite database accessed through SQLAlchemy (D-002). Each module owns its tables: `core` owns Hub, ParkingSpace, ChargingPoint, Vehicle, UserAccount, ResourceClaim and StateChangeRecord; M2 owns `rental_reservations`, `rental_trips` and `parking_bookings`; M3 `charging_requests`; M4 `m4_dispatch_tasks`; M5 `monitoring_incidents` and its audit log. M6 stores nothing: a run works on an in-memory copy and its report is returned to the caller. Module tables are registered with `core` at start-up (`register_entity`, D-018), so one database and one transaction hold them all. A module writes only its own tables directly and reaches other data through the owner's interface.
 
 Concurrent requests are handled with optimistic locking: each core entity has a `version`, and a command with an old version fails with `VERSION_CONFLICT`. An operation that changes several entities, such as a pick-up, runs in one unit of work, which is one database transaction shared with the module tables written in the same operation. It either applies completely or not at all (NFR-06, NFR-09).
 
@@ -107,3 +110,17 @@ The simulation never touches the operational store. It asks `core` for a snapsho
 | SQLite, PostgreSQL as an upgrade path | Reproducible from a clean clone. | Zero-install database. | Single writer; measured against NFR-02 and NFR-03. | PostgreSQL from the start. |
 
 The architecture is stated as a limitation, not hidden: the "distributed operational environment" of the assignment is represented by logically separated modules and Hubs inside one deployment (A-08).
+
+### 3.1.8 Changes made during implementation
+
+The architecture above held through implementation; no module needed a second state owner or a direct import of another module. These points were added or decided while the code was written:
+
+| Change | Decision | Effect on the architecture |
+|---|---|---|
+| The UI calls module routes in-process with the user's token | D-026 | The UI is a client of the same REST routes as any other client. Role checks are not repeated in the pages. |
+| Student screens also work on a phone; operator screens stay desktop | D-027 | One stylesheet with a narrow-screen block, no second front end. A phone app would be one more REST client. |
+| Seeded demo accounts take their password from `DEMO_PASSWORD` | D-028 | The demo needs no account set-up; no password is stored in the repository. |
+| No background scheduler. M2 expires due bookings and marks late Trips at the start of every reservation request (`RentalLifecycle.sweep`, `ParkingService.sweep`) | DEF-M2-002, DEF-M2-003 | Deadlines are applied the next time anyone uses the module, without a second thread competing for the database writer. |
+| M3 binds a Hub's charging queue to free slots after every request and every freed slot (BR-M3-03) | DEF-M3-008 | A request waits only while no slot is free; the operator's Optimize does the same on demand. |
+| M2 registers the `ReservationDemand` provider port; `HoldConsumer` is not registered | D-020, DEV-16 | M4 and M5 read rental demand through `core`; no module consumes an M2 hold. |
+| M6 recommendations can be sent to M4 as `TASK-SIM-` dispatch tasks | TC-M7-041 | Applying a recommendation stays a separate operator action through the owning module (3.1.6). |

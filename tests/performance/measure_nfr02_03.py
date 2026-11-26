@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from dataclasses import replace
@@ -30,6 +31,25 @@ from core.domain.enums import Role  # noqa: E402
 from core.repository.sql import SqlRepository  # noqa: E402
 from core.result import Err  # noqa: E402
 from iot_sim import build_network_spec  # noqa: E402
+
+
+def git_commit() -> str:
+    """The commit measured, read from git; "(modified)" when the working tree has changes."""
+    root = Path(__file__).resolve().parents[2]
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown (git not available)"
+    return f"{sha} (modified)" if dirty else sha
 
 
 def percentile(values: list[float], p: float) -> float:
@@ -93,7 +113,7 @@ def main_run(output: Path, count: int = 100) -> dict[str, object]:
 
     result: dict[str, object] = {
         "run_at_utc": datetime.now(UTC).isoformat(),
-        "commit": "bb5c622 (supplied repository snapshot)",
+        "commit": git_commit(),
         "python": sys.version,
         "environment": "FastAPI TestClient + in-memory SQLite; sequential; no concurrency",
         "dataset": {
